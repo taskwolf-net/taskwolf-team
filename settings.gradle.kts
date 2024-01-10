@@ -1,2 +1,2 @@
-rootProject.name = "taskwolf-team"
+rootProject.name = "team"
 
