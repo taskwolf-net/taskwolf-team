@@ -6,6 +6,8 @@ import net.taskwolf.core.database.DatabaseKeyspace;
 import net.taskwolf.core.mail.TaskwolfMail;
 import net.taskwolf.core.mail.TaskwolfMailConfiguration;
 import net.taskwolf.team.group.GroupDatabaseTable;
+import net.taskwolf.team.mail.SupportMailDatabaseTable;
+import net.taskwolf.team.mail.SupportMailMessageDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -21,6 +23,8 @@ public class TeamSpringConfiguration {
   private TeamDatabaseTable teamDatabaseTable;
   private GroupDatabaseTable groupDatabaseTable;
   private TaskwolfMail supportMail;
+  private SupportMailDatabaseTable supportMailDatabaseTable;
+  private SupportMailMessageDatabaseTable supportMailMessageDatabaseTable;
 
   @Bean
   TeamDatabaseTable provideTeamDatabaseTable() {
@@ -38,6 +42,16 @@ public class TeamSpringConfiguration {
     return supportMail;
   }
 
+  @Bean
+  SupportMailDatabaseTable provideSupportMailDatabaseTable() {
+    return supportMailDatabaseTable;
+  }
+
+  @Bean
+  SupportMailMessageDatabaseTable provideSupportMailMessageDatabaseTable() {
+    return supportMailMessageDatabaseTable;
+  }
+
   @PostConstruct
   private void initializeTeamDatabaseTable() {
     teamDatabaseTable = TeamDatabaseTable.create(databaseConnection,
@@ -50,6 +64,20 @@ public class TeamSpringConfiguration {
     groupDatabaseTable = GroupDatabaseTable.create(databaseConnection,
       databaseKeyspace);
     groupDatabaseTable.createIfNotExists();
+  }
+
+  @PostConstruct
+  private void initializeSupportMailDatabaseTable() {
+    supportMailDatabaseTable = SupportMailDatabaseTable.create(databaseConnection,
+      databaseKeyspace);
+    supportMailDatabaseTable.createIfNotExists();
+  }
+
+  @PostConstruct
+  private void initializeSupportMailMessageDatabaseTable() {
+    supportMailMessageDatabaseTable = SupportMailMessageDatabaseTable.create(
+      databaseConnection, databaseKeyspace);
+    supportMailMessageDatabaseTable.createIfNotExists();
   }
 
   @PostConstruct
