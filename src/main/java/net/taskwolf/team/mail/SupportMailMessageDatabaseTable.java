@@ -18,7 +18,7 @@ public final class SupportMailMessageDatabaseTable extends DatabaseTable {
       DatabaseColumn.Type.PRIMARY_KEY));
     columns.add(DatabaseColumn.create("title", DatabaseDataType.TEXT));
     columns.add(DatabaseColumn.create("body", DatabaseDataType.TEXT));
-    columns.add(DatabaseColumn.create("long", DatabaseDataType.BIGINT));
+    columns.add(DatabaseColumn.create("time", DatabaseDataType.BIGINT));
     return new SupportMailMessageDatabaseTable(connection, keyspace, TABLE_NAME, columns);
   }
 
