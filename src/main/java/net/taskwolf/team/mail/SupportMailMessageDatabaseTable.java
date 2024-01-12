@@ -16,6 +16,7 @@ public final class SupportMailMessageDatabaseTable extends DatabaseTable {
     var columns = Lists.<DatabaseColumn>newArrayList();
     columns.add(DatabaseColumn.create("id", DatabaseDataType.UUID,
       DatabaseColumn.Type.PRIMARY_KEY));
+    columns.add(DatabaseColumn.create("sender", DatabaseDataType.TEXT));
     columns.add(DatabaseColumn.create("title", DatabaseDataType.TEXT));
     columns.add(DatabaseColumn.create("body", DatabaseDataType.TEXT));
     columns.add(DatabaseColumn.create("time", DatabaseDataType.BIGINT));
@@ -30,14 +31,14 @@ public final class SupportMailMessageDatabaseTable extends DatabaseTable {
   }
 
   public CompletableFuture<Void> insertMailMessage(SupportMailMessage mailMessage) {
-    return insertMailMessage(mailMessage.id(), mailMessage.title(),
-      mailMessage.body(), mailMessage.time());
+    return insertMailMessage(mailMessage.id(), mailMessage.sender(),
+      mailMessage.title(), mailMessage.body(), mailMessage.time());
   }
 
   public CompletableFuture<Void> insertMailMessage(
-    UUID id, String title, String body, long time
+    UUID id, String sender, String title, String body, long time
   ) {
-    return insert(DatabaseRow.of(id, title, body, time));
+    return insert(DatabaseRow.of(id, sender, title, body, time));
   }
 
   public CompletableFuture<UUID> generateAvailableMessageId() {

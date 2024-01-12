@@ -42,7 +42,23 @@ public final class TeamEmailModificationController extends TeamController {
       return;
     }
     var mailId = UUID.fromString((String) input.get("mail"));
-    supportMailDatabaseTable.deleteMail(mailId);
+    supportMailDatabaseTable.mailExists(mailId).thenAccept(exists ->
+      deleteMail(mailId, exists));
+  }
+
+  private void deleteMail(UUID mailId, boolean exists) {
+    if (!exists) {
+      return;
+    }
+    supportMailDatabaseTable.findMail(mailId).thenAccept(this::deleteMail);
+  }
+
+  private void deleteMail(SupportMail mail) {
+    supportMailDatabaseTable.deleteMail(mail.requestMessage());
+    supportMailMessageDatabaseTable.deleteMailMessage(mail.requestMessage());
+    for (var message : mail.conversationMessages()) {
+      supportMailMessageDatabaseTable.deleteMailMessage(message);
+    }
   }
 
   @RequestMapping(path = "/team/mail/answer/", method = RequestMethod.POST)
@@ -69,9 +85,11 @@ public final class TeamEmailModificationController extends TeamController {
 
   private void answerMail(SupportMail mail, String message, UUID messageId) {
     var title = "Re: " + mail.title();
-    supportMailMessageDatabaseTable.insertMailMessage(messageId, title,
-      message, System.currentTimeMillis());
-    supportMailDatabaseTable.addMailMessage(mail.requestMessage(), messageId);
+    supportMailMessageDatabaseTable.insertMailMessage(messageId, "Taskwolf",
+      title, message, System.currentTimeMillis());
+    mail.addConversationMessage(messageId);
+    mail.resetExpirationTime();
+    supportMailDatabaseTable.updateMail(mail);
     supportMail.send(mail.sender(), title, message);
   }
 }

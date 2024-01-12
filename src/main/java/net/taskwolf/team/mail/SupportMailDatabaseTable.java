@@ -19,7 +19,8 @@ public final class SupportMailDatabaseTable extends DatabaseTable {
       DatabaseColumn.Type.PRIMARY_KEY));
     columns.add(DatabaseColumn.create("sender", DatabaseDataType.TEXT));
     columns.add(DatabaseColumn.create("title", DatabaseDataType.TEXT));
-    columns.add(DatabaseListColumn.create("conversationMessages", DatabaseDataType.TEXT));
+    columns.add(DatabaseColumn.create("expirationTime", DatabaseDataType.BIGINT));
+    columns.add(DatabaseListColumn.create("conversationMessages", DatabaseDataType.UUID));
     return new SupportMailDatabaseTable(connection, keyspace, TABLE_NAME, columns);
   }
 
@@ -32,13 +33,15 @@ public final class SupportMailDatabaseTable extends DatabaseTable {
 
   public CompletableFuture<Void> insertMail(SupportMail mail) {
     return insertMail(mail.requestMessage(), mail.sender(), mail.title(),
-      mail.conversationMessages());
+      mail.expirationTime(), mail.conversationMessages());
   }
 
   public CompletableFuture<Void> insertMail(
-    UUID id,  String sender, String title, List<UUID> conversationMessages
+    UUID id,  String sender, String title, long expirationTime,
+    List<UUID> conversationMessages
   ) {
-    return insert(DatabaseRow.of(id, sender, title, conversationMessages));
+    return insert(DatabaseRow.of(id, sender, title, expirationTime,
+      conversationMessages));
   }
 
   public CompletableFuture<UUID> generateAvailableMailId() {
@@ -74,10 +77,35 @@ public final class SupportMailDatabaseTable extends DatabaseTable {
     return updateMail(mail);
   }
 
-  private CompletableFuture<Void> updateMail(SupportMail supportMail) {
+  public CompletableFuture<Void> resetMailExpirationTime(UUID id) {
+    var futureResponse = new CompletableFuture<Void>();
+    findMail(id).thenAccept(mail -> resetMailExpirationTime(mail)
+      .thenAccept(futureResponse::complete));
+    return futureResponse;
+  }
+
+  private CompletableFuture<Void> resetMailExpirationTime(SupportMail mail) {
+    mail.resetExpirationTime();
+    return updateMail(mail);
+  }
+
+  public CompletableFuture<Void> disableMailExpirationTime(UUID id) {
+    var futureResponse = new CompletableFuture<Void>();
+    findMail(id).thenAccept(mail -> disableMailExpirationTime(mail)
+      .thenAccept(futureResponse::complete));
+    return futureResponse;
+  }
+
+  private CompletableFuture<Void> disableMailExpirationTime(SupportMail mail) {
+    mail.disableExpirationTime();
+    return updateMail(mail);
+  }
+
+  public CompletableFuture<Void> updateMail(SupportMail supportMail) {
     return update(DatabaseCell.create(supportMail.requestMessage()),
       DatabaseRow.of(supportMail.requestMessage(), supportMail.sender(),
-        supportMail.title(), supportMail.conversationMessages()));
+        supportMail.title(), supportMail.expirationTime(),
+        supportMail.conversationMessages()));
   }
 
   public CompletableFuture<Void> deleteMail(UUID id) {
