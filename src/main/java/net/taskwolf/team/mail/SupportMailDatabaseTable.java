@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import net.taskwolf.core.database.*;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -14,8 +15,10 @@ public final class SupportMailDatabaseTable extends DatabaseTable {
     DatabaseConnection connection, DatabaseKeyspace keyspace
   ) {
     var columns = Lists.<DatabaseColumn>newArrayList();
-    columns.add(DatabaseColumn.create("requestMessage", DatabaseDataType.TEXT,
+    columns.add(DatabaseColumn.create("requestMessage", DatabaseDataType.UUID,
       DatabaseColumn.Type.PRIMARY_KEY));
+    columns.add(DatabaseColumn.create("sender", DatabaseDataType.TEXT));
+    columns.add(DatabaseColumn.create("title", DatabaseDataType.TEXT));
     columns.add(DatabaseListColumn.create("conversationMessages", DatabaseDataType.TEXT));
     return new SupportMailDatabaseTable(connection, keyspace, TABLE_NAME, columns);
   }
@@ -27,52 +30,71 @@ public final class SupportMailDatabaseTable extends DatabaseTable {
     super(connection, keyspace, name, columns);
   }
 
-  public void insertMail(SupportMail mail) {
-    insertMail(mail.requestMessageId(), mail.conversationMessageIds());
+  public CompletableFuture<Void> insertMail(SupportMail mail) {
+    return insertMail(mail.requestMessage(), mail.sender(), mail.title(),
+      mail.conversationMessages());
   }
 
-  public void  insertMail(
-    String requestMessageId, List<String> conversationMessageIds
+  public CompletableFuture<Void> insertMail(
+    UUID id,  String sender, String title, List<UUID> conversationMessages
   ) {
-    insert(DatabaseRow.of(requestMessageId, conversationMessageIds));
+    return insert(DatabaseRow.of(id, sender, title, conversationMessages));
   }
 
-  public void addMailMessage(String requestMessageId, String conversationMessageId) {
-    findMail(requestMessageId).thenAccept(group ->
-      addMailMessage(group, conversationMessageId));
+  public CompletableFuture<UUID> generateAvailableMailId() {
+    var futureResponse = new CompletableFuture<UUID>();
+    var id = UUID.randomUUID();
+    mailExists(id).thenApply(exists -> exists ?
+      generateAvailableMailId().thenApply(futureResponse::complete) :
+      CompletableFuture.completedFuture(futureResponse.complete(id)));
+    return futureResponse;
   }
 
-  private void addMailMessage(SupportMail mail, String conversationMessageId) {
-    mail.addConversationMessage(conversationMessageId);
-    updateMail(mail);
+  public CompletableFuture<Void> addMailMessage(UUID id, UUID conversationMessage) {
+    var futureResponse = new CompletableFuture<Void>();
+    findMail(id).thenAccept(mail -> addMailMessage(mail, conversationMessage)
+      .thenAccept(futureResponse::complete));
+    return futureResponse;
   }
 
-  public void removeMailMessage(String requestMessageId, String conversationMessageId) {
-    findMail(requestMessageId).thenAccept(group ->
-      removeMailMessage(group, conversationMessageId));
+  private CompletableFuture<Void> addMailMessage(SupportMail mail, UUID conversationMessage) {
+    mail.addConversationMessage(conversationMessage);
+    return updateMail(mail);
   }
 
-  private void removeMailMessage(SupportMail mail, String conversationMessageId) {
-    mail.removeConversationMessage(conversationMessageId);
-    updateMail(mail);
+  public CompletableFuture<Void> removeMailMessage(UUID id, UUID conversationMessage) {
+    var futureResponse = new CompletableFuture<Void>();
+    findMail(id).thenAccept(mail -> removeMailMessage(mail, conversationMessage)
+      .thenAccept(futureResponse::complete));
+    return futureResponse;
   }
 
-  private void updateMail(SupportMail supportMail) {
-    update(DatabaseCell.create(supportMail.requestMessageId()),
-      DatabaseRow.of(supportMail.requestMessageId(),
-        supportMail.conversationMessageIds()));
+  private CompletableFuture<Void> removeMailMessage(SupportMail mail, UUID conversationMessage) {
+    mail.removeConversationMessage(conversationMessage);
+    return updateMail(mail);
   }
 
-  public void deleteMail(String requestMessageId) {
-    delete(DatabaseCell.create(requestMessageId));
+  private CompletableFuture<Void> updateMail(SupportMail supportMail) {
+    return update(DatabaseCell.create(supportMail.requestMessage()),
+      DatabaseRow.of(supportMail.requestMessage(), supportMail.sender(),
+        supportMail.title(), supportMail.conversationMessages()));
   }
 
-  public CompletableFuture<Boolean> mailExists(String requestMessageId) {
-    return exists(DatabaseCell.create(requestMessageId));
+  public CompletableFuture<Void> deleteMail(UUID id) {
+    return delete(DatabaseCell.create(id));
   }
 
-  public CompletableFuture<SupportMail> findMail(String requestMessageId) {
-    return selectRow(DatabaseCell.create(requestMessageId)).thenApply(SupportMail::of);
+  public CompletableFuture<Boolean> mailExists(UUID id) {
+    return exists(DatabaseCell.create(id));
+  }
+
+  public CompletableFuture<SupportMail> findMail(UUID id) {
+    return selectRow(DatabaseCell.create(id)).thenApply(SupportMail::of);
+  }
+
+  public CompletableFuture<List<SupportMail>> findMailsBySender(String sender) {
+    return selectRows("sender='" + sender + "' ALLOW FILTERING")
+      .thenApply(rows -> rows.stream().map(SupportMail::of).toList());
   }
 
   public CompletableFuture<List<SupportMail>> findAllMails() {

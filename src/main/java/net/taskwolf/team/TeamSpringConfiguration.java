@@ -84,7 +84,8 @@ public class TeamSpringConfiguration {
   private void initializeSupportMail() throws Exception {
     var mailConfiguration = TaskwolfMailConfiguration.createAndLoad("support");
     supportMail = TaskwolfMail.create(mailConfiguration.mail(),
-      mailConfiguration.smtpMailHost(), mailConfiguration.pop3MailHost(),
+      mailConfiguration.smtpMailHost(), mailConfiguration.smtpMailPort(),
+      mailConfiguration.imapMailHost(), mailConfiguration.imapMailPort(),
       mailConfiguration.mailUser(), mailConfiguration.mailPassword());
   }
 }
