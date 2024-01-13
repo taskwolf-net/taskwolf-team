@@ -36,32 +36,6 @@ public final class TeamTicketModificationController extends TeamController {
     this.taskwolfUser = taskwolfUser;
   }
 
-  @RequestMapping(path = "/team/ticket/delete/", method = RequestMethod.POST)
-  public void deleteTicket(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
-  ) {
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
-    var ticketId = UUID.fromString((String) input.get("ticket"));
-    ticketDatabaseTable.ticketExists(ticketId).thenAccept(exists ->
-      deleteTicket(ticketId, exists));
-  }
-
-  private void deleteTicket(UUID ticketId, boolean exists) {
-    if (!exists) {
-      return;
-    }
-    ticketDatabaseTable.findTicket(ticketId).thenAccept(this::deleteTicket);
-  }
-
-  private void deleteTicket(Ticket ticket) {
-    ticketDatabaseTable.deleteTicket(ticket.id());
-    for (var message : ticket.messages()) {
-      ticketMessageDatabaseTable.deleteTicketMessage(message);
-    }
-  }
-
   @RequestMapping(path = "/team/ticket/answer/", method = RequestMethod.POST)
   public void answerTicket(
     HttpServletRequest request, @RequestBody Map<String, Object> input
@@ -89,5 +63,60 @@ public final class TeamTicketModificationController extends TeamController {
     ticketMessageDatabaseTable.insertTicketMessage(TicketMessage.create(
       messageId, ticket.id(), taskwolfUser.id(), message,
       System.currentTimeMillis()));
+  }
+
+  @RequestMapping(path = "/team/ticket/message/delete/", method = RequestMethod.POST)
+  public void deleteTicketMessage(
+    HttpServletRequest request, @RequestBody Map<String, Object> input
+  ) {
+    if (!isAuthenticatedTeamMember(request)) {
+      return;
+    }
+    var ticketId = UUID.fromString((String) input.get("ticket"));
+    var messageId = UUID.fromString((String) input.get("message"));
+    ticketDatabaseTable.ticketExists(ticketId).thenAccept(exists ->
+      deleteTicketMessage(ticketId, messageId, exists));
+  }
+
+  private void deleteTicketMessage(UUID ticketId, UUID messageId, boolean exists) {
+    if (!exists) {
+      return;
+    }
+    ticketDatabaseTable.findTicket(ticketId).thenAccept(ticket ->
+      deleteTicketMessage(ticket, messageId));
+  }
+
+  private void deleteTicketMessage(Ticket ticket, UUID messageId) {
+    if (!ticket.messages().contains(messageId) || ticket.messages().indexOf(messageId) == 0) {
+      return;
+    }
+    ticketMessageDatabaseTable.deleteTicketMessage(messageId);
+    ticketDatabaseTable.removeTicketMessage(ticket.id(), messageId);
+  }
+
+  @RequestMapping(path = "/team/ticket/delete/", method = RequestMethod.POST)
+  public void deleteTicket(
+    HttpServletRequest request, @RequestBody Map<String, Object> input
+  ) {
+    if (!isAuthenticatedTeamMember(request)) {
+      return;
+    }
+    var ticketId = UUID.fromString((String) input.get("ticket"));
+    ticketDatabaseTable.ticketExists(ticketId).thenAccept(exists ->
+      deleteTicket(ticketId, exists));
+  }
+
+  private void deleteTicket(UUID ticketId, boolean exists) {
+    if (!exists) {
+      return;
+    }
+    ticketDatabaseTable.findTicket(ticketId).thenAccept(this::deleteTicket);
+  }
+
+  private void deleteTicket(Ticket ticket) {
+    ticketDatabaseTable.deleteTicket(ticket.id());
+    for (var message : ticket.messages()) {
+      ticketMessageDatabaseTable.deleteTicketMessage(message);
+    }
   }
 }
