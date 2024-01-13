@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.mail.internet.InternetAddress;
 import java.security.Key;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -89,8 +90,11 @@ public final class TeamEmailInformationController extends TeamController {
     information.put("id", mail.requestMessage());
     information.put("title", mail.title());
     information.put("sender", mail.sender());
-    var messagesInformation = Lists.<Map<String, Object>>newArrayList();
     messages.sort(Comparator.comparing(SupportMailMessage::time));
+    if (mail.conversationMessages().isEmpty()) {
+      information.put("date", formatTime(messages.get(messages.size() - 1).time()));
+    }
+    var messagesInformation = Lists.<Map<String, Object>>newArrayList();
     for (var message : messages) {
       var messageInformation = Maps.<String, Object>newHashMap();
       messageInformation.put("id", message.id());
@@ -223,5 +227,11 @@ public final class TeamEmailInformationController extends TeamController {
       supportMailMessageDatabaseTable::findMailMessage,
       mail.conversationMessages().size() + 1, futureResponse::complete);
     return futureResponse;
+  }
+
+  private String formatTime(long time) {
+    var calendar = Calendar.getInstance();
+    calendar.setTimeInMillis(time);
+    return new SimpleDateFormat("dd.MM.yyyy HH:mm").format(calendar.getTime());
   }
 }
