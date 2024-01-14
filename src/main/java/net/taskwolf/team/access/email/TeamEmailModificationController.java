@@ -90,6 +90,6 @@ public final class TeamEmailModificationController extends TeamController {
     mail.addConversationMessage(messageId);
     mail.resetExpirationTime();
     supportMailDatabaseTable.updateMail(mail);
-    supportMail.send(mail.sender(), title, message);
+    supportMail.send(mail.sender(), title, message, "text/html; charset=utf-8");
   }
 }
