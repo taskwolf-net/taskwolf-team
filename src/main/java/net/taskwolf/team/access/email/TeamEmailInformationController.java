@@ -91,14 +91,15 @@ public final class TeamEmailInformationController extends TeamController {
     information.put("title", mail.title());
     information.put("sender", mail.sender());
     messages.sort(Comparator.comparing(SupportMailMessage::time));
-    if (mail.conversationMessages().isEmpty()) {
-      information.put("date", formatTime(messages.get(messages.size() - 1).time()));
-    }
+    information.put("date", formatTime(messages.get(messages.size() - 1).time()));
     var messagesInformation = Lists.<Map<String, Object>>newArrayList();
     for (var message : messages) {
       var messageInformation = Maps.<String, Object>newHashMap();
       messageInformation.put("id", message.id());
+      messageInformation.put("sender", message.sender());
       messageInformation.put("body", message.body());
+      messageInformation.put("teamWritten", message.sender().equalsIgnoreCase("Taskwolf"));
+      messageInformation.put("time", formatTime(message.time()));
       messagesInformation.add(messageInformation);
     }
     information.put("messages", messagesInformation);
@@ -201,8 +202,11 @@ public final class TeamEmailInformationController extends TeamController {
     var sortedOut = Lists.<SupportMail>newArrayList();
     var currentTime = System.currentTimeMillis();
     for (var mail : mails) {
-      if (mail.expirationTime() != -1 && currentTime >= mail.expirationTime()) {
-        sortedOut.add(mail);
+      if (mail.expirationTime() == -1) {
+        continue;
+      }
+      sortedOut.add(mail);
+      if (currentTime >= mail.expirationTime()) {
         deleteMail(mail);
       }
     }
