@@ -59,7 +59,9 @@ public final class TeamTicketModificationController extends TeamController {
   }
 
   private void answerTicket(Ticket ticket, String message, UUID messageId) {
-    ticketDatabaseTable.addTicketMessage(ticket.id(), messageId);
+    ticket.addMessage(messageId);
+    ticket.resetExpirationTime();
+    ticketDatabaseTable.updateTicket(ticket);
     ticketMessageDatabaseTable.insertTicketMessage(TicketMessage.create(
       messageId, ticket.id(), taskwolfUser.id(), message,
       System.currentTimeMillis()));

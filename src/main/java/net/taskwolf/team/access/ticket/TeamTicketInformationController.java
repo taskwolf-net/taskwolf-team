@@ -1,5 +1,6 @@
 package net.taskwolf.team.access.ticket;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
 import net.taskwolf.core.iterator.AsyncIterator;
@@ -51,10 +52,34 @@ public final class TeamTicketInformationController extends TeamController {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
-    ticketDatabaseTable.findAllTickets().thenAccept(tickets ->
-      futureResponse.complete(Map.of("tickets", tickets.stream()
-        .map(this::superficialTicketInformation).toList())));
+    ticketDatabaseTable.findAllTickets().thenApply(tickets ->
+      sortOutExpiredTickets(new ArrayList<>(tickets))).thenAccept(
+        tickets -> AsyncIterator.execute(tickets, this::findTicket, tickets.size(),
+          information -> futureResponse.complete(Map.of("tickets", information))));
     return futureResponse;
+  }
+
+  private List<Ticket> sortOutExpiredTickets(List<Ticket> tickets) {
+    var sortedOut = Lists.<Ticket>newArrayList();
+    var currentTime = System.currentTimeMillis();
+    for (var ticket : tickets) {
+      if (ticket.expirationTime() == -1) {
+        continue;
+      }
+      sortedOut.add(ticket);
+      if (currentTime >= ticket.expirationTime()) {
+        deleteTicket(ticket);
+      }
+    }
+    tickets.removeAll(sortedOut);
+    return tickets;
+  }
+
+  private void deleteTicket(Ticket ticket) {
+    ticketDatabaseTable.deleteTicket(ticket.id());
+    for (var message : ticket.messages()) {
+      ticketMessageDatabaseTable.deleteTicketMessage(message);
+    }
   }
 
   @RequestMapping(path = "/team/ticket/find/", method = RequestMethod.POST)
@@ -87,40 +112,38 @@ public final class TeamTicketInformationController extends TeamController {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     AsyncIterator.execute(ticket.messages(),
       ticketMessageDatabaseTable::findTicketMessage, ticket.messages().size(),
-      messages -> profilePictureDatabaseTable.findProfilePicture(ticket.creator())
-        .thenAccept(picture -> detailedTicketInformation(ticket, picture, messages)
-          .thenAccept(futureResponse::complete)));
+      messages -> userDatabaseTable().findUser(ticket.creator()).thenAccept(
+        creator -> profilePictureDatabaseTable.findProfilePicture(ticket.creator())
+          .thenAccept(picture -> ticketInformation(ticket, creator, picture, messages)
+            .thenAccept(futureResponse::complete))));
     return futureResponse;
   }
 
-  private Map<String, Object> superficialTicketInformation(
-    Ticket ticket
-  ) {
-    var information = Maps.<String, Object>newHashMap();
-    information.put("id", ticket.id());
-    information.put("title", ticket.title());
-    information.put("type", ticket.type());
-    information.put("status", ticket.status());
-    return information;
-  }
-
-  private CompletableFuture<Map<String, Object>> detailedTicketInformation(
-    Ticket ticket, String creatorProfilePicture, List<TicketMessage> messages
+  private CompletableFuture<Map<String, Object>> ticketInformation(
+    Ticket ticket, User creator, String creatorProfilePicture,
+    List<TicketMessage> messages
   ) {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     AsyncIterator.execute(messages, this::messageInformation, messages.size(),
-      information -> futureResponse.complete(assemblyDetailedTicketInformation(
-        ticket, creatorProfilePicture, information)));
+      information -> futureResponse.complete(assemblyTicketInformation(
+        ticket, creator, creatorProfilePicture, information)));
     return futureResponse;
   }
 
-  private Map<String, Object> assemblyDetailedTicketInformation(
-    Ticket ticket, String creatorProfilePicture,
+  private Map<String, Object> assemblyTicketInformation(
+    Ticket ticket, User creator, String creatorProfilePicture,
     List<Map<String, Object>> messageInformation
   ) {
     messageInformation.sort(Comparator.comparing(entry ->
       (long) entry.get("rawTime")));
-    var information = superficialTicketInformation(ticket);
+    var information = Maps.<String, Object>newHashMap();
+    information.put("id", ticket.id());
+    information.put("title", ticket.title());
+    information.put("creator", creator.name());
+    information.put("type", ticket.type());
+    information.put("status", ticket.status());
+    information.put("date", messageInformation.get(messageInformation.size() - 1)
+      .get("time"));
     information.put("creatorProfilePicture", creatorProfilePicture);
     information.put("messages", messageInformation);
     return information;
