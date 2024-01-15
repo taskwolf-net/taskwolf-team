@@ -116,7 +116,7 @@ public final class TeamEmailInformationController extends TeamController {
     return Map.of("mails", information);
   }
 
-  private CompletableFuture<Map<SupportMail, List<SupportMailMessage>>> findOpenMails() {
+  public CompletableFuture<Map<SupportMail, List<SupportMailMessage>>> findOpenMails() {
     var futureResponse = new CompletableFuture<Map<SupportMail, List<SupportMailMessage>>>();
     supportMail.inboxAndFlush().thenAccept(inbox -> saveInbox(new ArrayList<>(inbox))
       .thenAccept(value -> findAllSupportMails().thenAccept(futureResponse::complete)));
