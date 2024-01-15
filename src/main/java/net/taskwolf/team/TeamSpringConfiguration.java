@@ -14,6 +14,7 @@ import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.mail.SupportMailDatabaseTable;
 import net.taskwolf.team.mail.SupportMailMessageDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
+import net.taskwolf.team.member.TeamWorkDatabaseTable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -37,6 +38,7 @@ public class TeamSpringConfiguration {
   private TaskwolfMail supportMail;
   private SupportMailDatabaseTable supportMailDatabaseTable;
   private SupportMailMessageDatabaseTable supportMailMessageDatabaseTable;
+  private TeamWorkDatabaseTable teamWorkDatabaseTable;
   private User taskwolfUser;
 
   @Bean
@@ -63,6 +65,11 @@ public class TeamSpringConfiguration {
   @Bean
   SupportMailMessageDatabaseTable provideSupportMailMessageDatabaseTable() {
     return supportMailMessageDatabaseTable;
+  }
+
+  @Bean
+  TeamWorkDatabaseTable provideTeamWorkDatabaseTable() {
+    return teamWorkDatabaseTable;
   }
 
   @Bean
@@ -97,6 +104,13 @@ public class TeamSpringConfiguration {
     supportMailMessageDatabaseTable = SupportMailMessageDatabaseTable.create(
       databaseConnection, databaseKeyspace);
     supportMailMessageDatabaseTable.createIfNotExists();
+  }
+
+  @PostConstruct
+  private void initializeTeamWorkDatabaseTable() {
+    teamWorkDatabaseTable = TeamWorkDatabaseTable.create(
+      databaseConnection, databaseKeyspace);
+    teamWorkDatabaseTable.createIfNotExists();
   }
 
   @PostConstruct
