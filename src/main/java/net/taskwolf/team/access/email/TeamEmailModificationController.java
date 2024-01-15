@@ -6,9 +6,11 @@ import net.taskwolf.core.mail.TaskwolfMail;
 import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
+import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.mail.SupportMail;
 import net.taskwolf.team.mail.SupportMailDatabaseTable;
 import net.taskwolf.team.mail.SupportMailMessageDatabaseTable;
+import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.member.TeamWorkDatabaseTable;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,12 +30,13 @@ public final class TeamEmailModificationController extends TeamController {
 
   private TeamEmailModificationController(
     Key secretKey, UserDatabaseTable userDatabaseTable,
+    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     @Qualifier("supportMail") TaskwolfMail supportMail,
     SupportMailDatabaseTable supportMailDatabaseTable,
     SupportMailMessageDatabaseTable supportMailMessageDatabaseTable,
-     TeamWorkDatabaseTable teamWorkDatabaseTable
+    TeamWorkDatabaseTable teamWorkDatabaseTable
   ) {
-    super(secretKey, userDatabaseTable);
+    super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
     this.supportMail = supportMail;
     this.supportMailDatabaseTable = supportMailDatabaseTable;
     this.supportMailMessageDatabaseTable = supportMailMessageDatabaseTable;

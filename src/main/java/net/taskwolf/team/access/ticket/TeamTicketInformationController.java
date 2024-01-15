@@ -12,6 +12,8 @@ import net.taskwolf.core.user.ProfilePictureDatabaseTable;
 import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
+import net.taskwolf.team.group.GroupDatabaseTable;
+import net.taskwolf.team.member.TeamDatabaseTable;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,12 +34,13 @@ public final class TeamTicketInformationController extends TeamController {
 
   private TeamTicketInformationController(
     Key secretKey, UserDatabaseTable userDatabaseTable,
+    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     TicketDatabaseTable ticketDatabaseTable,
     TicketMessageDatabaseTable ticketMessageDatabaseTable,
     ProfilePictureDatabaseTable profilePictureDatabaseTable,
     @Qualifier("taskwolfUser") User taskwolfUser
   ) {
-    super(secretKey, userDatabaseTable);
+    super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
     this.ticketDatabaseTable = ticketDatabaseTable;
     this.ticketMessageDatabaseTable = ticketMessageDatabaseTable;
     this.profilePictureDatabaseTable = profilePictureDatabaseTable;

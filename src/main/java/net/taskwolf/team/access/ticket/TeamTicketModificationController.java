@@ -9,6 +9,8 @@ import net.taskwolf.core.ticket.TicketMessageDatabaseTable;
 import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
+import net.taskwolf.team.group.GroupDatabaseTable;
+import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.member.TeamWorkDatabaseTable;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,12 +31,13 @@ public final class TeamTicketModificationController extends TeamController {
 
   private TeamTicketModificationController(
     Key secretKey, UserDatabaseTable userDatabaseTable,
+    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     TicketDatabaseTable ticketDatabaseTable,
     TicketMessageDatabaseTable ticketMessageDatabaseTable,
     TeamWorkDatabaseTable teamWorkDatabaseTable,
     @Qualifier("taskwolfUser") User taskwolfUser
   ) {
-    super(secretKey, userDatabaseTable);
+    super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
     this.ticketDatabaseTable = ticketDatabaseTable;
     this.ticketMessageDatabaseTable = ticketMessageDatabaseTable;
     this.teamWorkDatabaseTable = teamWorkDatabaseTable;

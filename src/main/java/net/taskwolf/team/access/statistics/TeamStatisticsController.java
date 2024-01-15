@@ -7,6 +7,7 @@ import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.access.email.TeamEmailInformationController;
+import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.mail.SupportMailDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.member.TeamWorkDatabaseTable;
@@ -30,12 +31,13 @@ public final class TeamStatisticsController extends TeamController {
 
   private TeamStatisticsController(
     Key secretKey, UserDatabaseTable userDatabaseTable,
+    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     TicketDatabaseTable ticketDatabaseTable,
     SupportMailDatabaseTable supportMailDatabaseTable,
     TeamEmailInformationController teamEmailInformationController,
-    TeamDatabaseTable teamDatabaseTable, TeamWorkDatabaseTable teamWorkDatabaseTable
+    TeamWorkDatabaseTable teamWorkDatabaseTable
   ) {
-    super(secretKey, userDatabaseTable);
+    super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
     this.ticketDatabaseTable = ticketDatabaseTable;
     this.supportMailDatabaseTable = supportMailDatabaseTable;
     this.teamEmailInformationController = teamEmailInformationController;
