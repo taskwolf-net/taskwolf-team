@@ -1,4 +1,4 @@
-package net.taskwolf.team.access;
+package net.taskwolf.team.access.verification;
 
 import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;

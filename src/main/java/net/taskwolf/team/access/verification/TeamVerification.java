@@ -1,4 +1,4 @@
-package net.taskwolf.team.access;
+package net.taskwolf.team.access.verification;
 
 import io.jsonwebtoken.Jwts;
 import lombok.Getter;
