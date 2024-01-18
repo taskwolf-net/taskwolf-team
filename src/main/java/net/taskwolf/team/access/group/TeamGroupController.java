@@ -34,15 +34,17 @@ public final class TeamGroupController extends TeamController {
       return;
     }
     var group = (String) input.get("name");
+    var priority = Integer.parseInt((String) input.get("priority"));
     memberHasPermission(findUserId(request), "group.add").thenAccept(
-      hasPermission -> addGroup(group, hasPermission));
+      hasPermission -> addGroup(group, priority, hasPermission));
   }
 
-  private void addGroup(String group, boolean hasPermission) {
+  private void addGroup(String group, int priority, boolean hasPermission) {
     if (!hasPermission) {
       return;
     }
-    groupDatabaseTable().insertGroup(Group.create(group, Lists.newArrayList()));
+    groupDatabaseTable().insertGroup(Group.create(group, priority,
+      Lists.newArrayList()));
   }
 
   @RequestMapping(path = "/team/group/remove/", method = RequestMethod.POST)
@@ -62,6 +64,30 @@ public final class TeamGroupController extends TeamController {
       return;
     }
     groupDatabaseTable().deleteGroup(group);
+  }
+
+  @RequestMapping(path = "/team/group/priority/change/", method = RequestMethod.POST)
+  public void changeGroupPriority(
+    HttpServletRequest request, @RequestBody Map<String, Object> input
+  ) {
+    if (!isAuthenticatedTeamMember(request)) {
+      return;
+    }
+    var group = (String) input.get("group");
+    var priority = Integer.parseInt((String) input.get("priority"));
+    memberHasPermission(findUserId(request), "group.priority.change")
+      .thenAccept(hasPermission -> groupDatabaseTable().groupExists(group)
+        .thenAccept(groupExists -> changeGroupPriority(group, priority,
+          hasPermission, groupExists)));
+  }
+
+  private void changeGroupPriority(
+    String group, int priority, boolean hasPermission, boolean groupExists
+  ) {
+    if (!hasPermission || !groupExists) {
+      return;
+    }
+    groupDatabaseTable().changeGroupPriority(group, priority);
   }
 
   @RequestMapping(path = "/team/group/permission/add/", method = RequestMethod.POST)
@@ -128,7 +154,8 @@ public final class TeamGroupController extends TeamController {
 
   private Map<String, Object> assemblyGroupInformation(Group group) {
     var information = Maps.<String, Object>newHashMap();
-    information.put("name", group. name());
+    information.put("name", group.name());
+    information.put("priority", group.priority());
     information.put("permissions", group.permissions());
     return information;
   }

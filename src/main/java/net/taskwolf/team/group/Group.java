@@ -1,22 +1,29 @@
 package net.taskwolf.team.group;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
 import net.taskwolf.core.database.DatabaseRow;
 
 import java.util.List;
 
 @Accessors(fluent = true)
-@RequiredArgsConstructor(staticName = "create")
+@AllArgsConstructor(staticName = "create")
 public final class Group {
   public static Group of(DatabaseRow row) {
-    return create(row.findCell(0).stringValue(), row.findCell(1).listValue());
+    return create(row.findCell(0).stringValue(), row.findCell(1).integerValue(),
+      row.findCell(2).listValue());
   }
 
   @Getter
   private final String name;
+  @Getter
+  private int priority;
   private final List<String> permissions;
+
+  public void changePriority(int newPriority) {
+    priority = newPriority;
+  }
 
   public void addPermission(String permission) {
     permissions.add(permission);

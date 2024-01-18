@@ -16,6 +16,7 @@ public final class GroupDatabaseTable extends DatabaseTable {
     var columns = Lists.<DatabaseColumn>newArrayList();
     columns.add(DatabaseColumn.create("name", DatabaseDataType.TEXT,
       DatabaseColumn.Type.PRIMARY_KEY));
+    columns.add(DatabaseColumn.create("priority", DatabaseDataType.INT));
     columns.add(DatabaseListColumn.create("permissions", DatabaseDataType.TEXT));
     return new GroupDatabaseTable(connection, keyspace, TABLE_NAME, columns);
   }
@@ -28,11 +29,11 @@ public final class GroupDatabaseTable extends DatabaseTable {
   }
 
   public void insertGroup(Group group) {
-    insertGroup(group.name(), group.permissions());
+    insertGroup(group.name(), group.priority(), group.permissions());
   }
 
-  public void insertGroup(String name, List<String> permissions) {
-    insert(DatabaseRow.of(name, permissions));
+  public void insertGroup(String name, int priority, List<String> permissions) {
+    insert(DatabaseRow.of(name, priority, permissions));
   }
 
   public void addGroupPermission(String name, String permission) {
@@ -55,9 +56,19 @@ public final class GroupDatabaseTable extends DatabaseTable {
     updateGroup(group);
   }
 
+  public void changeGroupPriority(String name, int priority) {
+    findGroup(name).thenAccept(group ->
+      changeGroupPriority(group, priority));
+  }
+
+  private void changeGroupPriority(Group group, int priority) {
+    group.changePriority(priority);
+    updateGroup(group);
+  }
+
   private void updateGroup(Group group) {
-    update(DatabaseCell.create(group.name()),
-      DatabaseRow.of(group.name(), group.permissions()));
+    update(DatabaseCell.create(group.name()), DatabaseRow.of(group.name(),
+      group.priority(), group.permissions()));
   }
 
   public void deleteGroup(String name) {

@@ -16,7 +16,7 @@ public final class GroupCommand extends Command {
   private final GroupDatabaseTable groupDatabaseTable;
 
   private GroupCommand(Log log, GroupDatabaseTable groupDatabaseTable) {
-    super(log, "group", new String[] {"groups"}, new String[] {"add <name>",
+    super(log, "group", new String[] {"groups"}, new String[] {"add <name, priority>",
       "remove <name>", "find <name>", "all"});
     this.groupDatabaseTable = groupDatabaseTable;
   }
@@ -42,11 +42,11 @@ public final class GroupCommand extends Command {
   }
 
   private boolean addGroup(String[] arguments) {
-    if (arguments.length != 2) {
+    if (arguments.length != 3) {
       return false;
     }
     groupDatabaseTable.insertGroup(Group.create(arguments[1],
-      Lists.newArrayList()));
+      Integer.parseInt(arguments[2]), Lists.newArrayList()));
     log().info("Group has been added!");
     return true;
   }
