@@ -3,6 +3,9 @@ package net.taskwolf.team.access.member;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
+import net.taskwolf.core.iterator.AsyncIterator;
+import net.taskwolf.core.user.ProfilePictureDatabaseTable;
+import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
@@ -14,17 +17,22 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Key;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
 public final class TeamMemberController extends TeamController {
+  private final ProfilePictureDatabaseTable profilePictureDatabaseTable;
+
   private TeamMemberController(
     Key secretKey, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable
+    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
+    ProfilePictureDatabaseTable profilePictureDatabaseTable
   ) {
     super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
+    this.profilePictureDatabaseTable = profilePictureDatabaseTable;
   }
 
   @RequestMapping(path = "/team/member/add/", method = RequestMethod.POST)
@@ -83,7 +91,7 @@ public final class TeamMemberController extends TeamController {
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var memberId = UUID.fromString((String) input.get("email"));
+    var memberId = UUID.fromString((String) input.get("member"));
     var group = (String) input.get("group");
     memberHasPermission(findUserId(request), "member.group.change")
       .thenAccept(hasPermission -> teamDatabaseTable().teamMemberExists(memberId)
@@ -107,7 +115,7 @@ public final class TeamMemberController extends TeamController {
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var memberId = UUID.fromString((String) input.get("email"));
+    var memberId = UUID.fromString((String) input.get("member"));
     var permission = (String) input.get("permission");
     memberHasPermission(findUserId(request), "member.permission.add")
       .thenAccept(hasPermission -> teamDatabaseTable().teamMemberExists(memberId)
@@ -131,7 +139,7 @@ public final class TeamMemberController extends TeamController {
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var memberId = UUID.fromString((String) input.get("email"));
+    var memberId = UUID.fromString((String) input.get("member"));
     var permission = (String) input.get("permission");
     memberHasPermission(findUserId(request), "member.permission.remove")
       .thenAccept(hasPermission -> teamDatabaseTable().teamMemberExists(memberId)
@@ -148,6 +156,21 @@ public final class TeamMemberController extends TeamController {
     teamDatabaseTable().removeTeamMemberPermission(memberId, permission);
   }
 
+  @RequestMapping(path = "/team/member/has/permission/", method = RequestMethod.POST)
+  public CompletableFuture<Map<String, Object>> hasTeamMemberPermission(
+    HttpServletRequest request, @RequestBody Map<String, Object> input
+  ) {
+    if (!isAuthenticatedTeamMember(request)) {
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    var permission = (String) input.get("permission");
+    var futureResponse = new CompletableFuture<Map<String, Object>>();
+    var userId = findUserId(request);
+    memberHasPermission(userId, permission).thenAccept(hasPermission ->
+      futureResponse.complete(Map.of("hasPermission", hasPermission)));
+    return futureResponse;
+  }
+
   @RequestMapping(path = "/team/members/", method = RequestMethod.GET)
   public CompletableFuture<Map<String, Object>> findTeamMembers(
     HttpServletRequest request
@@ -157,14 +180,37 @@ public final class TeamMemberController extends TeamController {
     }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     teamDatabaseTable().findAllTeamMembers().thenAccept(teamMembers ->
-      futureResponse.complete(Map.of("members", teamMembers.stream()
-        .map(this::assemblyTeamMemberInformation).toList())));
+      findTeamMembersInformation(teamMembers).thenAccept(information ->
+        futureResponse.complete(Map.of("members", information))));
     return futureResponse;
   }
 
-  private Map<String, Object> assemblyTeamMemberInformation(TeamMember teamMember) {
+  private CompletableFuture<List<Map<String, Object>>> findTeamMembersInformation(
+    List<TeamMember> members
+  ) {
+    var futureResponse = new CompletableFuture<List<Map<String, Object>>>();
+    AsyncIterator.execute(members, this::findTeamMemberInformation,
+      members.size(), futureResponse::complete);
+    return futureResponse;
+  }
+
+  private CompletableFuture<Map<String, Object>> findTeamMemberInformation(
+    TeamMember member
+  ) {
+    var futureResponse = new CompletableFuture<Map<String, Object>>();
+    userDatabaseTable().findUser(member.userId()).thenAccept(user ->
+      profilePictureDatabaseTable.findProfilePicture(user.id()).thenAccept(picture ->
+        futureResponse.complete(assemblyTeamMemberInformation(member, user, picture))));
+    return futureResponse;
+  }
+
+  private Map<String, Object> assemblyTeamMemberInformation(
+    TeamMember teamMember, User user, String profilePicture
+  ) {
     var information = Maps.<String, Object>newHashMap();
     information.put("id", teamMember.userId());
+    information.put("name", user.name());
+    information.put("profilePicture", profilePicture);
     information.put("group", teamMember.group());
     information.put("permissions", teamMember.permissions());
     return information;
