@@ -1,5 +1,6 @@
 package net.taskwolf.team.command;
 
+import com.google.inject.Inject;
 import net.taskwolf.core.command.Command;
 import net.taskwolf.core.log.Log;
 import net.taskwolf.team.group.GroupDatabaseTable;
@@ -18,8 +19,9 @@ public final class PermissionCommand extends Command {
   private final TeamDatabaseTable teamDatabaseTable;
   private final GroupDatabaseTable groupDatabaseTable;
 
+  @Inject
   private PermissionCommand(
-    Log log,  TeamDatabaseTable teamDatabaseTable,
+    Log log, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable
   ) {
     super(log, "permission", new String[] {"permissions"}, new String[] {

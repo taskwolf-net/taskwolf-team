@@ -3,6 +3,7 @@ package net.taskwolf.team.command;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
+import com.google.inject.Inject;
 import net.taskwolf.core.command.Command;
 import net.taskwolf.core.iterator.AsyncIterator;
 import net.taskwolf.core.log.Log;
@@ -25,6 +26,7 @@ public final class TeamCommand extends Command {
   private final UserDatabaseTable userDatabaseTable;
   private final TeamDatabaseTable teamDatabaseTable;
 
+  @Inject
   private TeamCommand(
     Log log, UserDatabaseTable userDatabaseTable,
     TeamDatabaseTable teamDatabaseTable

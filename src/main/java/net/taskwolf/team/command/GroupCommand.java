@@ -1,6 +1,7 @@
 package net.taskwolf.team.command;
 
 import com.google.common.collect.Lists;
+import com.google.inject.Inject;
 import net.taskwolf.core.command.Command;
 import net.taskwolf.core.log.Log;
 import net.taskwolf.team.group.Group;
@@ -15,6 +16,7 @@ public final class GroupCommand extends Command {
 
   private final GroupDatabaseTable groupDatabaseTable;
 
+  @Inject
   private GroupCommand(Log log, GroupDatabaseTable groupDatabaseTable) {
     super(log, "group", new String[] {"groups"}, new String[] {"add <name, priority>",
       "remove <name>", "find <name>", "all"});
