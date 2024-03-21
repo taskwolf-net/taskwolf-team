@@ -4,6 +4,7 @@ import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 import io.jsonwebtoken.Jwts;
 import jakarta.servlet.http.HttpServletResponse;
+import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.core.user.UserVerificationDatabaseTable;
@@ -38,13 +39,14 @@ public final class TeamVerificationController {
 
   @RequestMapping(path = "/team/verification/login/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> login(
-    @RequestBody Map<String, Object> input, HttpServletResponse servletResponse
+    @RequestBody String payload, HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     var verification = TeamVerification.create(userDatabaseTable, secretKey,
-      (String) input.get("email"), hashPassword((String) input.get("password")));
+      body.getString("email"), hashPassword(body.getString("password")));
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     verification.isAuthenticated().thenAccept(isAuthenticated ->
-      checkAuthorization(servletResponse, verification, futureResponse, isAuthenticated));
+      checkAuthorization(response, verification, futureResponse, isAuthenticated));
     return futureResponse;
   }
 
@@ -78,18 +80,21 @@ public final class TeamVerificationController {
   }
 
   @RequestMapping(path = "/team/verification/isValid/", method = RequestMethod.POST)
-  public Map<String, Object> isValid(@RequestBody Map<String, Object> input) {
-    var response = Maps.<String, Object>newHashMap();
+  public Map<String, Object> isValid(
+    @RequestBody String payload, HttpServletResponse response
+  ) {
+    var body = TaskwolfRequestBody.of(payload, response);
+    var result = Maps.<String, Object>newHashMap();
     try {
-      var payload = Jwts.parser()
+      var key = Jwts.parser()
         .setSigningKey(secretKey)
         .build()
-        .parseClaimsJws((String) input.get("token")).getPayload();
-      response.put("isValid", payload.containsKey("team") ? "true" : "false");
+        .parseClaimsJws(body.getString("token")).getPayload();
+      result.put("isValid", key.containsKey("team") ? "true" : "false");
     } catch (Exception exception) {
-      response.put("isValid", "false");
+      result.put("isValid", "false");
     }
-    return response;
+    return result;
   }
 
   private String hashPassword(String password) {
