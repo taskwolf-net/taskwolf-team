@@ -3,6 +3,8 @@ package net.taskwolf.team.access.ticket;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.iterator.AsyncIterator;
 import net.taskwolf.core.ticket.Ticket;
 import net.taskwolf.core.ticket.TicketDatabaseTable;
@@ -87,13 +89,15 @@ public final class TeamTicketInformationController extends TeamController {
 
   @RequestMapping(path = "/team/ticket/find/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> findTicket(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     if (!isAuthenticatedTeamMember(request)) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
-    var ticketId = UUID.fromString((String) input.get("ticket"));
+    var ticketId = body.getUUID("ticket");
     ticketDatabaseTable.ticketExists(ticketId).thenAccept(exists ->
       findTicket(ticketId, exists).thenAccept(futureResponse::complete));
     return futureResponse;

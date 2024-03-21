@@ -2,6 +2,8 @@ package net.taskwolf.team.access.ticket;
 
 import com.google.common.collect.Lists;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.ticket.Ticket;
 import net.taskwolf.core.ticket.TicketDatabaseTable;
 import net.taskwolf.core.ticket.TicketMessage;
@@ -19,7 +21,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Key;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -46,15 +47,17 @@ public final class TeamTicketModificationController extends TeamController {
 
   @RequestMapping(path = "/team/ticket/answer/", method = RequestMethod.POST)
   public void answerTicket(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var ticketId = UUID.fromString((String) input.get("ticket"));
-    var message = (String) input.get("message");
-    findUser(request).thenAccept(teamMember -> ticketDatabaseTable.ticketExists(ticketId)
-      .thenAccept(exists -> answerTicket(teamMember, ticketId, message, exists)));
+    var ticketId = body.getUUID("ticket");
+    findUser(request).thenAccept(teamMember ->
+      ticketDatabaseTable.ticketExists(ticketId).thenAccept(exists ->
+        answerTicket(teamMember, ticketId, body.getString("message"), exists)));
   }
 
   private void answerTicket(
@@ -93,15 +96,16 @@ public final class TeamTicketModificationController extends TeamController {
 
   @RequestMapping(path = "/team/ticket/message/delete/", method = RequestMethod.POST)
   public void deleteTicketMessage(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var ticketId = UUID.fromString((String) input.get("ticket"));
-    var messageId = UUID.fromString((String) input.get("message"));
+    var ticketId = body.getUUID("ticket");
     ticketDatabaseTable.ticketExists(ticketId).thenAccept(exists ->
-      deleteTicketMessage(ticketId, messageId, exists));
+      deleteTicketMessage(ticketId, body.getUUID("message"), exists));
   }
 
   private void deleteTicketMessage(UUID ticketId, UUID messageId, boolean exists) {
@@ -122,12 +126,14 @@ public final class TeamTicketModificationController extends TeamController {
 
   @RequestMapping(path = "/team/ticket/delete/", method = RequestMethod.POST)
   public void deleteTicket(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var ticketId = UUID.fromString((String) input.get("ticket"));
+    var ticketId = body.getUUID("ticket");
     ticketDatabaseTable.ticketExists(ticketId).thenAccept(exists ->
       deleteTicket(ticketId, exists));
   }
