@@ -2,6 +2,8 @@ package net.taskwolf.team.access.email;
 
 import com.google.common.collect.Lists;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.mail.TaskwolfMail;
 import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
@@ -45,12 +47,14 @@ public final class TeamEmailModificationController extends TeamController {
 
   @RequestMapping(path = "/team/mail/delete/", method = RequestMethod.POST)
   public void deleteMail(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var mailId = UUID.fromString((String) input.get("mail"));
+    var mailId = body.getUUID("mail");
     supportMailDatabaseTable.mailExists(mailId).thenAccept(exists ->
       deleteMail(mailId, exists));
   }
@@ -72,15 +76,17 @@ public final class TeamEmailModificationController extends TeamController {
 
   @RequestMapping(path = "/team/mail/answer/", method = RequestMethod.POST)
   public void answerMail(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var mailId = UUID.fromString((String) input.get("mail"));
-    var message = (String) input.get("message");
-    findUser(request).thenAccept(teamMember -> supportMailDatabaseTable.mailExists(mailId)
-      .thenAccept(exists -> answerMail(teamMember, mailId, message, exists)));
+    var mailId = body.getUUID("mail");
+    findUser(request).thenAccept(teamMember ->
+      supportMailDatabaseTable.mailExists(mailId).thenAccept(exists ->
+        answerMail(teamMember, mailId, body.getString("message"), exists)));
   }
 
   private void answerMail(

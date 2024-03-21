@@ -3,6 +3,8 @@ package net.taskwolf.team.access.email;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.iterator.AsyncIterator;
 import net.taskwolf.core.mail.TaskwolfMail;
 import net.taskwolf.core.mail.TaskwolfMailMessage;
@@ -61,12 +63,14 @@ public final class TeamEmailInformationController extends TeamController {
 
   @RequestMapping(path = "/team/mail/find/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> findMail(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     if (!isAuthenticatedTeamMember(request)) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    var mailId = UUID.fromString((String) input.get("mail"));
+    var mailId = body.getUUID("mail");
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     supportMailDatabaseTable.mailExists(mailId).thenAccept(exists ->
       findMail(mailId, exists).thenAccept(futureResponse::complete));
