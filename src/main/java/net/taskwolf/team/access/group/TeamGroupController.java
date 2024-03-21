@@ -3,6 +3,8 @@ package net.taskwolf.team.access.group;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.Group;
@@ -28,15 +30,16 @@ public final class TeamGroupController extends TeamController {
 
   @RequestMapping(path = "/team/group/add/", method = RequestMethod.POST)
   public void addGroup(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var group = (String) input.get("name");
-    var priority = Integer.parseInt((String) input.get("priority"));
+    var priority = Integer.parseInt(body.getString("priority"));
     memberHasPermission(findUserId(request), "group.add").thenAccept(
-      hasPermission -> addGroup(group, priority, hasPermission));
+      hasPermission -> addGroup(body.getString("name"), priority, hasPermission));
   }
 
   private void addGroup(String group, int priority, boolean hasPermission) {
@@ -49,14 +52,15 @@ public final class TeamGroupController extends TeamController {
 
   @RequestMapping(path = "/team/group/remove/", method = RequestMethod.POST)
   public void removeGroup(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var group = (String) input.get("name");
     memberHasPermission(findUserId(request), "group.remove").thenAccept(
-      hasPermission -> removeGroup(group, hasPermission));
+      hasPermission -> removeGroup(body.getString("name"), hasPermission));
   }
 
   private void removeGroup(String group, boolean hasPermission) {
@@ -68,13 +72,15 @@ public final class TeamGroupController extends TeamController {
 
   @RequestMapping(path = "/team/group/priority/change/", method = RequestMethod.POST)
   public void changeGroupPriority(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var group = (String) input.get("group");
-    var priority = Integer.parseInt((String) input.get("priority"));
+    var group = body.getString("name");
+    var priority = Integer.parseInt(body.getString("priority"));
     memberHasPermission(findUserId(request), "group.priority.change")
       .thenAccept(hasPermission -> groupDatabaseTable().groupExists(group)
         .thenAccept(groupExists -> changeGroupPriority(group, priority,
@@ -92,17 +98,18 @@ public final class TeamGroupController extends TeamController {
 
   @RequestMapping(path = "/team/group/permission/add/", method = RequestMethod.POST)
   public void addGroupPermission(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var group = (String) input.get("group");
-    var permission = (String) input.get("permission");
+    var group = body.getString("name");
     memberHasPermission(findUserId(request), "group.permission.add")
       .thenAccept(hasPermission -> groupDatabaseTable().groupExists(group)
-        .thenAccept(groupExists -> addGroupPermission(group, permission,
-          hasPermission, groupExists)));
+        .thenAccept(groupExists -> addGroupPermission(group,
+          body.getString("permission"), hasPermission, groupExists)));
   }
 
   private void addGroupPermission(
@@ -116,17 +123,18 @@ public final class TeamGroupController extends TeamController {
 
   @RequestMapping(path = "/team/group/permission/remove/", method = RequestMethod.POST)
   public void removeGroupPermission(
-    HttpServletRequest request, @RequestBody Map<String, Object> input
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
+    var body = TaskwolfRequestBody.of(payload, response);
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var group = (String) input.get("group");
-    var permission = (String) input.get("permission");
+    var group = body.getString("name");
     memberHasPermission(findUserId(request), "group.permission.remove")
       .thenAccept(hasPermission -> groupDatabaseTable().groupExists(group)
-        .thenAccept(groupExists -> removeGroupPermission(group, permission,
-          hasPermission, groupExists)));
+        .thenAccept(groupExists -> removeGroupPermission(group,
+          body.getString("permission"), hasPermission, groupExists)));
   }
 
   private void removeGroupPermission(
