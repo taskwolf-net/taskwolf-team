@@ -6,4 +6,4 @@ All necessary internal team processes are handled in this module. Core functions
 
 |             | Build Status                                                                                                       |
 |-------------|--------------------------------------------------------------------------------------------------------------------|
-| Master      | ![Java CI with Gradle](https://github.com/TaskwolfNET/taskwolf-team/workflows/Java%20CI%20with%20Gradle/badge.svg) |
+| Master      | ![Java CI with Gradle](https://git.taskwolf.net/root/taskwolf-gmail/badges/master/pipeline.svg) |
