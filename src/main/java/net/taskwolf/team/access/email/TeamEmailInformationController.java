@@ -199,8 +199,8 @@ public final class TeamEmailInformationController extends TeamController {
     var futureResponse = new CompletableFuture<Map<SupportMail, List<SupportMailMessage>>>();
     supportMailDatabaseTable.findAllMails().thenApply(this::sortOutExpiredMails)
       .thenAccept(mails -> AsyncIterator.execute(mails, mail -> findSupportMailMessages(mail)
-          .thenApply(messages -> new AbstractMap.SimpleEntry<>(mail, messages)),
-        mails.size(), entries -> futureResponse.complete(entries.stream()
+          .thenApply(messages -> new AbstractMap.SimpleEntry<>(mail, messages)))
+        .thenAccept(entries -> futureResponse.complete(entries.stream()
           .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
     return futureResponse;
   }
@@ -234,9 +234,9 @@ public final class TeamEmailInformationController extends TeamController {
   ) {
     var futureResponse = new CompletableFuture<List<SupportMailMessage>>();
     AsyncIterator.execute(Stream.concat(mail.conversationMessages().stream(),
-        Stream.of(mail.requestMessage())).collect(Collectors.toList()),
-      supportMailMessageDatabaseTable::findMailMessage,
-      mail.conversationMessages().size() + 1, futureResponse::complete);
+          Stream.of(mail.requestMessage())).collect(Collectors.toList()),
+        supportMailMessageDatabaseTable::findMailMessage)
+      .thenAccept(futureResponse::complete);
     return futureResponse;
   }
 

@@ -120,8 +120,8 @@ public final class TeamCommand extends Command {
     var groups = HashMultimap.<String, String>create();
     AsyncIterator.execute(members, member ->
       userDatabaseTable.findUser(member.userId()).thenAccept(user ->
-        groups.put(member.group(), user.name() + " (" + user.email() + ")")),
-      members.size(), value -> printMembers(groups));
+        groups.put(member.group(), user.name() + " (" + user.email() + ")")))
+      .thenAccept(value -> printMembers(groups));
   }
 
   private void printMembers(Multimap<String, String> members) {

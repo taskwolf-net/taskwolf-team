@@ -59,7 +59,7 @@ public final class TeamTicketInformationController extends TeamController {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     ticketDatabaseTable.findAllTickets().thenApply(tickets ->
       sortOutExpiredTickets(new ArrayList<>(tickets))).thenAccept(
-        tickets -> AsyncIterator.execute(tickets, this::findTicket, tickets.size(),
+        tickets -> AsyncIterator.execute(tickets, this::findTicket).thenAccept(
           information -> futureResponse.complete(Map.of("tickets", information))));
     return futureResponse;
   }
@@ -118,7 +118,7 @@ public final class TeamTicketInformationController extends TeamController {
   private CompletableFuture<Map<String, Object>> findTicket(Ticket ticket) {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     AsyncIterator.execute(ticket.messages(),
-      ticketMessageDatabaseTable::findTicketMessage, ticket.messages().size(),
+      ticketMessageDatabaseTable::findTicketMessage).thenAccept(
       messages -> userDatabaseTable().findUser(ticket.creator()).thenAccept(
         creator -> profilePictureDatabaseTable.findProfilePicture(ticket.creator())
           .thenAccept(picture -> ticketInformation(ticket, creator, picture, messages)
@@ -131,7 +131,7 @@ public final class TeamTicketInformationController extends TeamController {
     List<TicketMessage> messages
   ) {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
-    AsyncIterator.execute(messages, this::messageInformation, messages.size(),
+    AsyncIterator.execute(messages, this::messageInformation).thenAccept(
       information -> futureResponse.complete(assemblyTicketInformation(
         ticket, creator, creatorProfilePicture, information)));
     return futureResponse;

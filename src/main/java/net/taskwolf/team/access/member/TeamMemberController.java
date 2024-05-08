@@ -198,8 +198,8 @@ public final class TeamMemberController extends TeamController {
     List<TeamMember> members
   ) {
     var futureResponse = new CompletableFuture<List<Map<String, Object>>>();
-    AsyncIterator.execute(members, this::findTeamMemberInformation,
-      members.size(), futureResponse::complete);
+    AsyncIterator.execute(members, this::findTeamMemberInformation)
+      .thenAccept(futureResponse::complete);
     return futureResponse;
   }
 
