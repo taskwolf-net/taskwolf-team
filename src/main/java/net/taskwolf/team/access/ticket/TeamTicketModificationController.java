@@ -14,7 +14,6 @@ import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.member.TeamWorkDatabaseTable;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -28,21 +27,18 @@ public final class TeamTicketModificationController extends TeamController {
   private final TicketDatabaseTable ticketDatabaseTable;
   private final TicketMessageDatabaseTable ticketMessageDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
-  private final User taskwolfUser;
 
   private TeamTicketModificationController(
     Key secretKey, UserDatabaseTable userDatabaseTable,
     TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     TicketDatabaseTable ticketDatabaseTable,
     TicketMessageDatabaseTable ticketMessageDatabaseTable,
-    TeamWorkDatabaseTable teamWorkDatabaseTable,
-    @Qualifier("taskwolfUser") User taskwolfUser
+    TeamWorkDatabaseTable teamWorkDatabaseTable
   ) {
     super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
     this.ticketDatabaseTable = ticketDatabaseTable;
     this.ticketMessageDatabaseTable = ticketMessageDatabaseTable;
     this.teamWorkDatabaseTable = teamWorkDatabaseTable;
-    this.taskwolfUser = taskwolfUser;
   }
 
   @RequestMapping(path = "/team/ticket/answer/", method = RequestMethod.POST)
@@ -71,15 +67,16 @@ public final class TeamTicketModificationController extends TeamController {
         answerTicket(teamMember, ticket, message, id)));
   }
 
+  private static final UUID TASKWOLF_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+
   private void answerTicket(
     User teamMember, Ticket ticket, String message, UUID messageId
   ) {
     ticket.addMessage(messageId);
     ticket.resetExpirationTime();
     ticketDatabaseTable.updateTicket(ticket);
-    ticketMessageDatabaseTable.insertTicketMessage(TicketMessage.create(
-      messageId, ticket.id(), taskwolfUser.id(), message,
-      System.currentTimeMillis()));
+    ticketMessageDatabaseTable.insertTicketMessage(TicketMessage.create(messageId,
+      ticket.id(), TASKWOLF_USER_ID, message, System.currentTimeMillis()));
     teamWorkDatabaseTable.hasRequestReplies(teamMember.id())
       .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
   }

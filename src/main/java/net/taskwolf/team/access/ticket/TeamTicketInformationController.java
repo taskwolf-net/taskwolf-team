@@ -16,7 +16,6 @@ import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -32,21 +31,18 @@ public final class TeamTicketInformationController extends TeamController {
   private final TicketDatabaseTable ticketDatabaseTable;
   private final TicketMessageDatabaseTable ticketMessageDatabaseTable;
   private final ProfilePictureDatabaseTable profilePictureDatabaseTable;
-  private final User taskwolfUser;
 
   private TeamTicketInformationController(
     Key secretKey, UserDatabaseTable userDatabaseTable,
     TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     TicketDatabaseTable ticketDatabaseTable,
     TicketMessageDatabaseTable ticketMessageDatabaseTable,
-    ProfilePictureDatabaseTable profilePictureDatabaseTable,
-    @Qualifier("taskwolfUser") User taskwolfUser
+    ProfilePictureDatabaseTable profilePictureDatabaseTable
   ) {
     super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
     this.ticketDatabaseTable = ticketDatabaseTable;
     this.ticketMessageDatabaseTable = ticketMessageDatabaseTable;
     this.profilePictureDatabaseTable = profilePictureDatabaseTable;
-    this.taskwolfUser = taskwolfUser;
   }
 
   @RequestMapping(path = "/team/tickets/find/", method = RequestMethod.GET)
@@ -163,13 +159,15 @@ public final class TeamTicketInformationController extends TeamController {
       assemblyMessageInformation(message, author));
   }
 
+  private static final UUID TASKWOLF_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+
   private Map<String, Object> assemblyMessageInformation(
     TicketMessage message, User author
   ) {
     var information = Maps.<String, Object>newHashMap();
     information.put("id", message.id());
     information.put("author", author.name());
-    information.put("teamWritten", author.id().equals(taskwolfUser.id()));
+    information.put("teamWritten", author.id().equals(TASKWOLF_USER_ID));
     information.put("message", message.message());
     information.put("rawTime", message.time());
     information.put("time", formatTime(message.time()));
