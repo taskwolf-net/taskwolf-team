@@ -8,7 +8,6 @@ import net.taskwolf.core.module.Module;
 import net.taskwolf.core.module.ModuleDescription;
 import net.taskwolf.core.module.ModuleInformation;
 import net.taskwolf.core.module.ModuleLoadPriority;
-import net.taskwolf.core.user.ProfilePictureDatabaseTable;
 import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.command.GroupCommand;
@@ -47,26 +46,22 @@ public class TeamModule extends Module {
   private void initializeTaskwolfUser() {
     var executor = Executors.newSingleThreadScheduledExecutor();
     var userDatabaseTable = injector().getInstance(UserDatabaseTable.class);
-    var profileDatabaseTable = injector().getInstance(
-      ProfilePictureDatabaseTable.class);
     executor.schedule(() -> userDatabaseTable.findUserIfExists(TASKWOLF_USER_ID)
       .thenApply(user -> user.email().equalsIgnoreCase("Unknown") ?
-        insertTaskwolfUser(userDatabaseTable, profileDatabaseTable) :
+        insertTaskwolfUser(userDatabaseTable) :
           CompletableFuture.completedFuture(null)),
       5, TimeUnit.SECONDS);
     executor.shutdown();
   }
 
   private User insertTaskwolfUser(
-    UserDatabaseTable userDatabaseTable,
-    ProfilePictureDatabaseTable profilePictureDatabaseTable
+    UserDatabaseTable userDatabaseTable
   ) {
     var password = Hashing.sha256().hashString(UUID.randomUUID().toString(),
       StandardCharsets.UTF_8).toString();
     var user = User.create(TASKWOLF_USER_ID, "Taskwolf", "support@taskwolf.net",
       password, "en", Lists.newArrayList());
     userDatabaseTable.insertUser(user);
-    profilePictureDatabaseTable.insertProfilePicture(TASKWOLF_USER_ID, "");
     return user;
   }
 

@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.iterator.AsyncIterator;
-import net.taskwolf.core.user.ProfilePictureDatabaseTable;
 import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
@@ -26,15 +25,12 @@ import java.util.concurrent.CompletableFuture;
 
 @RestController
 public final class TeamMemberController extends TeamController {
-  private final ProfilePictureDatabaseTable profilePictureDatabaseTable;
 
   private TeamMemberController(
     Key secretKey, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
-    ProfilePictureDatabaseTable profilePictureDatabaseTable
+    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable
   ) {
     super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
-    this.profilePictureDatabaseTable = profilePictureDatabaseTable;
   }
 
   @RequestMapping(path = "/team/member/add/", method = RequestMethod.POST)
@@ -208,18 +204,16 @@ public final class TeamMemberController extends TeamController {
   ) {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     userDatabaseTable().findUser(member.userId()).thenAccept(user ->
-      profilePictureDatabaseTable.findProfilePicture(user.id()).thenAccept(picture ->
-        futureResponse.complete(assemblyTeamMemberInformation(member, user, picture))));
+      futureResponse.complete(assemblyTeamMemberInformation(member, user)));
     return futureResponse;
   }
 
   private Map<String, Object> assemblyTeamMemberInformation(
-    TeamMember teamMember, User user, String profilePicture
+    TeamMember teamMember, User user
   ) {
     var information = Maps.<String, Object>newHashMap();
     information.put("id", teamMember.userId());
     information.put("name", user.name());
-    information.put("profilePicture", profilePicture);
     information.put("group", teamMember.group());
     information.put("permissions", teamMember.permissions());
     return information;

@@ -10,7 +10,6 @@ import net.taskwolf.core.ticket.Ticket;
 import net.taskwolf.core.ticket.TicketDatabaseTable;
 import net.taskwolf.core.ticket.TicketMessage;
 import net.taskwolf.core.ticket.TicketMessageDatabaseTable;
-import net.taskwolf.core.user.ProfilePictureDatabaseTable;
 import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
@@ -30,19 +29,16 @@ import java.util.concurrent.CompletableFuture;
 public final class TeamTicketInformationController extends TeamController {
   private final TicketDatabaseTable ticketDatabaseTable;
   private final TicketMessageDatabaseTable ticketMessageDatabaseTable;
-  private final ProfilePictureDatabaseTable profilePictureDatabaseTable;
 
   private TeamTicketInformationController(
     Key secretKey, UserDatabaseTable userDatabaseTable,
     TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     TicketDatabaseTable ticketDatabaseTable,
-    TicketMessageDatabaseTable ticketMessageDatabaseTable,
-    ProfilePictureDatabaseTable profilePictureDatabaseTable
+    TicketMessageDatabaseTable ticketMessageDatabaseTable
   ) {
     super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
     this.ticketDatabaseTable = ticketDatabaseTable;
     this.ticketMessageDatabaseTable = ticketMessageDatabaseTable;
-    this.profilePictureDatabaseTable = profilePictureDatabaseTable;
   }
 
   @RequestMapping(path = "/team/tickets/find/", method = RequestMethod.GET)
@@ -116,26 +112,23 @@ public final class TeamTicketInformationController extends TeamController {
     AsyncIterator.execute(ticket.messages(),
       ticketMessageDatabaseTable::findTicketMessage).thenAccept(
       messages -> userDatabaseTable().findUser(ticket.creator()).thenAccept(
-        creator -> profilePictureDatabaseTable.findProfilePicture(ticket.creator())
-          .thenAccept(picture -> ticketInformation(ticket, creator, picture, messages)
-            .thenAccept(futureResponse::complete))));
+        creator -> ticketInformation(ticket, creator, messages)
+          .thenAccept(futureResponse::complete)));
     return futureResponse;
   }
 
   private CompletableFuture<Map<String, Object>> ticketInformation(
-    Ticket ticket, User creator, String creatorProfilePicture,
-    List<TicketMessage> messages
+    Ticket ticket, User creator, List<TicketMessage> messages
   ) {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     AsyncIterator.execute(messages, this::messageInformation).thenAccept(
       information -> futureResponse.complete(assemblyTicketInformation(
-        ticket, creator, creatorProfilePicture, information)));
+        ticket, creator, information)));
     return futureResponse;
   }
 
   private Map<String, Object> assemblyTicketInformation(
-    Ticket ticket, User creator, String creatorProfilePicture,
-    List<Map<String, Object>> messageInformation
+    Ticket ticket, User creator, List<Map<String, Object>> messageInformation
   ) {
     messageInformation.sort(Comparator.comparing(entry ->
       (long) entry.get("rawTime")));
@@ -147,7 +140,6 @@ public final class TeamTicketInformationController extends TeamController {
     information.put("status", ticket.status());
     information.put("date", messageInformation.get(messageInformation.size() - 1)
       .get("time"));
-    information.put("creatorProfilePicture", creatorProfilePicture);
     information.put("messages", messageInformation);
     return information;
   }
