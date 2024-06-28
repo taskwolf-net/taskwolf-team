@@ -10,6 +10,8 @@ import net.taskwolf.core.ticket.TicketMessage;
 import net.taskwolf.core.ticket.TicketMessageDatabaseTable;
 import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
+import net.taskwolf.core.user.activity.ActivityType;
+import net.taskwolf.core.user.activity.UserActivityDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
@@ -27,18 +29,21 @@ public final class TeamTicketModificationController extends TeamController {
   private final TicketDatabaseTable ticketDatabaseTable;
   private final TicketMessageDatabaseTable ticketMessageDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
+  private final UserActivityDatabaseTable activityDatabaseTable;
 
   private TeamTicketModificationController(
     Key secretKey, UserDatabaseTable userDatabaseTable,
     TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     TicketDatabaseTable ticketDatabaseTable,
     TicketMessageDatabaseTable ticketMessageDatabaseTable,
-    TeamWorkDatabaseTable teamWorkDatabaseTable
+    TeamWorkDatabaseTable teamWorkDatabaseTable,
+    UserActivityDatabaseTable activityDatabaseTable
   ) {
     super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
     this.ticketDatabaseTable = ticketDatabaseTable;
     this.ticketMessageDatabaseTable = ticketMessageDatabaseTable;
     this.teamWorkDatabaseTable = teamWorkDatabaseTable;
+    this.activityDatabaseTable = activityDatabaseTable;
   }
 
   @RequestMapping(path = "/team/ticket/answer/", method = RequestMethod.POST)
@@ -77,6 +82,8 @@ public final class TeamTicketModificationController extends TeamController {
     ticketDatabaseTable.updateTicket(ticket);
     ticketMessageDatabaseTable.insertTicketMessage(TicketMessage.create(messageId,
       ticket.id(), TASKWOLF_USER_ID, message, System.currentTimeMillis()));
+    activityDatabaseTable.insertActivity(ticket.creator(), "activity.ticket.answer.title",
+      "activity.ticket.answer.description", ActivityType.TICKET);
     teamWorkDatabaseTable.hasRequestReplies(teamMember.id())
       .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
   }
