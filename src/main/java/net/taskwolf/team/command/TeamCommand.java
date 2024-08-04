@@ -98,9 +98,9 @@ public final class TeamCommand extends Command {
       group, Lists.newArrayList());
     var token = UUID.randomUUID().toString();
     teamVerificationDatabaseTable.insertVerification(id, token);
-    var body = String.format(ONBOARDING_EMAIL_TITLE, name,
+    var body = String.format(ONBOARDING_EMAIL_BODY, name,
       String.format(ONBOARDING_URL, id.toString(), token));
-    verificationMail.send(email, ONBOARDING_EMAIL_BODY, body);
+    verificationMail.send(email, ONBOARDING_EMAIL_TITLE, body);
   }
 
   private boolean removeMember(String[] arguments) {
