@@ -13,14 +13,28 @@ import java.util.UUID;
 public final class TeamMember {
   public static TeamMember of(DatabaseRow row) {
     return create(row.findCell(0).uuidValue(), row.findCell(1).stringValue(),
-      row.findCell(2).listValue());
+      row.findCell(2).stringValue(), row.findCell(3).stringValue(),
+      row.findCell(4).stringValue(), row.findCell(5).stringValue(),
+      row.findCell(6).listValue());
   }
 
   @Getter
-  private final UUID userId;
+  private final UUID id;
+  @Getter
+  private String name;
+  @Getter
+  private String email;
+  @Getter
+  private String passwordHash;
+  @Getter
+  private String language;
   @Getter
   private String group;
   private final List<String> permissions;
+
+  public void changePassword(String newPasswordHash) {
+    passwordHash = newPasswordHash;
+  }
 
   public void changeGroup(String newGroup) {
     group = newGroup;

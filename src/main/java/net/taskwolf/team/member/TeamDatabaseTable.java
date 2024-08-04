@@ -17,6 +17,10 @@ public final class TeamDatabaseTable extends DatabaseTable {
     var columns = Lists.<DatabaseColumn>newArrayList();
     columns.add(DatabaseColumn.create("id", DatabaseDataType.UUID,
       DatabaseColumn.Type.PRIMARY_KEY));
+    columns.add(DatabaseColumn.create("name", DatabaseDataType.TEXT));
+    columns.add(DatabaseColumn.create("email", DatabaseDataType.TEXT));
+    columns.add(DatabaseColumn.create("passwordHash", DatabaseDataType.TEXT));
+    columns.add(DatabaseColumn.create("language", DatabaseDataType.TEXT));
     columns.add(DatabaseColumn.create("group", DatabaseDataType.TEXT));
     columns.add(DatabaseListColumn.create("permissions", DatabaseDataType.TEXT));
     return new TeamDatabaseTable(connection, keyspace, TABLE_NAME, columns);
@@ -30,12 +34,27 @@ public final class TeamDatabaseTable extends DatabaseTable {
   }
 
   public void insertTeamMember(TeamMember teamMember) {
-    insertTeamMember(teamMember.userId(), teamMember.group(),
+    insertTeamMember(teamMember.id(), teamMember.name(), teamMember.email(),
+      teamMember.passwordHash(), teamMember.language(), teamMember.group(),
       teamMember.permissions());
   }
 
-  public void insertTeamMember(UUID id, String group, List<String> permissions) {
-    insert(DatabaseRow.of(id, group, permissions));
+  public void insertTeamMember(
+    UUID id, String name, String email, String passwordHash, String language,
+    String group, List<String> permissions
+  ) {
+    insert(DatabaseRow.of(id, name, email, passwordHash, language, group,
+      permissions));
+  }
+
+  public void changeTeamMemberPassword(UUID userId, String passwordHash) {
+    findTeamMember(userId).thenAccept(member ->
+      changeTeamMemberPassword(member, passwordHash));
+  }
+
+  public void changeTeamMemberPassword(TeamMember teamMember, String passwordHash) {
+    teamMember.changePassword(passwordHash);
+    updateTeamMember(teamMember);
   }
 
   public void addTeamMemberPermission(UUID userId, String permission) {
@@ -43,7 +62,7 @@ public final class TeamDatabaseTable extends DatabaseTable {
       addTeamMemberPermission(member, permission));
   }
 
-  private void addTeamMemberPermission(TeamMember teamMember, String permission) {
+  public void addTeamMemberPermission(TeamMember teamMember, String permission) {
     teamMember.addPermission(permission);
     updateTeamMember(teamMember);
   }
@@ -53,7 +72,7 @@ public final class TeamDatabaseTable extends DatabaseTable {
       removeTeamMemberPermission(member, permission));
   }
 
-  private void removeTeamMemberPermission(TeamMember teamMember, String permission) {
+  public void removeTeamMemberPermission(TeamMember teamMember, String permission) {
     teamMember.removePermission(permission);
     updateTeamMember(teamMember);
   }
@@ -63,26 +82,45 @@ public final class TeamDatabaseTable extends DatabaseTable {
       changeTeamMemberGroup(member, group));
   }
 
-  private void changeTeamMemberGroup(TeamMember teamMember, String group) {
+  public void changeTeamMemberGroup(TeamMember teamMember, String group) {
     teamMember.changeGroup(group);
     updateTeamMember(teamMember);
   }
 
   private void updateTeamMember(TeamMember teamMember) {
-    update(DatabaseCell.create(teamMember.userId()), DatabaseRow.of(
-      teamMember.userId(), teamMember.group(), teamMember.permissions()));
+    update(DatabaseCell.create(teamMember.id()), DatabaseRow.of(teamMember.id(),
+      teamMember.name(), teamMember.email(), teamMember.passwordHash(),
+      teamMember.language(), teamMember.group(), teamMember.permissions()));
   }
 
   public void deleteTeamMember(UUID id) {
     delete(DatabaseCell.create(id));
   }
 
+  public CompletableFuture<UUID> generateAvailableMemberId() {
+    var futureResponse = new CompletableFuture<UUID>();
+    var id = UUID.randomUUID();
+    teamMemberExists(id).thenApply(exists -> exists ?
+      generateAvailableMemberId().thenApply(futureResponse::complete) :
+      CompletableFuture.completedFuture(futureResponse.complete(id)));
+    return futureResponse;
+  }
+
   public CompletableFuture<Boolean> teamMemberExists(UUID id) {
     return exists(DatabaseCell.create(id));
   }
 
+  public CompletableFuture<Boolean> teamMemberExists(String email) {
+    return exists("email='" + email.toLowerCase() + "' ALLOW FILTERING");
+  }
+
   public CompletableFuture<TeamMember> findTeamMember(UUID id) {
     return selectRow(DatabaseCell.create(id)).thenApply(TeamMember::of);
+  }
+
+  public CompletableFuture<TeamMember> findTeamMember(String email) {
+    return selectRow("email='" + email.toLowerCase() + "' ALLOW FILTERING")
+      .thenApply(TeamMember::of);
   }
 
   public CompletableFuture<List<TeamMember>> findAllTeamMembers() {
