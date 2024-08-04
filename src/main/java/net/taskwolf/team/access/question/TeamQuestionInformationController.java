@@ -105,7 +105,7 @@ public final class TeamQuestionInformationController extends TeamController {
       var messageInformation = Maps.<String, Object>newHashMap();
       messageInformation.put("id", message.id());
       messageInformation.put("sender", message.sender());
-      messageInformation.put("body", message.body());
+      messageInformation.put("body", message.content());
       messageInformation.put("teamWritten", message.sender().equalsIgnoreCase("Taskwolf"));
       messageInformation.put("time", formatTime(message.time()));
       messagesInformation.add(messageInformation);
@@ -161,7 +161,7 @@ public final class TeamQuestionInformationController extends TeamController {
     var sender = ((InternetAddress) message.sender()).getAddress();
     questionMessageDatabaseTable.generateAvailableMessageId().thenAccept(id ->
       questionMessageDatabaseTable.insertQuestionMessage(QuestionMessage.create(
-        id, sender, message.title(), message.body(), message.receiveDate().getTime()))
+        id, sender, message.body(), message.receiveDate().getTime()))
         .thenAccept(value -> futureResponse.complete(id)));
     return futureResponse;
   }

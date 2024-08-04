@@ -103,13 +103,12 @@ public final class TeamQuestionModificationController extends TeamController {
   private void answerQuestion(
     User teamMember, Question question, String message, UUID messageId
   ) {
-    var title = "Re: " + question.title();
     questionMessageDatabaseTable.insertQuestionMessage(messageId, "Taskwolf",
-      title, message, System.currentTimeMillis());
+      message, System.currentTimeMillis());
     question.addConversationMessage(messageId);
     question.resetExpirationTime();
     questionDatabaseTable.updateQuestion(question);
-    supportMail.send(question.sender(), title, message);
+    supportMail.send(question.sender(), "Re: " + question.title(), message);
     teamWorkDatabaseTable.hasRequestReplies(teamMember.id())
       .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
   }
