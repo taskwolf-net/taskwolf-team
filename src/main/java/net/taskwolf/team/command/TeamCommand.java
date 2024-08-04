@@ -4,38 +4,43 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import net.taskwolf.core.command.Command;
-import net.taskwolf.core.iterator.AsyncIterator;
 import net.taskwolf.core.log.Log;
-import net.taskwolf.core.user.User;
-import net.taskwolf.core.user.UserDatabaseTable;
+import net.taskwolf.core.mail.TaskwolfMail;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.member.TeamMember;
+import net.taskwolf.team.member.TeamVerificationDatabaseTable;
 
 import java.util.List;
 import java.util.UUID;
 
 public final class TeamCommand extends Command {
   public static TeamCommand create(
-    Log log, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable
+    Log log, TeamDatabaseTable teamDatabaseTable,
+    TeamVerificationDatabaseTable teamVerificationDatabaseTable,
+    @Named("verificationMail") TaskwolfMail verificationMail
   ) {
-    return new TeamCommand(log, userDatabaseTable, teamDatabaseTable);
+    return new TeamCommand(log, teamDatabaseTable, teamVerificationDatabaseTable,
+      verificationMail);
   }
 
-  private final UserDatabaseTable userDatabaseTable;
   private final TeamDatabaseTable teamDatabaseTable;
+  private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
+  private final TaskwolfMail verificationMail;
 
   @Inject
   private TeamCommand(
-    Log log, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable
+    Log log, TeamDatabaseTable teamDatabaseTable,
+    TeamVerificationDatabaseTable teamVerificationDatabaseTable,
+    @Named("verificationMail") TaskwolfMail verificationMail
   ) {
     super(log, "team", new String[] {"member", "members", "teammember",
-      "teammembers"}, new String[] {"add <id, group>", "remove <id>",
+      "teammembers"}, new String[] {"add <name, email, group>", "remove <id>",
       "change <id, group>", "find <id>", "all"});
-    this.userDatabaseTable = userDatabaseTable;
     this.teamDatabaseTable = teamDatabaseTable;
+    this.teamVerificationDatabaseTable = teamVerificationDatabaseTable;
+    this.verificationMail = verificationMail;
   }
 
   @Override
@@ -62,13 +67,40 @@ public final class TeamCommand extends Command {
   }
 
   private boolean addMember(String[] arguments) {
-    if (arguments.length != 3) {
+    if (arguments.length != 4) {
       return false;
     }
-    teamDatabaseTable.insertTeamMember(TeamMember.create(UUID.fromString(arguments[1]),
-      arguments[2], Lists.newArrayList()));
+    teamDatabaseTable.generateAvailableMemberId().thenAccept(id ->
+      addMember(id, arguments[1], arguments[2], arguments[3]));
     log().info("Team member has been added!");
     return true;
+  }
+
+  private static final String ONBOARDING_EMAIL_TITLE = "Onboarding";
+  private static final String ONBOARDING_URL = "https://panel.taskwolf.net/confirm/%s/%s/";
+  private static final String ONBOARDING_EMAIL_BODY = "Hey %s,\n" +
+    "\n" +
+    "welcome to the Taskwolf team. Here's to good cooperation! " +
+    "In the following you will get access to the Taskwolf-Panel. " +
+    "Please follow the steps below.\n" +
+    "\n" +
+    "Click the link below and set your panel password:\n" +
+    "%s\n" +
+    "\n" +
+    "That's it already.\n" +
+    "\n" +
+    "Welcome aboard!";
+
+  private void addMember(
+    UUID id, String name, String email, String group
+  ) {
+    teamDatabaseTable.insertTeamMember(id, name, email, "", "en",
+      group, Lists.newArrayList());
+    var token = UUID.randomUUID().toString();
+    teamVerificationDatabaseTable.insertVerification(id, token);
+    var body = String.format(ONBOARDING_EMAIL_TITLE, name,
+      String.format(ONBOARDING_URL, id.toString(), token));
+    verificationMail.send(email, ONBOARDING_EMAIL_BODY, body);
   }
 
   private boolean removeMember(String[] arguments) {
@@ -95,15 +127,14 @@ public final class TeamCommand extends Command {
       return false;
     }
     teamDatabaseTable.findTeamMember(UUID.fromString(arguments[1]))
-      .thenAccept(member -> userDatabaseTable.findUser(member.userId())
-        .thenAccept(user -> printMember(member, user)));
+      .thenAccept(this::printMember);
     return true;
   }
 
-  private void printMember(TeamMember member, User user) {
+  private void printMember(TeamMember member) {
     log().info("Team member:");
-    log().info(" - Name: " + user.name());
-    log().info(" - Email: " + user.email());
+    log().info(" - Name: " + member.name());
+    log().info(" - Email: " + member.email());
     log().info(" - Group: " + member.group());
     log().info(" - Permissions: ");
     for (var permission : member.permissions()) {
@@ -118,10 +149,10 @@ public final class TeamCommand extends Command {
 
   private void printMembers(List<TeamMember> members) {
     var groups = HashMultimap.<String, String>create();
-    AsyncIterator.execute(members, member ->
-      userDatabaseTable.findUser(member.userId()).thenAccept(user ->
-        groups.put(member.group(), user.name() + " (" + user.email() + ")")))
-      .thenAccept(value -> printMembers(groups));
+    for (var member : members) {
+      groups.put(member.group(), member.name() + " (" + member.email() + ")");
+    }
+    printMembers(groups);
   }
 
   private void printMembers(Multimap<String, String> members) {
