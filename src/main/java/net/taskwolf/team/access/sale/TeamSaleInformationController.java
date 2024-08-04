@@ -32,23 +32,17 @@ public final class TeamSaleInformationController extends TeamController {
   private final SaleMessageDatabaseTable saleMessageDatabaseTable;
 
   private TeamSaleInformationController(
-    Key secretKey, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
-    SaleDatabaseTable saleDatabaseTable,
+    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable, SaleDatabaseTable saleDatabaseTable,
     SaleMessageDatabaseTable saleMessageDatabaseTable
   ) {
-    super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.saleDatabaseTable = saleDatabaseTable;
     this.saleMessageDatabaseTable = saleMessageDatabaseTable;
   }
 
   @RequestMapping(path = "/sales/find/", method = RequestMethod.GET)
-  public CompletableFuture<Map<String, Object>> findSales(
-    HttpServletRequest request
-  ) {
-    if (!isAuthenticatedTeamMember(request)) {
-      return CompletableFuture.completedFuture(Maps.newHashMap());
-    }
+  public CompletableFuture<Map<String, Object>> findSales() {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     findAllSupportSales().thenAccept(sales ->
       futureResponse.complete(assemblySales(sales)));
@@ -57,13 +51,9 @@ public final class TeamSaleInformationController extends TeamController {
 
   @RequestMapping(path = "/sale/find/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> findSale(
-    HttpServletRequest request, @RequestBody String payload,
-    HttpServletResponse response
+    @RequestBody String payload, HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return CompletableFuture.completedFuture(Maps.newHashMap());
-    }
     var saleId = body.getUUID("sale");
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     saleDatabaseTable.saleExists(saleId).thenAccept(exists ->

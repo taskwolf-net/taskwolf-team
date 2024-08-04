@@ -8,11 +8,10 @@ import net.taskwolf.core.mail.TaskwolfMail;
 import net.taskwolf.core.sale.Sale;
 import net.taskwolf.core.sale.SaleDatabaseTable;
 import net.taskwolf.core.sale.SaleMessageDatabaseTable;
-import net.taskwolf.core.user.User;
-import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
+import net.taskwolf.team.member.TeamMember;
 import net.taskwolf.team.member.TeamWorkDatabaseTable;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,14 +30,14 @@ public final class TeamSaleModificationController extends TeamController {
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
 
   private TeamSaleModificationController(
-    Key secretKey, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
+    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable,
     @Qualifier("saleMail") TaskwolfMail saleMail,
     SaleDatabaseTable saleDatabaseTable,
     SaleMessageDatabaseTable saleMessageDatabaseTable,
     TeamWorkDatabaseTable teamWorkDatabaseTable
   ) {
-    super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.saleMail = saleMail;
     this.saleDatabaseTable = saleDatabaseTable;
     this.saleMessageDatabaseTable = saleMessageDatabaseTable;
@@ -46,14 +45,8 @@ public final class TeamSaleModificationController extends TeamController {
   }
 
   @RequestMapping(path = "/sale/delete/", method = RequestMethod.POST)
-  public void deleteSale(
-    HttpServletRequest request, @RequestBody String payload,
-    HttpServletResponse response
-  ) {
+  public void deleteSale(@RequestBody String payload, HttpServletResponse response) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
     var saleId = body.getUUID("sale");
     saleDatabaseTable.saleExists(saleId).thenAccept(exists ->
       deleteSale(saleId, exists));
@@ -80,17 +73,14 @@ public final class TeamSaleModificationController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
     var saleId = body.getUUID("sale");
-    findUser(request).thenAccept(teamMember ->
+    findMember(request).thenAccept(teamMember ->
       saleDatabaseTable.saleExists(saleId).thenAccept(exists ->
         answerSale(teamMember, saleId, body.getString("message"), exists)));
   }
 
   private void answerSale(
-    User teamMember, UUID saleId, String message, boolean exists
+    TeamMember teamMember, UUID saleId, String message, boolean exists
   ) {
     if (!exists) {
       return;
@@ -101,7 +91,7 @@ public final class TeamSaleModificationController extends TeamController {
   }
 
   private void answerSale(
-    User teamMember, Sale sale, String message, UUID messageId
+    TeamMember teamMember, Sale sale, String message, UUID messageId
   ) {
     saleMessageDatabaseTable.insertSaleMessage(messageId, "Taskwolf",
       message, System.currentTimeMillis());
@@ -113,7 +103,7 @@ public final class TeamSaleModificationController extends TeamController {
       .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
   }
 
-  private void addTeamMemberReply(User teamMember, boolean workExists) {
+  private void addTeamMemberReply(TeamMember teamMember, boolean workExists) {
     if (!workExists) {
       teamWorkDatabaseTable.insertRequestReplies(teamMember.id(),
         Lists.newArrayList(System.currentTimeMillis()));

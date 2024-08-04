@@ -30,12 +30,12 @@ public final class TeamMemberController extends TeamController {
   private final TaskwolfMail verificationMail;
 
   private TeamMemberController(
-    Key secretKey, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
+    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable,
     @Qualifier("verificationMail") TaskwolfMail verificationMail
   ) {
-    super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.teamVerificationDatabaseTable = teamVerificationDatabaseTable;
     this.verificationMail = verificationMail;
   }
@@ -46,10 +46,7 @@ public final class TeamMemberController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
-    memberHasPermission(findUserId(request), "member.add").thenAccept(
+    memberHasPermission(findMemberId(request), "member.add").thenAccept(
       hasPermission -> addMember(body.getString("name"), body.getString("email"),
         body.getString("group"), hasPermission));
   }
@@ -97,11 +94,8 @@ public final class TeamMemberController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
     var memberId = body.getUUID("member");
-    memberHasPermission(findUserId(request), "member.remove").thenAccept(
+    memberHasPermission(findMemberId(request), "member.remove").thenAccept(
       hasPermission -> teamDatabaseTable().teamMemberExists(memberId).thenAccept(
         memberExists -> removeMember(memberId, hasPermission, memberExists)));
   }
@@ -121,11 +115,8 @@ public final class TeamMemberController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
     var memberId = body.getUUID("member");
-    memberHasPermission(findUserId(request), "member.group.change")
+    memberHasPermission(findMemberId(request), "member.group.change")
       .thenAccept(hasPermission -> teamDatabaseTable().teamMemberExists(memberId)
         .thenAccept(memberExists -> changeMemberGroup(memberId,
           body.getString("group"), hasPermission, memberExists)));
@@ -146,11 +137,8 @@ public final class TeamMemberController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
     var memberId = body.getUUID("member");
-    memberHasPermission(findUserId(request), "member.permission.add")
+    memberHasPermission(findMemberId(request), "member.permission.add")
       .thenAccept(hasPermission -> teamDatabaseTable().teamMemberExists(memberId)
         .thenAccept(memberExists -> addMemberPermission(memberId,
           body.getString("permission"), hasPermission, memberExists)));
@@ -171,11 +159,8 @@ public final class TeamMemberController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
     var memberId = body.getUUID("member");
-    memberHasPermission(findUserId(request), "member.permission.remove")
+    memberHasPermission(findMemberId(request), "member.permission.remove")
       .thenAccept(hasPermission -> teamDatabaseTable().teamMemberExists(memberId)
         .thenAccept(memberExists -> removeMemberPermission(memberId,
           body.getString("permission"), hasPermission, memberExists)));
@@ -196,23 +181,15 @@ public final class TeamMemberController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return CompletableFuture.completedFuture(Maps.newHashMap());
-    }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
-    var userId = findUserId(request);
-    memberHasPermission(userId, body.getString("permission")).thenAccept(
-      hasPermission -> futureResponse.complete(Map.of("hasPermission", hasPermission)));
+    memberHasPermission(findMemberId(request), body.getString("permission"))
+      .thenAccept(hasPermission -> futureResponse.complete(
+        Map.of("hasPermission", hasPermission)));
     return futureResponse;
   }
 
   @RequestMapping(path = "/members/", method = RequestMethod.GET)
-  public CompletableFuture<Map<String, Object>> findTeamMembers(
-    HttpServletRequest request
-  ) {
-    if (!isAuthenticatedTeamMember(request)) {
-      return CompletableFuture.completedFuture(Maps.newHashMap());
-    }
+  public CompletableFuture<Map<String, Object>> findTeamMembers() {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     teamDatabaseTable().findAllTeamMembers()
       .thenAccept(teamMembers -> futureResponse.complete(Map.of("members",

@@ -2,9 +2,12 @@ package net.taskwolf.team.access;
 
 import io.jsonwebtoken.Jwts;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
 import net.taskwolf.core.access.TaskwolfRestController;
+import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
@@ -14,37 +17,75 @@ import java.security.Key;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-@Getter
+@Getter(AccessLevel.PROTECTED)
 @Accessors(fluent = true)
-public class TeamController extends TaskwolfRestController {
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+public class TeamController {
+  private final Key secretKey;
   private final TeamDatabaseTable teamDatabaseTable;
   private final GroupDatabaseTable groupDatabaseTable;
 
-  protected TeamController(
-    Key secretKey, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable
-  ) {
-    super(secretKey, userDatabaseTable);
-    this.teamDatabaseTable = teamDatabaseTable;
-    this.groupDatabaseTable = groupDatabaseTable;
+  /**
+   * Is used to find the id of the member that send the request
+   * @param request The request
+   * @return The id of the member
+   */
+  protected UUID findMemberId(HttpServletRequest request) {
+    return findMemberId(findApiKey(request));
   }
 
-  protected boolean isAuthenticatedTeamMember(HttpServletRequest request) {
-    return isValidApiKey(findApiKey(request));
+  /**
+   * Is used to find the id of a member inside an api key
+   * @param apiKey The api key
+   * @return The id of the member
+   */
+  protected UUID findMemberId(String apiKey) {
+    return UUID.fromString(Jwts.parser().setSigningKey(secretKey).build()
+      .parseClaimsJws(apiKey).getPayload().get("id", String.class));
   }
 
+  /**
+   * Is used to find the member that send the request
+   * @param request The request
+   * @return A future that contains the member
+   */
+  protected CompletableFuture<TeamMember> findMember(HttpServletRequest request) {
+    var apiKey = request.getHeader("Authorization").replace("Bearer ", "");
+    return teamDatabaseTable.findTeamMember(findMemberId(apiKey));
+  }
+
+  /**
+   * Is used to find the api key that is sent via a request
+   * @param request The request
+   * @return The api key
+   */
+  protected String findApiKey(HttpServletRequest request) {
+    return request.getHeader("Authorization").replace("Bearer ", "");
+  }
+
+  /**
+   * Checks whether an api key is valid
+   * @param apiKey The api key
+   * @return Is true if api key is valid, otherwise false
+   */
   protected boolean isValidApiKey(String apiKey) {
     try {
-      var payload = Jwts.parser()
+      Jwts.parser()
         .setSigningKey(secretKey())
         .build()
-        .parseClaimsJws(apiKey).getPayload();
-      return payload.containsKey("team");
+        .parseClaimsJws(apiKey);
+      return true;
     } catch (Exception exception) {
       return false;
     }
   }
 
+  /**
+   * Checks whether a team member has a certain permission
+   * @param memberId The member
+   * @param permission The permission to be checked
+   * @return Is true when member has permission, otherwise false
+   */
   protected CompletableFuture<Boolean> memberHasPermission(
     UUID memberId, String permission
   ) {

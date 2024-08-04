@@ -29,25 +29,24 @@ import java.util.concurrent.CompletableFuture;
 public final class TeamTicketInformationController extends TeamController {
   private final TicketDatabaseTable ticketDatabaseTable;
   private final TicketMessageDatabaseTable ticketMessageDatabaseTable;
+  private final UserDatabaseTable userDatabaseTable;
 
   private TeamTicketInformationController(
-    Key secretKey, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
-    TicketDatabaseTable ticketDatabaseTable,
-    TicketMessageDatabaseTable ticketMessageDatabaseTable
+    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable, TicketDatabaseTable ticketDatabaseTable,
+    TicketMessageDatabaseTable ticketMessageDatabaseTable,
+    UserDatabaseTable userDatabaseTable
   ) {
-    super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.ticketDatabaseTable = ticketDatabaseTable;
     this.ticketMessageDatabaseTable = ticketMessageDatabaseTable;
+    this.userDatabaseTable = userDatabaseTable;
   }
 
   @RequestMapping(path = "/tickets/find/", method = RequestMethod.GET)
   public CompletableFuture<Map<String, Object>> findTickets(
     HttpServletRequest request
   ) {
-    if (!isAuthenticatedTeamMember(request)) {
-      return CompletableFuture.completedFuture(Maps.newHashMap());
-    }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     ticketDatabaseTable.findAllTickets().thenApply(tickets ->
       sortOutExpiredTickets(new ArrayList<>(tickets))).thenAccept(
@@ -85,9 +84,6 @@ public final class TeamTicketInformationController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return CompletableFuture.completedFuture(Maps.newHashMap());
-    }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     var ticketId = body.getUUID("ticket");
     ticketDatabaseTable.ticketExists(ticketId).thenAccept(exists ->
@@ -111,7 +107,7 @@ public final class TeamTicketInformationController extends TeamController {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     AsyncIterator.execute(ticket.messages(),
       ticketMessageDatabaseTable::findTicketMessage).thenAccept(
-      messages -> userDatabaseTable().findUser(ticket.creator()).thenAccept(
+      messages -> userDatabaseTable.findUser(ticket.creator()).thenAccept(
         creator -> ticketInformation(ticket, creator, messages)
           .thenAccept(futureResponse::complete)));
     return futureResponse;
@@ -147,7 +143,7 @@ public final class TeamTicketInformationController extends TeamController {
   private CompletableFuture<Map<String, Object>> messageInformation(
     TicketMessage message
   ) {
-    return userDatabaseTable().findUser(message.author()).thenApply(author ->
+    return userDatabaseTable.findUser(message.author()).thenApply(author ->
       assemblyMessageInformation(message, author));
   }
 

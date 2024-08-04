@@ -22,10 +22,10 @@ import java.util.concurrent.CompletableFuture;
 @RestController
 public final class TeamGroupController extends TeamController {
   private TeamGroupController(
-    Key secretKey, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable
+    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable
   ) {
-    super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
   }
 
   @RequestMapping(path = "/group/add/", method = RequestMethod.POST)
@@ -34,11 +34,8 @@ public final class TeamGroupController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
     var priority = Integer.parseInt(body.getString("priority"));
-    memberHasPermission(findUserId(request), "group.add").thenAccept(
+    memberHasPermission(findMemberId(request), "group.add").thenAccept(
       hasPermission -> addGroup(body.getString("name"), priority, hasPermission));
   }
 
@@ -56,10 +53,7 @@ public final class TeamGroupController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
-    memberHasPermission(findUserId(request), "group.remove").thenAccept(
+    memberHasPermission(findMemberId(request), "group.remove").thenAccept(
       hasPermission -> removeGroup(body.getString("name"), hasPermission));
   }
 
@@ -76,12 +70,9 @@ public final class TeamGroupController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
     var group = body.getString("name");
     var priority = Integer.parseInt(body.getString("priority"));
-    memberHasPermission(findUserId(request), "group.priority.change")
+    memberHasPermission(findMemberId(request), "group.priority.change")
       .thenAccept(hasPermission -> groupDatabaseTable().groupExists(group)
         .thenAccept(groupExists -> changeGroupPriority(group, priority,
           hasPermission, groupExists)));
@@ -102,11 +93,8 @@ public final class TeamGroupController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
     var group = body.getString("name");
-    memberHasPermission(findUserId(request), "group.permission.add")
+    memberHasPermission(findMemberId(request), "group.permission.add")
       .thenAccept(hasPermission -> groupDatabaseTable().groupExists(group)
         .thenAccept(groupExists -> addGroupPermission(group,
           body.getString("permission"), hasPermission, groupExists)));
@@ -127,11 +115,8 @@ public final class TeamGroupController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
     var group = body.getString("name");
-    memberHasPermission(findUserId(request), "group.permission.remove")
+    memberHasPermission(findMemberId(request), "group.permission.remove")
       .thenAccept(hasPermission -> groupDatabaseTable().groupExists(group)
         .thenAccept(groupExists -> removeGroupPermission(group,
           body.getString("permission"), hasPermission, groupExists)));
@@ -150,9 +135,6 @@ public final class TeamGroupController extends TeamController {
   public CompletableFuture<Map<String, Object>> findGroups(
     HttpServletRequest request
   ) {
-    if (!isAuthenticatedTeamMember(request)) {
-      return CompletableFuture.completedFuture(Maps.newHashMap());
-    }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     groupDatabaseTable().findAllGroups().thenAccept(groups ->
       futureResponse.complete(Map.of("groups", groups.stream()

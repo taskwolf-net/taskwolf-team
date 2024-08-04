@@ -9,6 +9,7 @@ import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.access.question.TeamQuestionInformationController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
+import net.taskwolf.team.member.TeamMember;
 import net.taskwolf.team.member.TeamWorkDatabaseTable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -28,13 +29,12 @@ public final class TeamStatisticsController extends TeamController {
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
 
   private TeamStatisticsController(
-    Key secretKey, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
-    TicketDatabaseTable ticketDatabaseTable,
+    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable, TicketDatabaseTable ticketDatabaseTable,
     TeamQuestionInformationController teamEmailInformationController,
     TeamWorkDatabaseTable teamWorkDatabaseTable
   ) {
-    super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.ticketDatabaseTable = ticketDatabaseTable;
     this.teamEmailInformationController = teamEmailInformationController;
     this.teamDatabaseTable = teamDatabaseTable;
@@ -47,11 +47,8 @@ public final class TeamStatisticsController extends TeamController {
   public CompletableFuture<Map<String, Object>> findStatistics(
     HttpServletRequest request
   ) {
-    if (!isAuthenticatedTeamMember(request)) {
-      return CompletableFuture.completedFuture(Maps.newHashMap());
-    }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
-    findUser(request).thenAccept(user -> findOpenTickets().thenAccept(openTickets ->
+    findMember(request).thenAccept(user -> findOpenTickets().thenAccept(openTickets ->
       findOpenEmails().thenAccept(openEmails -> findTeamSize().thenAccept(teamSize ->
         findPersonalProcessedRequests(user).thenAccept(processedRequests ->
           futureResponse.complete(assemblyStatistics(openTickets, openEmails,
@@ -82,22 +79,23 @@ public final class TeamStatisticsController extends TeamController {
   }
 
   private CompletableFuture<Map<Integer, Integer>> findPersonalProcessedRequests(
-    User user
+    TeamMember member
   ) {
     var futureResponse = new CompletableFuture<Map<Integer, Integer>>();
-    teamWorkDatabaseTable.hasRequestReplies(user.id()).thenAccept(exists ->
-      findPersonalProcessedRequests(user, exists).thenAccept(futureResponse::complete));
+    teamWorkDatabaseTable.hasRequestReplies(member.id())
+      .thenAccept(exists -> findPersonalProcessedRequests(member, exists)
+        .thenAccept(futureResponse::complete));
     return futureResponse;
   }
 
   private CompletableFuture<Map<Integer, Integer>> findPersonalProcessedRequests(
-    User user, boolean hasRequestReplies
+    TeamMember member, boolean hasRequestReplies
   ) {
     if (!hasRequestReplies) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
     var futureResponse = new CompletableFuture<Map<Integer, Integer>>();
-    teamWorkDatabaseTable.findRequestReplies(user.id()).thenAccept(replies ->
+    teamWorkDatabaseTable.findRequestReplies(member.id()).thenAccept(replies ->
       futureResponse.complete(classifyDatesInMonthlyOccurrence(replies.stream()
         .map(this::formatTime).toList(), false)));
     return futureResponse;

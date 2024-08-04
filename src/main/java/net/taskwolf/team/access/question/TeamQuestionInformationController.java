@@ -37,25 +37,20 @@ public final class TeamQuestionInformationController extends TeamController {
   private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
 
   private TeamQuestionInformationController(
-    Key secretKey, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
+    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable,
     @Qualifier("supportMail") TaskwolfMail supportMail,
     QuestionDatabaseTable questionDatabaseTable,
     QuestionMessageDatabaseTable questionMessageDatabaseTable
   ) {
-    super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.supportMail = supportMail;
     this.questionDatabaseTable = questionDatabaseTable;
     this.questionMessageDatabaseTable = questionMessageDatabaseTable;
   }
 
   @RequestMapping(path = "/questions/find/", method = RequestMethod.GET)
-  public CompletableFuture<Map<String, Object>> findQuestions(
-    HttpServletRequest request
-  ) {
-    if (!isAuthenticatedTeamMember(request)) {
-      return CompletableFuture.completedFuture(Maps.newHashMap());
-    }
+  public CompletableFuture<Map<String, Object>> findQuestions() {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     findOpenQuestions().thenAccept(questions ->
       futureResponse.complete(assemblyQuestions(questions)));
@@ -64,13 +59,9 @@ public final class TeamQuestionInformationController extends TeamController {
 
   @RequestMapping(path = "/question/find/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> findQuestion(
-    HttpServletRequest request, @RequestBody String payload,
-    HttpServletResponse response
+    @RequestBody String payload, HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return CompletableFuture.completedFuture(Maps.newHashMap());
-    }
     var questionId = body.getUUID("question");
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     questionDatabaseTable.questionExists(questionId).thenAccept(exists ->

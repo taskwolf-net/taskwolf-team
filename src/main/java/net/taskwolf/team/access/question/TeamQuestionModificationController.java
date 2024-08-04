@@ -8,11 +8,10 @@ import net.taskwolf.core.mail.TaskwolfMail;
 import net.taskwolf.core.question.Question;
 import net.taskwolf.core.question.QuestionDatabaseTable;
 import net.taskwolf.core.question.QuestionMessageDatabaseTable;
-import net.taskwolf.core.user.User;
-import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
+import net.taskwolf.team.member.TeamMember;
 import net.taskwolf.team.member.TeamWorkDatabaseTable;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,14 +30,14 @@ public final class TeamQuestionModificationController extends TeamController {
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
 
   private TeamQuestionModificationController(
-    Key secretKey, UserDatabaseTable userDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
+    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable,
     @Qualifier("supportMail") TaskwolfMail supportMail,
     QuestionDatabaseTable questionDatabaseTable,
     QuestionMessageDatabaseTable questionMessageDatabaseTable,
     TeamWorkDatabaseTable teamWorkDatabaseTable
   ) {
-    super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.supportMail = supportMail;
     this.questionDatabaseTable = questionDatabaseTable;
     this.questionMessageDatabaseTable = questionMessageDatabaseTable;
@@ -47,13 +46,9 @@ public final class TeamQuestionModificationController extends TeamController {
 
   @RequestMapping(path = "/question/delete/", method = RequestMethod.POST)
   public void deleteQuestion(
-    HttpServletRequest request, @RequestBody String payload,
-    HttpServletResponse response
+    @RequestBody String payload, HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
     var questionId = body.getUUID("question");
     questionDatabaseTable.questionExists(questionId).thenAccept(exists ->
       deleteQuestion(questionId, exists));
@@ -80,17 +75,14 @@ public final class TeamQuestionModificationController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    if (!isAuthenticatedTeamMember(request)) {
-      return;
-    }
     var questionId = body.getUUID("question");
-    findUser(request).thenAccept(teamMember ->
+    findMember(request).thenAccept(teamMember ->
       questionDatabaseTable.questionExists(questionId).thenAccept(exists ->
         answerQuestion(teamMember, questionId, body.getString("message"), exists)));
   }
 
   private void answerQuestion(
-    User teamMember, UUID questionId, String message, boolean exists
+    TeamMember teamMember, UUID questionId, String message, boolean exists
   ) {
     if (!exists) {
       return;
@@ -101,7 +93,7 @@ public final class TeamQuestionModificationController extends TeamController {
   }
 
   private void answerQuestion(
-    User teamMember, Question question, String message, UUID messageId
+    TeamMember teamMember, Question question, String message, UUID messageId
   ) {
     questionMessageDatabaseTable.insertQuestionMessage(messageId, "Taskwolf",
       message, System.currentTimeMillis());
@@ -113,7 +105,7 @@ public final class TeamQuestionModificationController extends TeamController {
       .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
   }
 
-  private void addTeamMemberReply(User teamMember, boolean workExists) {
+  private void addTeamMemberReply(TeamMember teamMember, boolean workExists) {
     if (!workExists) {
       teamWorkDatabaseTable.insertRequestReplies(teamMember.id(),
         Lists.newArrayList(System.currentTimeMillis()));
