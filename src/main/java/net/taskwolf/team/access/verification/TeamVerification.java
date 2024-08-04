@@ -4,7 +4,7 @@ import io.jsonwebtoken.Jwts;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
-import net.taskwolf.core.user.UserDatabaseTable;
+import net.taskwolf.team.member.TeamDatabaseTable;
 
 import java.security.Key;
 import java.util.Date;
@@ -14,7 +14,7 @@ import java.util.concurrent.CompletableFuture;
 @Accessors(fluent = true)
 @RequiredArgsConstructor(staticName = "create")
 public final class TeamVerification {
-  private final UserDatabaseTable userDatabaseTable;
+  private final TeamDatabaseTable teamDatabaseTable;
   private final Key secret;
   @Getter
   private final String email;
@@ -28,7 +28,7 @@ public final class TeamVerification {
       futureResponse.complete(false);
       return futureResponse;
     }
-    userDatabaseTable.userExists(email).thenAccept(exists ->
+    teamDatabaseTable.teamMemberExists(email).thenAccept(exists ->
       isAuthenticated(exists).thenAccept(futureResponse::complete));
     return futureResponse;
   }
@@ -39,19 +39,18 @@ public final class TeamVerification {
       futureResponse.complete(false);
       return futureResponse;
     }
-    userDatabaseTable.findUser(email).thenAccept(user ->
-      futureResponse.complete(user.passwordHash().equals(passwordHash)));
+    teamDatabaseTable.findTeamMember(email).thenAccept(member ->
+      futureResponse.complete(member.passwordHash().equals(passwordHash)));
     return futureResponse;
   }
 
   private static final long EXPIRATION_TIME = 1000L * 60 * 60;
 
-  public String generateApiKey(UUID userId) {
+  public String generateApiKey(UUID memberId) {
     var expiration = new Date(System.currentTimeMillis() + EXPIRATION_TIME);
     return Jwts.builder()
       .setExpiration(expiration)
-      .claim("id", userId.toString())
-      .claim("team", true)
+      .claim("id", memberId.toString())
       .signWith(secret)
       .compact();
   }
