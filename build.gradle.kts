@@ -1,5 +1,6 @@
 plugins {
   id("java")
+  id("org.springframework.boot") version "3.2.5"
 }
 
 group = "net.taskwolf"
@@ -26,35 +27,33 @@ dependencies {
   testCompileOnly(platform("org.junit:junit-bom:5.10.2"))
   testCompileOnly("org.junit.jupiter:junit-jupiter:5.10.2")
 
-  compileOnly("net.taskwolf:core:1.0.0-SNAPSHOT")
+  implementation("net.taskwolf:core:1.0.0-SNAPSHOT")
 
-  compileOnly("com.google.inject:guice:7.0.0")
+  implementation("com.google.inject:guice:7.0.0")
 
-  compileOnly("com.google.guava:guava:33.1.0-jre")
+  implementation("com.google.guava:guava:33.1.0-jre")
 
-  compileOnly("org.projectlombok:lombok:1.18.32")
+  implementation("org.projectlombok:lombok:1.18.32")
   annotationProcessor("org.projectlombok:lombok:1.18.32")
   testCompileOnly("org.projectlombok:lombok:1.18.32")
   testAnnotationProcessor("org.projectlombok:lombok:1.18.32")
 
-  compileOnly("com.datastax.oss:java-driver-core:4.17.0")
+  implementation("com.datastax.oss:java-driver-core:4.17.0")
 
-  compileOnly("org.json:json:20240303")
-  compileOnly("commons-io:commons-io:2.16.1")
+  implementation("org.json:json:20240303")
+  implementation("commons-io:commons-io:2.16.1")
 
-  compileOnly("org.springframework.boot:spring-boot-starter-web:3.2.5")
+  implementation("org.springframework.boot:spring-boot-starter-web:3.2.5")
 
-  compileOnly("io.jsonwebtoken:jjwt:0.12.5")
+  implementation("io.jsonwebtoken:jjwt:0.12.5")
 
-  compileOnly("com.sun.mail:javax.mail:1.6.2")
+  implementation("com.sun.mail:javax.mail:1.6.2")
 }
 
 tasks.test {
   useJUnitPlatform()
 }
 
-tasks.jar {
-  val dependencies = configurations.runtimeClasspath.get().map(::zipTree)
-  from(dependencies)
-  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+tasks.bootJar {
+  mainClass = "net.taskwolf.team.TeamApplication"
 }
