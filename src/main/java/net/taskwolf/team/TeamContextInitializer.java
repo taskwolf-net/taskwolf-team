@@ -15,8 +15,10 @@ import net.taskwolf.core.ticket.TicketDatabaseTable;
 import net.taskwolf.core.ticket.TicketMessageDatabaseTable;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.core.user.activity.UserActivityDatabaseTable;
+import net.taskwolf.core.whitelist.WhitelistConfiguration;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
+import net.taskwolf.team.member.TeamVerificationDatabaseTable;
 import net.taskwolf.team.member.TeamWorkDatabaseTable;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -31,8 +33,12 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final DatabaseKeyspace databaseKeyspace;
   private final UserDatabaseTable userDatabaseTable;
   private final UserActivityDatabaseTable activityDatabaseTable;
+  private final WhitelistConfiguration whitelistConfiguration;
   private final TeamDatabaseTable teamDatabaseTable;
+  private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
+  private final TeamWorkDatabaseTable teamWorkDatabaseTable;
   private final GroupDatabaseTable groupDatabaseTable;
+  private final TaskwolfMail verificationMail;
   private final TaskwolfMail supportMail;
   private final TaskwolfMail saleMail;
   private final TicketDatabaseTable ticketDatabaseTable;
@@ -41,14 +47,18 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
   private final SaleDatabaseTable saleDatabaseTable;
   private final SaleMessageDatabaseTable saleMessageDatabaseTable;
-  private final TeamWorkDatabaseTable teamWorkDatabaseTable;
 
   @Inject
   private TeamContextInitializer(
     Log log, @Named("teamKey") Key key, DatabaseConnection databaseConnection,
     DatabaseKeyspace databaseKeyspace, UserDatabaseTable userDatabaseTable,
     UserActivityDatabaseTable activityDatabaseTable,
-    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
+    WhitelistConfiguration whitelistConfiguration,
+    TeamDatabaseTable teamDatabaseTable,
+    TeamVerificationDatabaseTable teamVerificationDatabaseTable,
+    TeamWorkDatabaseTable teamWorkDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable,
+    @Named("verificationMail") TaskwolfMail verificationMail,
     @Named("supportMail") TaskwolfMail supportMail,
     @Named("saleMail") TaskwolfMail saleMail,
     TicketDatabaseTable ticketDatabaseTable,
@@ -56,8 +66,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     QuestionDatabaseTable questionDatabaseTable,
     QuestionMessageDatabaseTable questionMessageDatabaseTable,
     SaleDatabaseTable saleDatabaseTable,
-    SaleMessageDatabaseTable saleMessageDatabaseTable,
-    TeamWorkDatabaseTable teamWorkDatabaseTable
+    SaleMessageDatabaseTable saleMessageDatabaseTable
   ) {
     this.log = log;
     this.key = key;
@@ -65,8 +74,12 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.databaseKeyspace = databaseKeyspace;
     this.userDatabaseTable = userDatabaseTable;
     this.activityDatabaseTable = activityDatabaseTable;
+    this.whitelistConfiguration = whitelistConfiguration;
     this.teamDatabaseTable = teamDatabaseTable;
+    this.teamVerificationDatabaseTable = teamVerificationDatabaseTable;
+    this.teamWorkDatabaseTable = teamWorkDatabaseTable;
     this.groupDatabaseTable = groupDatabaseTable;
+    this.verificationMail = verificationMail;
     this.supportMail = supportMail;
     this.saleMail = saleMail;
     this.ticketDatabaseTable = ticketDatabaseTable;
@@ -75,7 +88,6 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.questionMessageDatabaseTable = questionMessageDatabaseTable;
     this.saleDatabaseTable = saleDatabaseTable;
     this.saleMessageDatabaseTable = saleMessageDatabaseTable;
-    this.teamWorkDatabaseTable = teamWorkDatabaseTable;
   }
 
   @Override
@@ -87,8 +99,13 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("databaseKeyspace", databaseKeyspace);
     beanFactory.registerSingleton("userDatabaseTable", userDatabaseTable);
     beanFactory.registerSingleton("activityDatabaseTable", activityDatabaseTable);
+    beanFactory.registerSingleton("whitelistConfiguration", whitelistConfiguration);
     beanFactory.registerSingleton("teamDatabaseTable", teamDatabaseTable);
+    beanFactory.registerSingleton("teamVerificationDatabaseTable",
+      teamVerificationDatabaseTable);
+    beanFactory.registerSingleton("teamWorkDatabaseTable", teamWorkDatabaseTable);
     beanFactory.registerSingleton("groupDatabaseTable", groupDatabaseTable);
+    beanFactory.registerSingleton("verificationMail", verificationMail);
     beanFactory.registerSingleton("supportMail", supportMail);
     beanFactory.registerSingleton("saleMail", saleMail);
     beanFactory.registerSingleton("ticketDatabaseTable", ticketDatabaseTable);
@@ -100,6 +117,5 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("saleDatabaseTable", saleDatabaseTable);
     beanFactory.registerSingleton("saleMessageDatabaseTable",
       saleMessageDatabaseTable);
-    beanFactory.registerSingleton("teamWorkDatabaseTable", teamWorkDatabaseTable);
   }
 }

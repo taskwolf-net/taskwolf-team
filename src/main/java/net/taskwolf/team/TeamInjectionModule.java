@@ -71,6 +71,17 @@ public final class TeamInjectionModule extends AbstractModule {
 
   @Provides
   @Singleton
+  @Named("verificationMail")
+  TaskwolfMail provideVerificationMail() throws Exception {
+    var mailConfiguration = TaskwolfMailConfiguration.createAndLoad("verification");
+    return TaskwolfMail.create(mailConfiguration.mail(),
+      mailConfiguration.smtpMailHost(), mailConfiguration.smtpMailPort(),
+      mailConfiguration.imapMailHost(), mailConfiguration.imapMailPort(),
+      mailConfiguration.mailUser(), mailConfiguration.mailPassword());
+  }
+
+  @Provides
+  @Singleton
   @Named("supportMail")
   TaskwolfMail provideSupportMail() throws Exception {
     var mailConfiguration = TaskwolfMailConfiguration.createAndLoad("support");
