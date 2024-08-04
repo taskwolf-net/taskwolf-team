@@ -43,7 +43,7 @@ public final class TeamStatisticsController extends TeamController {
 
   private static final int TEAM_SIZE_GOAL = 20;
 
-  @RequestMapping(path = "/team/statistics/", method = RequestMethod.GET)
+  @RequestMapping(path = "/statistics/", method = RequestMethod.GET)
   public CompletableFuture<Map<String, Object>> findStatistics(
     HttpServletRequest request
   ) {

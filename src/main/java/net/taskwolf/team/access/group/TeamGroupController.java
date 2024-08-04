@@ -28,7 +28,7 @@ public final class TeamGroupController extends TeamController {
     super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
   }
 
-  @RequestMapping(path = "/team/group/add/", method = RequestMethod.POST)
+  @RequestMapping(path = "/group/add/", method = RequestMethod.POST)
   public void addGroup(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
@@ -50,7 +50,7 @@ public final class TeamGroupController extends TeamController {
       Lists.newArrayList()));
   }
 
-  @RequestMapping(path = "/team/group/remove/", method = RequestMethod.POST)
+  @RequestMapping(path = "/group/remove/", method = RequestMethod.POST)
   public void removeGroup(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
@@ -70,7 +70,7 @@ public final class TeamGroupController extends TeamController {
     groupDatabaseTable().deleteGroup(group);
   }
 
-  @RequestMapping(path = "/team/group/priority/change/", method = RequestMethod.POST)
+  @RequestMapping(path = "/group/priority/change/", method = RequestMethod.POST)
   public void changeGroupPriority(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
@@ -96,7 +96,7 @@ public final class TeamGroupController extends TeamController {
     groupDatabaseTable().changeGroupPriority(group, priority);
   }
 
-  @RequestMapping(path = "/team/group/permission/add/", method = RequestMethod.POST)
+  @RequestMapping(path = "/group/permission/add/", method = RequestMethod.POST)
   public void addGroupPermission(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
@@ -121,7 +121,7 @@ public final class TeamGroupController extends TeamController {
     groupDatabaseTable().addGroupPermission(group, permission);
   }
 
-  @RequestMapping(path = "/team/group/permission/remove/", method = RequestMethod.POST)
+  @RequestMapping(path = "/group/permission/remove/", method = RequestMethod.POST)
   public void removeGroupPermission(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
@@ -146,7 +146,7 @@ public final class TeamGroupController extends TeamController {
     groupDatabaseTable().removeGroupPermission(group, permission);
   }
 
-  @RequestMapping(path = "/team/groups/", method = RequestMethod.GET)
+  @RequestMapping(path = "/groups/", method = RequestMethod.GET)
   public CompletableFuture<Map<String, Object>> findGroups(
     HttpServletRequest request
   ) {

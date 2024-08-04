@@ -42,7 +42,7 @@ public final class TeamSaleInformationController extends TeamController {
     this.saleMessageDatabaseTable = saleMessageDatabaseTable;
   }
 
-  @RequestMapping(path = "/team/sales/find/", method = RequestMethod.GET)
+  @RequestMapping(path = "/sales/find/", method = RequestMethod.GET)
   public CompletableFuture<Map<String, Object>> findSales(
     HttpServletRequest request
   ) {
@@ -55,7 +55,7 @@ public final class TeamSaleInformationController extends TeamController {
     return futureResponse;
   }
 
-  @RequestMapping(path = "/team/sale/find/", method = RequestMethod.POST)
+  @RequestMapping(path = "/sale/find/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> findSale(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response

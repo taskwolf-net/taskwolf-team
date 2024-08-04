@@ -45,7 +45,7 @@ public final class TeamQuestionModificationController extends TeamController {
     this.teamWorkDatabaseTable = teamWorkDatabaseTable;
   }
 
-  @RequestMapping(path = "/team/question/delete/", method = RequestMethod.POST)
+  @RequestMapping(path = "/question/delete/", method = RequestMethod.POST)
   public void deleteQuestion(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
@@ -74,7 +74,7 @@ public final class TeamQuestionModificationController extends TeamController {
     }
   }
 
-  @RequestMapping(path = "/team/question/answer/", method = RequestMethod.POST)
+  @RequestMapping(path = "/question/answer/", method = RequestMethod.POST)
   public void answerQuestion(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response

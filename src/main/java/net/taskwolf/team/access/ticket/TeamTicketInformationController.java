@@ -41,7 +41,7 @@ public final class TeamTicketInformationController extends TeamController {
     this.ticketMessageDatabaseTable = ticketMessageDatabaseTable;
   }
 
-  @RequestMapping(path = "/team/tickets/find/", method = RequestMethod.GET)
+  @RequestMapping(path = "/tickets/find/", method = RequestMethod.GET)
   public CompletableFuture<Map<String, Object>> findTickets(
     HttpServletRequest request
   ) {
@@ -79,7 +79,7 @@ public final class TeamTicketInformationController extends TeamController {
     }
   }
 
-  @RequestMapping(path = "/team/ticket/find/", method = RequestMethod.POST)
+  @RequestMapping(path = "/ticket/find/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> findTicket(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response

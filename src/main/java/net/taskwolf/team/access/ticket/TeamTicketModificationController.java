@@ -46,7 +46,7 @@ public final class TeamTicketModificationController extends TeamController {
     this.activityDatabaseTable = activityDatabaseTable;
   }
 
-  @RequestMapping(path = "/team/ticket/answer/", method = RequestMethod.POST)
+  @RequestMapping(path = "/ticket/answer/", method = RequestMethod.POST)
   public void answerTicket(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
@@ -98,7 +98,7 @@ public final class TeamTicketModificationController extends TeamController {
       System.currentTimeMillis());
   }
 
-  @RequestMapping(path = "/team/ticket/message/delete/", method = RequestMethod.POST)
+  @RequestMapping(path = "/ticket/message/delete/", method = RequestMethod.POST)
   public void deleteTicketMessage(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
@@ -128,7 +128,7 @@ public final class TeamTicketModificationController extends TeamController {
     ticketDatabaseTable.removeTicketMessage(ticket.id(), messageId);
   }
 
-  @RequestMapping(path = "/team/ticket/delete/", method = RequestMethod.POST)
+  @RequestMapping(path = "/ticket/delete/", method = RequestMethod.POST)
   public void deleteTicket(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
