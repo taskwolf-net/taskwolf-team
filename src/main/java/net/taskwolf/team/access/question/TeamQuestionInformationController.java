@@ -106,7 +106,8 @@ public final class TeamQuestionInformationController extends TeamController {
       messageInformation.put("id", message.id());
       messageInformation.put("sender", message.sender());
       messageInformation.put("body", message.content());
-      messageInformation.put("teamWritten", message.sender().equalsIgnoreCase("Taskwolf"));
+      messageInformation.put("teamWritten", message.sender()
+        .equalsIgnoreCase("Taskwolf"));
       messageInformation.put("time", formatTime(message.time()));
       messagesInformation.add(messageInformation);
     }
@@ -121,7 +122,7 @@ public final class TeamQuestionInformationController extends TeamController {
     for (var entry : questions.entrySet()) {
       information.add(assemblyQuestion(entry.getKey(), entry.getValue()));
     }
-    return Map.of("mails", information);
+    return Map.of("questions", information);
   }
 
   public CompletableFuture<Map<Question, List<QuestionMessage>>> findOpenQuestions() {
@@ -148,10 +149,11 @@ public final class TeamQuestionInformationController extends TeamController {
   ) {
     var sender = ((InternetAddress) incomingMessage.sender()).getAddress();
     saveSupportMailMessage(incomingMessage).thenAccept(incomingMessageId ->
-      questionDatabaseTable.findQuestionsBySender(sender).thenAccept(mails ->
-        saveSupportMail(incomingMessage, incomingMessageId, mails.stream().filter(mail ->
-            incomingMessage.title().contains(mail.title())).findFirst(), inbox,
-          futureResponse)));
+      questionDatabaseTable.findQuestionsBySender(sender)
+        .thenAccept(questions -> saveSupportMail(incomingMessage, incomingMessageId,
+          questions.stream().filter(question ->
+            incomingMessage.title().contains(question.title())).findFirst(),
+          inbox, futureResponse)));
   }
 
   private CompletableFuture<UUID> saveSupportMailMessage(
@@ -199,8 +201,9 @@ public final class TeamQuestionInformationController extends TeamController {
   private CompletableFuture<Map<Question, List<QuestionMessage>>> findAllSupportQuestions() {
     var futureResponse = new CompletableFuture<Map<Question, List<QuestionMessage>>>();
     questionDatabaseTable.findAllQuestions().thenApply(this::sortOutExpiredQuestions)
-      .thenAccept(questions -> AsyncIterator.execute(questions, question -> findQuestionMessages(question)
-          .thenApply(messages -> new AbstractMap.SimpleEntry<>(question, messages)))
+      .thenAccept(questions -> AsyncIterator.execute(questions,
+          question -> findQuestionMessages(question).thenApply(messages ->
+            new AbstractMap.SimpleEntry<>(question, messages)))
         .thenAccept(entries -> futureResponse.complete(entries.stream()
           .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
     return futureResponse;
