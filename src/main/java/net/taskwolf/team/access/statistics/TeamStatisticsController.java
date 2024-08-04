@@ -6,9 +6,8 @@ import net.taskwolf.core.ticket.TicketDatabaseTable;
 import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
-import net.taskwolf.team.access.email.TeamEmailInformationController;
+import net.taskwolf.team.access.question.TeamQuestionInformationController;
 import net.taskwolf.team.group.GroupDatabaseTable;
-import net.taskwolf.team.mail.SupportMailDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.member.TeamWorkDatabaseTable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,8 +23,7 @@ import java.util.concurrent.CompletableFuture;
 @RestController
 public final class TeamStatisticsController extends TeamController {
   private final TicketDatabaseTable ticketDatabaseTable;
-  private final SupportMailDatabaseTable supportMailDatabaseTable;
-  private final TeamEmailInformationController teamEmailInformationController;
+  private final TeamQuestionInformationController teamEmailInformationController;
   private final TeamDatabaseTable teamDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
 
@@ -33,13 +31,11 @@ public final class TeamStatisticsController extends TeamController {
     Key secretKey, UserDatabaseTable userDatabaseTable,
     TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     TicketDatabaseTable ticketDatabaseTable,
-    SupportMailDatabaseTable supportMailDatabaseTable,
-    TeamEmailInformationController teamEmailInformationController,
+    TeamQuestionInformationController teamEmailInformationController,
     TeamWorkDatabaseTable teamWorkDatabaseTable
   ) {
     super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
     this.ticketDatabaseTable = ticketDatabaseTable;
-    this.supportMailDatabaseTable = supportMailDatabaseTable;
     this.teamEmailInformationController = teamEmailInformationController;
     this.teamDatabaseTable = teamDatabaseTable;
     this.teamWorkDatabaseTable = teamWorkDatabaseTable;
@@ -73,7 +69,7 @@ public final class TeamStatisticsController extends TeamController {
 
   private CompletableFuture<Integer> findOpenEmails() {
     var futureResponse = new CompletableFuture<Integer>();
-    teamEmailInformationController.findOpenMails().thenAccept(
+    teamEmailInformationController.findOpenQuestions().thenAccept(
       emails -> futureResponse.complete(emails.size()));
     return futureResponse;
   }

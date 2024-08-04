@@ -4,9 +4,9 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import net.taskwolf.core.mail.TaskwolfMail;
+import net.taskwolf.core.question.QuestionDatabaseTable;
+import net.taskwolf.core.question.QuestionMessageDatabaseTable;
 import net.taskwolf.team.group.GroupDatabaseTable;
-import net.taskwolf.team.mail.SupportMailDatabaseTable;
-import net.taskwolf.team.mail.SupportMailMessageDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.member.TeamWorkDatabaseTable;
 import org.springframework.context.ApplicationContextInitializer;
@@ -17,23 +17,23 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final TeamDatabaseTable teamDatabaseTable;
   private final GroupDatabaseTable groupDatabaseTable;
   private final TaskwolfMail supportMail;
-  private final SupportMailDatabaseTable supportMailDatabaseTable;
-  private final SupportMailMessageDatabaseTable supportMailMessageDatabaseTable;
+  private final QuestionDatabaseTable questionDatabaseTable;
+  private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
 
   @Inject
   private TeamContextInitializer(
     TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     @Named("supportMail") TaskwolfMail supportMail,
-    SupportMailDatabaseTable supportMailDatabaseTable,
-    SupportMailMessageDatabaseTable supportMailMessageDatabaseTable,
+    QuestionDatabaseTable questionDatabaseTable,
+    QuestionMessageDatabaseTable questionMessageDatabaseTable,
     TeamWorkDatabaseTable teamWorkDatabaseTable
   ) {
     this.teamDatabaseTable = teamDatabaseTable;
     this.groupDatabaseTable = groupDatabaseTable;
     this.supportMail = supportMail;
-    this.supportMailDatabaseTable = supportMailDatabaseTable;
-    this.supportMailMessageDatabaseTable = supportMailMessageDatabaseTable;
+    this.questionDatabaseTable = questionDatabaseTable;
+    this.questionMessageDatabaseTable = questionMessageDatabaseTable;
     this.teamWorkDatabaseTable = teamWorkDatabaseTable;
   }
 
@@ -43,9 +43,9 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("teamDatabaseTable", teamDatabaseTable);
     beanFactory.registerSingleton("groupDatabaseTable", groupDatabaseTable);
     beanFactory.registerSingleton("supportMail", supportMail);
-    beanFactory.registerSingleton("supportMailDatabaseTable", supportMailDatabaseTable);
-    beanFactory.registerSingleton("supportMailMessageDatabaseTable",
-      supportMailMessageDatabaseTable);
+    beanFactory.registerSingleton("questionDatabaseTable", questionDatabaseTable);
+    beanFactory.registerSingleton("questionMessageDatabaseTable",
+      questionMessageDatabaseTable);
     beanFactory.registerSingleton("teamWorkDatabaseTable", teamWorkDatabaseTable);
   }
 }

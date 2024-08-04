@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import net.taskwolf.core.mail.TaskwolfMail;
 import net.taskwolf.core.mail.TaskwolfMailConfiguration;
 import net.taskwolf.team.group.GroupInjectionModule;
-import net.taskwolf.team.mail.SupportMailInjectionModule;
 import net.taskwolf.team.member.TeamMemberInjectionModule;
 
 @RequiredArgsConstructor(staticName = "create")
@@ -17,7 +16,6 @@ public final class TeamInjectionModule extends AbstractModule {
   protected void configure() {
     install(TeamMemberInjectionModule.create());
     install(GroupInjectionModule.create());
-    install(SupportMailInjectionModule.create());
   }
 
   @Provides

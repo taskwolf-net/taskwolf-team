@@ -1,4 +1,4 @@
-package net.taskwolf.team.access.email;
+package net.taskwolf.team.access.question;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -8,13 +8,13 @@ import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.iterator.AsyncIterator;
 import net.taskwolf.core.mail.TaskwolfMail;
 import net.taskwolf.core.mail.TaskwolfMailMessage;
+import net.taskwolf.core.question.Question;
+import net.taskwolf.core.question.QuestionDatabaseTable;
+import net.taskwolf.core.question.QuestionMessage;
+import net.taskwolf.core.question.QuestionMessageDatabaseTable;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
-import net.taskwolf.team.mail.SupportMail;
-import net.taskwolf.team.mail.SupportMailDatabaseTable;
-import net.taskwolf.team.mail.SupportMailMessage;
-import net.taskwolf.team.mail.SupportMailMessageDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,38 +31,39 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @RestController
-public final class TeamEmailInformationController extends TeamController {
+public final class TeamQuestionInformationController extends TeamController {
   private final TaskwolfMail supportMail;
-  private final SupportMailDatabaseTable supportMailDatabaseTable;
-  private final SupportMailMessageDatabaseTable supportMailMessageDatabaseTable;
+  private final QuestionDatabaseTable questionDatabaseTable;
+  private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
 
-  private TeamEmailInformationController(
+  private TeamQuestionInformationController(
     Key secretKey, UserDatabaseTable userDatabaseTable,
     TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     @Qualifier("supportMail") TaskwolfMail supportMail,
-    SupportMailDatabaseTable supportMailDatabaseTable,
-    SupportMailMessageDatabaseTable supportMailMessageDatabaseTable
+    QuestionDatabaseTable questionDatabaseTable,
+    QuestionMessageDatabaseTable questionMessageDatabaseTable
   ) {
     super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
     this.supportMail = supportMail;
-    this.supportMailDatabaseTable = supportMailDatabaseTable;
-    this.supportMailMessageDatabaseTable = supportMailMessageDatabaseTable;
+    this.questionDatabaseTable = questionDatabaseTable;
+    this.questionMessageDatabaseTable = questionMessageDatabaseTable;
   }
 
-  @RequestMapping(path = "/team/mails/find/", method = RequestMethod.GET)
-  public CompletableFuture<Map<String, Object>> findMails(
+  @RequestMapping(path = "/team/questions/find/", method = RequestMethod.GET)
+  public CompletableFuture<Map<String, Object>> findQuestions(
     HttpServletRequest request
   ) {
     if (!isAuthenticatedTeamMember(request)) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
-    findOpenMails().thenAccept(mails -> futureResponse.complete(assemblyMails(mails)));
+    findOpenQuestions().thenAccept(questions ->
+      futureResponse.complete(assemblyQuestions(questions)));
     return futureResponse;
   }
 
-  @RequestMapping(path = "/team/mail/find/", method = RequestMethod.POST)
-  public CompletableFuture<Map<String, Object>> findMail(
+  @RequestMapping(path = "/team/questions/find/", method = RequestMethod.POST)
+  public CompletableFuture<Map<String, Object>> findQuestion(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
   ) {
@@ -70,34 +71,34 @@ public final class TeamEmailInformationController extends TeamController {
     if (!isAuthenticatedTeamMember(request)) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    var mailId = body.getUUID("mail");
+    var questionId = body.getUUID("question");
     var futureResponse = new CompletableFuture<Map<String, Object>>();
-    supportMailDatabaseTable.mailExists(mailId).thenAccept(exists ->
-      findMail(mailId, exists).thenAccept(futureResponse::complete));
+    questionDatabaseTable.questionExists(questionId).thenAccept(exists ->
+      findQuestion(questionId, exists).thenAccept(futureResponse::complete));
     return futureResponse;
   }
 
-  private CompletableFuture<Map<String, Object>> findMail(
-    UUID mailId, boolean exists
+  private CompletableFuture<Map<String, Object>> findQuestion(
+    UUID questionId, boolean exists
   ) {
     if (!exists) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
-    supportMailDatabaseTable.findMail(mailId).thenAccept(mail ->
-      findSupportMailMessages(mail).thenAccept(messages ->
-        futureResponse.complete(assemblyMail(mail, messages))));
+    questionDatabaseTable.findQuestion(questionId).thenAccept(question ->
+      findQuestionMessages(question).thenAccept(messages ->
+        futureResponse.complete(assemblyQuestion(question, messages))));
     return futureResponse;
   }
 
-  private Map<String, Object> assemblyMail(
-    SupportMail mail, List<SupportMailMessage> messages
+  private Map<String, Object> assemblyQuestion(
+    Question question, List<QuestionMessage> messages
   ) {
     var information = Maps.<String, Object>newHashMap();
-    information.put("id", mail.requestMessage());
-    information.put("title", mail.title());
-    information.put("sender", mail.sender());
-    messages.sort(Comparator.comparing(SupportMailMessage::time));
+    information.put("id", question.requestMessage());
+    information.put("title", question.title());
+    information.put("sender", question.sender());
+    messages.sort(Comparator.comparing(QuestionMessage::time));
     information.put("date", formatTime(messages.get(messages.size() - 1).time()));
     var messagesInformation = Lists.<Map<String, Object>>newArrayList();
     for (var message : messages) {
@@ -113,20 +114,20 @@ public final class TeamEmailInformationController extends TeamController {
     return information;
   }
 
-  private Map<String, Object> assemblyMails(
-    Map<SupportMail, List<SupportMailMessage>> mails
+  private Map<String, Object> assemblyQuestions(
+    Map<Question, List<QuestionMessage>> questions
   ) {
     var information = Lists.<Map<String, Object>>newArrayList();
-    for (var entry : mails.entrySet()) {
-      information.add(assemblyMail(entry.getKey(), entry.getValue()));
+    for (var entry : questions.entrySet()) {
+      information.add(assemblyQuestion(entry.getKey(), entry.getValue()));
     }
     return Map.of("mails", information);
   }
 
-  public CompletableFuture<Map<SupportMail, List<SupportMailMessage>>> findOpenMails() {
-    var futureResponse = new CompletableFuture<Map<SupportMail, List<SupportMailMessage>>>();
+  public CompletableFuture<Map<Question, List<QuestionMessage>>> findOpenQuestions() {
+    var futureResponse = new CompletableFuture<Map<Question, List<QuestionMessage>>>();
     supportMail.inboxAndFlush().thenAccept(inbox -> saveInbox(new ArrayList<>(inbox))
-      .thenAccept(value -> findAllSupportMails().thenAccept(futureResponse::complete)));
+      .thenAccept(value -> findAllSupportQuestions().thenAccept(futureResponse::complete)));
     return futureResponse;
   }
 
@@ -147,7 +148,7 @@ public final class TeamEmailInformationController extends TeamController {
   ) {
     var sender = ((InternetAddress) incomingMessage.sender()).getAddress();
     saveSupportMailMessage(incomingMessage).thenAccept(incomingMessageId ->
-      supportMailDatabaseTable.findMailsBySender(sender).thenAccept(mails ->
+      questionDatabaseTable.findQuestionsBySender(sender).thenAccept(mails ->
         saveSupportMail(incomingMessage, incomingMessageId, mails.stream().filter(mail ->
             incomingMessage.title().contains(mail.title())).findFirst(), inbox,
           futureResponse)));
@@ -158,8 +159,8 @@ public final class TeamEmailInformationController extends TeamController {
   ) {
     var futureResponse = new CompletableFuture<UUID>();
     var sender = ((InternetAddress) message.sender()).getAddress();
-    supportMailMessageDatabaseTable.generateAvailableMessageId().thenAccept(id ->
-      supportMailMessageDatabaseTable.insertMailMessage(SupportMailMessage.create(
+    questionMessageDatabaseTable.generateAvailableMessageId().thenAccept(id ->
+      questionMessageDatabaseTable.insertQuestionMessage(QuestionMessage.create(
         id, sender, message.title(), message.body(), message.receiveDate().getTime()))
         .thenAccept(value -> futureResponse.complete(id)));
     return futureResponse;
@@ -167,18 +168,18 @@ public final class TeamEmailInformationController extends TeamController {
 
   private void saveSupportMail(
     TaskwolfMailMessage incomingMessage, UUID incomingMessageId,
-    Optional<SupportMail> repliedMail, List<TaskwolfMailMessage> inbox,
+    Optional<Question> repliedMail, List<TaskwolfMailMessage> inbox,
     Runnable futureResponse
   ) {
     if (repliedMail.isPresent()) {
       var parentMail = repliedMail.get();
       parentMail.addConversationMessage(incomingMessageId);
       parentMail.disableExpirationTime();
-      supportMailDatabaseTable.updateMail(parentMail).thenAccept(value ->
+      questionDatabaseTable.updateQuestion(parentMail).thenAccept(value ->
         saveNextSupportMail(inbox, futureResponse));
       return;
     }
-    supportMailDatabaseTable.insertMail(incomingMessageId,
+    questionDatabaseTable.insertQuestion(incomingMessageId,
         ((InternetAddress) incomingMessage.sender()).getAddress(),
         incomingMessage.title(), -1, Lists.newArrayList())
       .thenAccept(value -> saveNextSupportMail(inbox, futureResponse));
@@ -195,47 +196,47 @@ public final class TeamEmailInformationController extends TeamController {
     saveSupportMail(firstElement, inbox, futureResponse);
   }
 
-  private CompletableFuture<Map<SupportMail, List<SupportMailMessage>>> findAllSupportMails() {
-    var futureResponse = new CompletableFuture<Map<SupportMail, List<SupportMailMessage>>>();
-    supportMailDatabaseTable.findAllMails().thenApply(this::sortOutExpiredMails)
-      .thenAccept(mails -> AsyncIterator.execute(mails, mail -> findSupportMailMessages(mail)
-          .thenApply(messages -> new AbstractMap.SimpleEntry<>(mail, messages)))
+  private CompletableFuture<Map<Question, List<QuestionMessage>>> findAllSupportQuestions() {
+    var futureResponse = new CompletableFuture<Map<Question, List<QuestionMessage>>>();
+    questionDatabaseTable.findAllQuestions().thenApply(this::sortOutExpiredQuestions)
+      .thenAccept(questions -> AsyncIterator.execute(questions, question -> findQuestionMessages(question)
+          .thenApply(messages -> new AbstractMap.SimpleEntry<>(question, messages)))
         .thenAccept(entries -> futureResponse.complete(entries.stream()
           .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
     return futureResponse;
   }
 
-  private List<SupportMail> sortOutExpiredMails(List<SupportMail> mails) {
-    var sortedOut = Lists.<SupportMail>newArrayList();
+  private List<Question> sortOutExpiredQuestions(List<Question> questions) {
+    var sortedOut = Lists.<Question>newArrayList();
     var currentTime = System.currentTimeMillis();
-    for (var mail : mails) {
-      if (mail.expirationTime() == -1) {
+    for (var question : questions) {
+      if (question.expirationTime() == -1) {
         continue;
       }
-      sortedOut.add(mail);
-      if (currentTime >= mail.expirationTime()) {
-        deleteMail(mail);
+      sortedOut.add(question);
+      if (currentTime >= question.expirationTime()) {
+        deleteQuestion(question);
       }
     }
-    mails.removeAll(sortedOut);
-    return mails;
+    questions.removeAll(sortedOut);
+    return questions;
   }
 
-  private void deleteMail(SupportMail mail) {
-    supportMailDatabaseTable.deleteMail(mail.requestMessage());
-    supportMailMessageDatabaseTable.deleteMailMessage(mail.requestMessage());
-    for (var message : mail.conversationMessages()) {
-      supportMailMessageDatabaseTable.deleteMailMessage(message);
+  private void deleteQuestion(Question question) {
+    questionDatabaseTable.deleteQuestion(question.requestMessage());
+    questionMessageDatabaseTable.deleteQuestionMessage(question.requestMessage());
+    for (var message : question.conversationMessages()) {
+      questionMessageDatabaseTable.deleteQuestionMessage(message);
     }
   }
 
-  private CompletableFuture<List<SupportMailMessage>> findSupportMailMessages(
-    SupportMail mail
+  private CompletableFuture<List<QuestionMessage>> findQuestionMessages(
+    Question question
   ) {
-    var futureResponse = new CompletableFuture<List<SupportMailMessage>>();
-    AsyncIterator.execute(Stream.concat(mail.conversationMessages().stream(),
-          Stream.of(mail.requestMessage())).collect(Collectors.toList()),
-        supportMailMessageDatabaseTable::findMailMessage)
+    var futureResponse = new CompletableFuture<List<QuestionMessage>>();
+    AsyncIterator.execute(Stream.concat(question.conversationMessages().stream(),
+          Stream.of(question.requestMessage())).collect(Collectors.toList()),
+        questionMessageDatabaseTable::findQuestionMessage)
       .thenAccept(futureResponse::complete);
     return futureResponse;
   }

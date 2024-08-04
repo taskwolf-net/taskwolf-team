@@ -1,17 +1,17 @@
-package net.taskwolf.team.access.email;
+package net.taskwolf.team.access.question;
 
 import com.google.common.collect.Lists;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.mail.TaskwolfMail;
+import net.taskwolf.core.question.Question;
+import net.taskwolf.core.question.QuestionDatabaseTable;
+import net.taskwolf.core.question.QuestionMessageDatabaseTable;
 import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
-import net.taskwolf.team.mail.SupportMail;
-import net.taskwolf.team.mail.SupportMailDatabaseTable;
-import net.taskwolf.team.mail.SupportMailMessageDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.member.TeamWorkDatabaseTable;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -24,29 +24,29 @@ import java.security.Key;
 import java.util.*;
 
 @RestController
-public final class TeamEmailModificationController extends TeamController {
+public final class TeamQuestionModificationController extends TeamController {
   private final TaskwolfMail supportMail;
-  private final SupportMailDatabaseTable supportMailDatabaseTable;
-  private final SupportMailMessageDatabaseTable supportMailMessageDatabaseTable;
+  private final QuestionDatabaseTable questionDatabaseTable;
+  private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
 
-  private TeamEmailModificationController(
+  private TeamQuestionModificationController(
     Key secretKey, UserDatabaseTable userDatabaseTable,
     TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     @Qualifier("supportMail") TaskwolfMail supportMail,
-    SupportMailDatabaseTable supportMailDatabaseTable,
-    SupportMailMessageDatabaseTable supportMailMessageDatabaseTable,
+    QuestionDatabaseTable questionDatabaseTable,
+    QuestionMessageDatabaseTable questionMessageDatabaseTable,
     TeamWorkDatabaseTable teamWorkDatabaseTable
   ) {
     super(secretKey, userDatabaseTable, teamDatabaseTable, groupDatabaseTable);
     this.supportMail = supportMail;
-    this.supportMailDatabaseTable = supportMailDatabaseTable;
-    this.supportMailMessageDatabaseTable = supportMailMessageDatabaseTable;
+    this.questionDatabaseTable = questionDatabaseTable;
+    this.questionMessageDatabaseTable = questionMessageDatabaseTable;
     this.teamWorkDatabaseTable = teamWorkDatabaseTable;
   }
 
-  @RequestMapping(path = "/team/mail/delete/", method = RequestMethod.POST)
-  public void deleteMail(
+  @RequestMapping(path = "/team/question/delete/", method = RequestMethod.POST)
+  public void deleteQuestion(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
   ) {
@@ -54,28 +54,28 @@ public final class TeamEmailModificationController extends TeamController {
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var mailId = body.getUUID("mail");
-    supportMailDatabaseTable.mailExists(mailId).thenAccept(exists ->
-      deleteMail(mailId, exists));
+    var questionId = body.getUUID("question");
+    questionDatabaseTable.questionExists(questionId).thenAccept(exists ->
+      deleteQuestion(questionId, exists));
   }
 
-  private void deleteMail(UUID mailId, boolean exists) {
+  private void deleteQuestion(UUID questionId, boolean exists) {
     if (!exists) {
       return;
     }
-    supportMailDatabaseTable.findMail(mailId).thenAccept(this::deleteMail);
+    questionDatabaseTable.findQuestion(questionId).thenAccept(this::deleteQuestion);
   }
 
-  private void deleteMail(SupportMail mail) {
-    supportMailDatabaseTable.deleteMail(mail.requestMessage());
-    supportMailMessageDatabaseTable.deleteMailMessage(mail.requestMessage());
-    for (var message : mail.conversationMessages()) {
-      supportMailMessageDatabaseTable.deleteMailMessage(message);
+  private void deleteQuestion(Question question) {
+    questionDatabaseTable.deleteQuestion(question.requestMessage());
+    questionMessageDatabaseTable.deleteQuestionMessage(question.requestMessage());
+    for (var message : question.conversationMessages()) {
+      questionMessageDatabaseTable.deleteQuestionMessage(message);
     }
   }
 
-  @RequestMapping(path = "/team/mail/answer/", method = RequestMethod.POST)
-  public void answerMail(
+  @RequestMapping(path = "/team/question/answer/", method = RequestMethod.POST)
+  public void answerQuestion(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
   ) {
@@ -83,33 +83,33 @@ public final class TeamEmailModificationController extends TeamController {
     if (!isAuthenticatedTeamMember(request)) {
       return;
     }
-    var mailId = body.getUUID("mail");
+    var questionId = body.getUUID("question");
     findUser(request).thenAccept(teamMember ->
-      supportMailDatabaseTable.mailExists(mailId).thenAccept(exists ->
-        answerMail(teamMember, mailId, body.getString("message"), exists)));
+      questionDatabaseTable.questionExists(questionId).thenAccept(exists ->
+        answerQuestion(teamMember, questionId, body.getString("message"), exists)));
   }
 
-  private void answerMail(
-    User teamMember, UUID mailId, String message, boolean exists
+  private void answerQuestion(
+    User teamMember, UUID questionId, String message, boolean exists
   ) {
     if (!exists) {
       return;
     }
-    supportMailDatabaseTable.findMail(mailId).thenAccept(mail ->
-      supportMailMessageDatabaseTable.generateAvailableMessageId().thenAccept(id ->
-        answerMail(teamMember, mail, message, id)));
+    questionDatabaseTable.findQuestion(questionId).thenAccept(question ->
+      questionMessageDatabaseTable.generateAvailableMessageId().thenAccept(id ->
+        answerQuestion(teamMember, question, message, id)));
   }
 
-  private void answerMail(
-    User teamMember, SupportMail mail, String message, UUID messageId
+  private void answerQuestion(
+    User teamMember, Question question, String message, UUID messageId
   ) {
-    var title = "Re: " + mail.title();
-    supportMailMessageDatabaseTable.insertMailMessage(messageId, "Taskwolf",
+    var title = "Re: " + question.title();
+    questionMessageDatabaseTable.insertQuestionMessage(messageId, "Taskwolf",
       title, message, System.currentTimeMillis());
-    mail.addConversationMessage(messageId);
-    mail.resetExpirationTime();
-    supportMailDatabaseTable.updateMail(mail);
-    supportMail.send(mail.sender(), title, message, "text/html; charset=utf-8");
+    question.addConversationMessage(messageId);
+    question.resetExpirationTime();
+    questionDatabaseTable.updateQuestion(question);
+    supportMail.send(question.sender(), title, message);
     teamWorkDatabaseTable.hasRequestReplies(teamMember.id())
       .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
   }
