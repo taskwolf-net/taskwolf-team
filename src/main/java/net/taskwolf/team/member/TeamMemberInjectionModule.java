@@ -22,6 +22,17 @@ public final class TeamMemberInjectionModule extends AbstractModule {
 
   @Provides
   @Singleton
+  TeamVerificationDatabaseTable provideTeamVerificationDatabaseTable(
+    DatabaseConnection databaseConnection, DatabaseKeyspace databaseKeyspace
+  ) {
+    var teamVerificationDatabaseTable = TeamVerificationDatabaseTable.create(
+      databaseConnection, databaseKeyspace);
+    teamVerificationDatabaseTable.createIfNotExists();
+    return teamVerificationDatabaseTable;
+  }
+
+  @Provides
+  @Singleton
   TeamWorkDatabaseTable provideTeamWorkDatabaseTable(
     DatabaseConnection databaseConnection, DatabaseKeyspace databaseKeyspace
   ) {
