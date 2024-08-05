@@ -94,13 +94,14 @@ public final class TeamCommand extends Command {
   private void addMember(
     UUID id, String name, String email, String group
   ) {
+    name = name.replaceAll("_", " ");
     teamDatabaseTable.insertTeamMember(id, name, email, "", "en",
       group, Lists.newArrayList());
     var token = UUID.randomUUID().toString();
     teamVerificationDatabaseTable.insertVerification(id, token);
-    var body = String.format(ONBOARDING_EMAIL_TITLE, name,
+    var body = String.format(ONBOARDING_EMAIL_BODY, name,
       String.format(ONBOARDING_URL, id.toString(), token));
-    verificationMail.send(email, ONBOARDING_EMAIL_BODY, body);
+    verificationMail.send(email, ONBOARDING_EMAIL_TITLE, body);
   }
 
   private boolean removeMember(String[] arguments) {
@@ -148,19 +149,19 @@ public final class TeamCommand extends Command {
   }
 
   private void printMembers(List<TeamMember> members) {
-    var groups = HashMultimap.<String, String>create();
+    var groups = HashMultimap.<String, TeamMember>create();
     for (var member : members) {
-      groups.put(member.group(), member.name() + " (" + member.email() + ")");
+      groups.put(member.group(), member);
     }
     printMembers(groups);
   }
 
-  private void printMembers(Multimap<String, String> members) {
+  private void printMembers(Multimap<String, TeamMember> members) {
     for (var key : members.keySet()) {
       var groupMembers = members.get(key);
       log().info(key + " (" + groupMembers.size() + ")");
       for (var member : groupMembers) {
-        log().info(" - " + member);
+        log().info(" - " + (member.name() + " (" + member.email() + ") (" + member.id() + ")"));
       }
     }
   }

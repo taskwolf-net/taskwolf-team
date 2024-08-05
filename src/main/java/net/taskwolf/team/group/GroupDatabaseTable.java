@@ -66,6 +66,16 @@ public final class GroupDatabaseTable extends DatabaseTable {
     updateGroup(group);
   }
 
+  public void renameGroup(String name, String newName) {
+    findGroup(name).thenAccept(group -> renameGroup(group, newName));
+  }
+
+  private void renameGroup(Group group, String newName) {
+    deleteGroup(group.name());
+    group.rename(newName);
+    insertGroup(group);
+  }
+
   private void updateGroup(Group group) {
     update(DatabaseCell.create(group.name()), DatabaseRow.of(group.name(),
       group.priority(), group.permissions()));
