@@ -100,7 +100,8 @@ public final class TeamQuestionModificationController extends TeamController {
     question.addConversationMessage(messageId);
     question.resetExpirationTime();
     questionDatabaseTable.updateQuestion(question);
-    supportMail.send(question.sender(), "Re: " + question.title(), message);
+    supportMail.send(question.sender(), "Re: " + question.title(), message,
+      "text/html; charset=utf-8");
     teamWorkDatabaseTable.hasRequestReplies(teamMember.id())
       .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
   }

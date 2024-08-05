@@ -98,7 +98,8 @@ public final class TeamSaleModificationController extends TeamController {
     sale.addConversationMessage(messageId);
     sale.resetExpirationTime();
     saleDatabaseTable.updateSale(sale);
-    saleMail.send(sale.sender(), "Re: " + sale.title(), message);
+    saleMail.send(sale.sender(), "Re: " + sale.title(), message,
+      "text/html; charset=utf-8");
     teamWorkDatabaseTable.hasRequestReplies(teamMember.id())
       .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
   }
