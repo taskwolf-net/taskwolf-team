@@ -94,6 +94,7 @@ public final class TeamCommand extends Command {
   private void addMember(
     UUID id, String name, String email, String group
   ) {
+    name = name.replaceAll("_", " ");
     teamDatabaseTable.insertTeamMember(id, name, email, "", "en",
       group, Lists.newArrayList());
     var token = UUID.randomUUID().toString();
@@ -148,19 +149,19 @@ public final class TeamCommand extends Command {
   }
 
   private void printMembers(List<TeamMember> members) {
-    var groups = HashMultimap.<String, String>create();
+    var groups = HashMultimap.<String, TeamMember>create();
     for (var member : members) {
-      groups.put(member.group(), member.name() + " (" + member.email() + ")");
+      groups.put(member.group(), member);
     }
     printMembers(groups);
   }
 
-  private void printMembers(Multimap<String, String> members) {
+  private void printMembers(Multimap<String, TeamMember> members) {
     for (var key : members.keySet()) {
       var groupMembers = members.get(key);
       log().info(key + " (" + groupMembers.size() + ")");
       for (var member : groupMembers) {
-        log().info(" - " + member);
+        log().info(" - " + (member.name() + " (" + member.email() + ") (" + member.id() + ")"));
       }
     }
   }
