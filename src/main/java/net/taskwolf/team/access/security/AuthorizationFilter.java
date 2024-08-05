@@ -43,6 +43,7 @@ public class AuthorizationFilter extends OncePerRequestFilter {
   protected boolean shouldNotFilter(HttpServletRequest request) {
     var controllers = Lists.<String>newArrayList();
     controllers.add("/" + CURRENT_API_VERSION + "/");
+    controllers.add("/" + CURRENT_API_VERSION + "/verification/complete/");
     controllers.add("/" + CURRENT_API_VERSION + "/verification/login/");
     controllers.add("/" + CURRENT_API_VERSION + "/verification/isValid/");
     var url = request.getRequestURI();
