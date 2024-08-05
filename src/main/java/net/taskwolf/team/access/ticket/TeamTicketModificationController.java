@@ -54,14 +54,17 @@ public final class TeamTicketModificationController extends TeamController {
     var body = TaskwolfRequestBody.of(payload, response);
     var ticketId = body.getUUID("ticket");
     findMember(request).thenAccept(teamMember ->
-      ticketDatabaseTable.ticketExists(ticketId).thenAccept(exists ->
-        answerTicket(teamMember, ticketId, body.getString("message"), exists)));
+      memberHasPermission(findMemberId(request), "ticket.answer")
+        .thenAccept(hasPermission -> ticketDatabaseTable.ticketExists(ticketId)
+          .thenAccept(exists -> answerTicket(teamMember, ticketId,
+            body.getString("message"), hasPermission, exists))));
   }
 
   private void answerTicket(
-    TeamMember teamMember, UUID ticketId, String message, boolean exists
+    TeamMember teamMember, UUID ticketId, String message, boolean hasPermission,
+    boolean exists
   ) {
-    if (!exists) {
+    if (!hasPermission || !exists) {
       return;
     }
     ticketDatabaseTable.findTicket(ticketId).thenAccept(ticket ->
@@ -97,16 +100,21 @@ public final class TeamTicketModificationController extends TeamController {
 
   @RequestMapping(path = "/ticket/message/delete/", method = RequestMethod.POST)
   public void deleteTicketMessage(
-    @RequestBody String payload, HttpServletResponse response
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
     var ticketId = body.getUUID("ticket");
-    ticketDatabaseTable.ticketExists(ticketId).thenAccept(exists ->
-      deleteTicketMessage(ticketId, body.getUUID("message"), exists));
+    memberHasPermission(findMemberId(request), "ticket.message.delete")
+      .thenAccept(hasPermission -> ticketDatabaseTable.ticketExists(ticketId)
+        .thenAccept(exists -> deleteTicketMessage(ticketId,
+          body.getUUID("message"), hasPermission, exists)));
   }
 
-  private void deleteTicketMessage(UUID ticketId, UUID messageId, boolean exists) {
-    if (!exists) {
+  private void deleteTicketMessage(
+    UUID ticketId, UUID messageId, boolean hasPermission, boolean exists
+  ) {
+    if (!hasPermission || !exists) {
       return;
     }
     ticketDatabaseTable.findTicket(ticketId).thenAccept(ticket ->
@@ -122,15 +130,21 @@ public final class TeamTicketModificationController extends TeamController {
   }
 
   @RequestMapping(path = "/ticket/delete/", method = RequestMethod.POST)
-  public void deleteTicket(@RequestBody String payload, HttpServletResponse response) {
+  public void deleteTicket(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
     var body = TaskwolfRequestBody.of(payload, response);
     var ticketId = body.getUUID("ticket");
-    ticketDatabaseTable.ticketExists(ticketId).thenAccept(exists ->
-      deleteTicket(ticketId, exists));
+    memberHasPermission(findMemberId(request), "ticket.delete")
+      .thenAccept(hasPermission -> ticketDatabaseTable.ticketExists(ticketId)
+        .thenAccept(exists -> deleteTicket(ticketId, hasPermission, exists)));
   }
 
-  private void deleteTicket(UUID ticketId, boolean exists) {
-    if (!exists) {
+  private void deleteTicket(
+    UUID ticketId, boolean hasPermission, boolean exists
+  ) {
+    if (!hasPermission || !exists) {
       return;
     }
     ticketDatabaseTable.findTicket(ticketId).thenAccept(this::deleteTicket);

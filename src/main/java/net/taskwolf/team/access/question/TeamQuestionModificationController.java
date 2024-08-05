@@ -46,16 +46,20 @@ public final class TeamQuestionModificationController extends TeamController {
 
   @RequestMapping(path = "/question/delete/", method = RequestMethod.POST)
   public void deleteQuestion(
-    @RequestBody String payload, HttpServletResponse response
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
     var questionId = body.getUUID("question");
-    questionDatabaseTable.questionExists(questionId).thenAccept(exists ->
-      deleteQuestion(questionId, exists));
+    memberHasPermission(findMemberId(request), "question.delete")
+      .thenAccept(hasPermission -> questionDatabaseTable.questionExists(questionId)
+        .thenAccept(exists -> deleteQuestion(questionId, hasPermission, exists)));
   }
 
-  private void deleteQuestion(UUID questionId, boolean exists) {
-    if (!exists) {
+  private void deleteQuestion(
+    UUID questionId, boolean hasPermission, boolean exists
+  ) {
+    if (!hasPermission || !exists) {
       return;
     }
     questionDatabaseTable.findQuestion(questionId).thenAccept(this::deleteQuestion);
@@ -77,14 +81,17 @@ public final class TeamQuestionModificationController extends TeamController {
     var body = TaskwolfRequestBody.of(payload, response);
     var questionId = body.getUUID("question");
     findMember(request).thenAccept(teamMember ->
-      questionDatabaseTable.questionExists(questionId).thenAccept(exists ->
-        answerQuestion(teamMember, questionId, body.getString("message"), exists)));
+      memberHasPermission(findMemberId(request), "question.answer")
+        .thenAccept(hasPermission -> questionDatabaseTable.questionExists(questionId)
+          .thenAccept(exists -> answerQuestion(teamMember, questionId,
+            body.getString("message"), hasPermission, exists))));
   }
 
   private void answerQuestion(
-    TeamMember teamMember, UUID questionId, String message, boolean exists
+    TeamMember teamMember, UUID questionId, String message, boolean hasPermission,
+    boolean exists
   ) {
-    if (!exists) {
+    if (!hasPermission || !exists) {
       return;
     }
     questionDatabaseTable.findQuestion(questionId).thenAccept(question ->

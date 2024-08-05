@@ -47,12 +47,20 @@ public final class TeamTicketInformationController extends TeamController {
   public CompletableFuture<Map<String, Object>> findTickets(
     HttpServletRequest request
   ) {
-    var futureResponse = new CompletableFuture<Map<String, Object>>();
-    ticketDatabaseTable.findAllTickets().thenApply(tickets ->
-      sortOutExpiredTickets(new ArrayList<>(tickets))).thenAccept(
-        tickets -> AsyncIterator.execute(tickets, this::findTicket).thenAccept(
-          information -> futureResponse.complete(Map.of("tickets", information))));
-    return futureResponse;
+    return memberHasPermission(findMemberId(request), "tickets.find")
+      .thenCompose(this::findTickets);
+  }
+
+  private CompletableFuture<Map<String, Object>> findTickets(
+    boolean hasPermission
+  ) {
+    if (!hasPermission) {
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    return ticketDatabaseTable.findAllTickets()
+      .thenApply(tickets -> sortOutExpiredTickets(new ArrayList<>(tickets)))
+      .thenCompose(tickets -> AsyncIterator.execute(tickets, this::findTicket)
+        .thenApply(information -> Map.of("tickets", information)));
   }
 
   private List<Ticket> sortOutExpiredTickets(List<Ticket> tickets) {
@@ -86,15 +94,17 @@ public final class TeamTicketInformationController extends TeamController {
     var body = TaskwolfRequestBody.of(payload, response);
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     var ticketId = body.getUUID("ticket");
-    ticketDatabaseTable.ticketExists(ticketId).thenAccept(exists ->
-      findTicket(ticketId, exists).thenAccept(futureResponse::complete));
+    memberHasPermission(findMemberId(request), "ticket.find")
+      .thenAccept(hasPermission -> ticketDatabaseTable.ticketExists(ticketId)
+        .thenAccept(exists -> findTicket(ticketId, hasPermission, exists)
+          .thenAccept(futureResponse::complete)));
     return futureResponse;
   }
 
   private CompletableFuture<Map<String, Object>> findTicket(
-    UUID ticketId, boolean exists
+    UUID ticketId, boolean hasPermission, boolean exists
   ) {
-    if (!exists) {
+    if (!hasPermission || !exists) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
     var futureResponse = new CompletableFuture<Map<String, Object>>();

@@ -42,29 +42,41 @@ public final class TeamSaleInformationController extends TeamController {
   }
 
   @RequestMapping(path = "/sales/find/", method = RequestMethod.GET)
-  public CompletableFuture<Map<String, Object>> findSales() {
-    var futureResponse = new CompletableFuture<Map<String, Object>>();
-    findAllSupportSales().thenAccept(sales ->
-      futureResponse.complete(assemblySales(sales)));
-    return futureResponse;
+  public CompletableFuture<Map<String, Object>> findSales(
+    HttpServletRequest request
+  ) {
+    return memberHasPermission(findMemberId(request), "sales.find")
+      .thenCompose(this::findSales);
+  }
+
+  private CompletableFuture<Map<String, Object>> findSales(
+    boolean hasPermission
+  ) {
+    if (!hasPermission) {
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    return findAllSupportSales().thenApply(this::assemblySales);
   }
 
   @RequestMapping(path = "/sale/find/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> findSale(
-    @RequestBody String payload, HttpServletResponse response
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
     var saleId = body.getUUID("sale");
     var futureResponse = new CompletableFuture<Map<String, Object>>();
-    saleDatabaseTable.saleExists(saleId).thenAccept(exists ->
-      findSale(saleId, exists).thenAccept(futureResponse::complete));
+    memberHasPermission(findMemberId(request), "sale.find")
+      .thenAccept(hasPermission -> saleDatabaseTable.saleExists(saleId)
+        .thenAccept(exists -> findSale(saleId, hasPermission, exists)
+          .thenAccept(futureResponse::complete)));
     return futureResponse;
   }
 
   private CompletableFuture<Map<String, Object>> findSale(
-    UUID saleId, boolean exists
+    UUID saleId, boolean hasPermission, boolean exists
   ) {
-    if (!exists) {
+    if (!hasPermission || !exists) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
     var futureResponse = new CompletableFuture<Map<String, Object>>();

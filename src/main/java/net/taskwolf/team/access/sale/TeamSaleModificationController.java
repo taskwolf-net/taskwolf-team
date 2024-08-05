@@ -45,15 +45,19 @@ public final class TeamSaleModificationController extends TeamController {
   }
 
   @RequestMapping(path = "/sale/delete/", method = RequestMethod.POST)
-  public void deleteSale(@RequestBody String payload, HttpServletResponse response) {
+  public void deleteSale(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
     var body = TaskwolfRequestBody.of(payload, response);
     var saleId = body.getUUID("sale");
-    saleDatabaseTable.saleExists(saleId).thenAccept(exists ->
-      deleteSale(saleId, exists));
+    memberHasPermission(findMemberId(request), "sale.delete")
+      .thenAccept(hasPermission -> saleDatabaseTable.saleExists(saleId)
+        .thenAccept(exists -> deleteSale(saleId, hasPermission, exists)));
   }
 
-  private void deleteSale(UUID saleId, boolean exists) {
-    if (!exists) {
+  private void deleteSale(UUID saleId, boolean hasPermission, boolean exists) {
+    if (!hasPermission || !exists) {
       return;
     }
     saleDatabaseTable.findSale(saleId).thenAccept(this::deleteSale);
@@ -75,14 +79,17 @@ public final class TeamSaleModificationController extends TeamController {
     var body = TaskwolfRequestBody.of(payload, response);
     var saleId = body.getUUID("sale");
     findMember(request).thenAccept(teamMember ->
-      saleDatabaseTable.saleExists(saleId).thenAccept(exists ->
-        answerSale(teamMember, saleId, body.getString("message"), exists)));
+      memberHasPermission(findMemberId(request), "sale.answer")
+        .thenAccept(hasPermission -> saleDatabaseTable.saleExists(saleId)
+          .thenAccept(exists -> answerSale(teamMember, saleId,
+            body.getString("message"), hasPermission, exists))));
   }
 
   private void answerSale(
-    TeamMember teamMember, UUID saleId, String message, boolean exists
+    TeamMember teamMember, UUID saleId, String message, boolean hasPermission,
+    boolean exists
   ) {
-    if (!exists) {
+    if (!hasPermission || !exists) {
       return;
     }
     saleDatabaseTable.findSale(saleId).thenAccept(sale ->

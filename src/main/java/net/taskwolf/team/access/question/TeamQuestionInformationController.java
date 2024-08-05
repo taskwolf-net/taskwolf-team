@@ -12,7 +12,6 @@ import net.taskwolf.core.question.Question;
 import net.taskwolf.core.question.QuestionDatabaseTable;
 import net.taskwolf.core.question.QuestionMessage;
 import net.taskwolf.core.question.QuestionMessageDatabaseTable;
-import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
@@ -50,29 +49,41 @@ public final class TeamQuestionInformationController extends TeamController {
   }
 
   @RequestMapping(path = "/questions/find/", method = RequestMethod.GET)
-  public CompletableFuture<Map<String, Object>> findQuestions() {
-    var futureResponse = new CompletableFuture<Map<String, Object>>();
-    findOpenQuestions().thenAccept(questions ->
-      futureResponse.complete(assemblyQuestions(questions)));
-    return futureResponse;
+  public CompletableFuture<Map<String, Object>> findQuestions(
+    HttpServletRequest request
+  ) {
+    return memberHasPermission(findMemberId(request), "questions.find")
+      .thenCompose(this::findQuestions);
+  }
+
+  private CompletableFuture<Map<String, Object>> findQuestions(
+    boolean hasPermission
+  ) {
+    if (!hasPermission) {
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    return findOpenQuestions().thenApply(this::assemblyQuestions);
   }
 
   @RequestMapping(path = "/question/find/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> findQuestion(
-    @RequestBody String payload, HttpServletResponse response
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
     var questionId = body.getUUID("question");
     var futureResponse = new CompletableFuture<Map<String, Object>>();
-    questionDatabaseTable.questionExists(questionId).thenAccept(exists ->
-      findQuestion(questionId, exists).thenAccept(futureResponse::complete));
+    memberHasPermission(findMemberId(request), "question.find")
+      .thenAccept(hasPermission -> questionDatabaseTable.questionExists(questionId)
+        .thenAccept(exists -> findQuestion(questionId, hasPermission, exists)
+          .thenAccept(futureResponse::complete)));
     return futureResponse;
   }
 
   private CompletableFuture<Map<String, Object>> findQuestion(
-    UUID questionId, boolean exists
+    UUID questionId, boolean hasPermission, boolean exists
   ) {
-    if (!exists) {
+    if (!hasPermission || !exists) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
