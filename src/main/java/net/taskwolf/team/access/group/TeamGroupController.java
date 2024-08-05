@@ -64,6 +64,24 @@ public final class TeamGroupController extends TeamController {
     groupDatabaseTable().deleteGroup(group);
   }
 
+  @RequestMapping(path = "/group/rename/", method = RequestMethod.POST)
+  public void renameGroup(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = TaskwolfRequestBody.of(payload, response);
+    memberHasPermission(findMemberId(request), "group.rename").thenAccept(
+      hasPermission -> renameGroup(body.getString("currentName"),
+        body.getString("newName"), hasPermission));
+  }
+
+  private void renameGroup(String group, String newName, boolean hasPermission) {
+    if (!hasPermission) {
+      return;
+    }
+    groupDatabaseTable().renameGroup(group, newName);
+  }
+
   @RequestMapping(path = "/group/priority/change/", method = RequestMethod.POST)
   public void changeGroupPriority(
     HttpServletRequest request, @RequestBody String payload,

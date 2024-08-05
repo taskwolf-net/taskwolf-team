@@ -16,10 +16,14 @@ public final class Group {
   }
 
   @Getter
-  private final String name;
+  private String name;
   @Getter
   private int priority;
   private final List<String> permissions;
+
+  public void rename(String newName) {
+    name = newName;
+  }
 
   public void changePriority(int newPriority) {
     priority = newPriority;
