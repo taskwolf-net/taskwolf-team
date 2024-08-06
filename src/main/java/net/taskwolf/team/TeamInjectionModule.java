@@ -18,6 +18,7 @@ import net.taskwolf.core.mail.TaskwolfMailConfiguration;
 import net.taskwolf.core.organization.OrganizationInjectionModule;
 import net.taskwolf.core.question.QuestionInjectionModule;
 import net.taskwolf.core.sale.SaleInjectionModule;
+import net.taskwolf.core.stripe.StripeInjectionModule;
 import net.taskwolf.core.ticket.TicketInjectionModule;
 import net.taskwolf.core.user.UserInjectionModule;
 import net.taskwolf.core.whitelist.WhitelistInjectionModule;
@@ -44,6 +45,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(WhitelistInjectionModule.create());
     install(LocaleInjectionModule.create());
     install(AccessInjectionModule.create());
+    install(StripeInjectionModule.create());
     install(CommandInjectionModule.create());
     install(TeamMemberInjectionModule.create());
     install(GroupInjectionModule.create());

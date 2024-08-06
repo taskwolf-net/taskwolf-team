@@ -5,8 +5,6 @@ import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
-import net.taskwolf.core.bundle.Bundle;
-import net.taskwolf.core.bundle.BundleDatabaseTable;
 import net.taskwolf.core.iterator.AsyncIterator;
 import net.taskwolf.core.organization.Organization;
 import net.taskwolf.core.organization.OrganizationDatabaseTable;
@@ -21,27 +19,23 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Key;
-import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class TeamUserInformationController extends TeamController {
+public final class TeamUserGeneralController extends TeamController {
   private final UserDatabaseTable userDatabaseTable;
-  private final BundleDatabaseTable bundleDatabaseTable;
   private final OrganizationDatabaseTable organizationDatabaseTable;
 
-  private TeamUserInformationController(
+  private TeamUserGeneralController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, UserDatabaseTable userDatabaseTable,
-    BundleDatabaseTable bundleDatabaseTable,
     OrganizationDatabaseTable organizationDatabaseTable
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.userDatabaseTable = userDatabaseTable;
-    this.bundleDatabaseTable = bundleDatabaseTable;
     this.organizationDatabaseTable = organizationDatabaseTable;
   }
 
@@ -89,25 +83,22 @@ public final class TeamUserInformationController extends TeamController {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
     if (!userExists) {
-      return CompletableFuture.completedFuture(Map.of("userFound", false));
+      return CompletableFuture.completedFuture(Map.of("found", false));
     }
     return userDatabaseTable.findUser(userId)
       .thenCompose(user -> AsyncIterator.execute(user.organizations(),
-        organizationDatabaseTable::findOrganization)
-        .thenCompose(organizations -> findBundle(user)
-          .thenApply(bundleInformation -> assemblyUserInformation(user,
-            organizations, bundleInformation))));
+          organizationDatabaseTable::findOrganization)
+        .thenApply(organizations -> assemblyUserInformation(user, organizations)));
   }
 
   private Map<String, Object> assemblyUserInformation(
-    User user, List<Organization> organizations,
-    Map<String, Object> bundleInformation
+    User user, List<Organization> organizations
   ) {
     var information = Maps.<String, Object>newHashMap();
-    information.put("userFound", true);
-    information.put("userId", user.id());
-    information.put("userEmail", user.email());
-    information.put("userName", user.name());
+    information.put("found", true);
+    information.put("id", user.id());
+    information.put("email", user.email());
+    information.put("name", user.name());
     information.put("language", user.language());
     var organizationInformation = Lists.<Map<String, Object>>newArrayList();
     for (var organization : organizations) {
@@ -115,49 +106,6 @@ public final class TeamUserInformationController extends TeamController {
         "name", organization.name()));
     }
     information.put("organizations", organizationInformation);
-    information.putAll(bundleInformation);
-    return information;
-  }
-
-  private CompletableFuture<Map<String, Object>> findBundle(User user) {
-    return bundleDatabaseTable.bundleExists(user.id())
-      .thenCompose(exists -> findBundle(user, exists));
-  }
-
-  private CompletableFuture<Map<String, Object>> findBundle(
-    User user, boolean bundleExists
-  ) {
-    if (!bundleExists) {
-      return CompletableFuture.completedFuture(Map.of("hasBundle", false));
-    }
-    return bundleDatabaseTable.findBundle(user.id())
-      .thenApply(this::assemblyBundleInformation);
-  }
-
-  private Map<String, Object> assemblyBundleInformation(Bundle bundle) {
-    var information = Maps.<String, Object>newHashMap();
-    information.put("hasBundle", true);
-    information.put("bundleType", bundle.bundleType().toString());
-    information.put("bundleClass", bundle.bundleClass().toString());
-    information.put("bundleRuntime", bundle.bundleRuntime().toString());
-    information.put("bundlePrice", bundle.price());
-    information.put("bundleExpiration", bundle.expiration());
-    information.put("bundleWorkflowAccess", bundle.workflowAccess());
-    information.put("bundleWorkflowNumberLimit", bundle.workflowNumberLimit());
-    information.put("bundleWorkflowOperationLimit", bundle.workflowOperationLimit());
-    information.put("bundleWorkflowTemplateAccess", bundle.workflowTemplateAccess());
-    information.put("bundleDatabaseAccess", bundle.databaseAccess());
-    information.put("bundleDatabaseNumberLimit", bundle.databaseNumberLimit());
-    information.put("bundleDatabaseDataLimit", new DecimalFormat("#.#").format(
-      bundle.databaseDataLimit()));
-    information.put("bundleWebhookAccess", bundle.webhookAccess());
-    information.put("bundleWebhookNumberLimit", bundle.webhookNumberLimit());
-    information.put("bundleOrganizationAccess", bundle.organizationAccess());
-    information.put("bundleOrganizationMemberLimit", bundle.organizationMemberLimit());
-    information.put("bundleOrganizationTeamLimit", bundle.organizationTeamLimit());
-    information.put("bundleDeviceAccess", bundle.deviceAccess());
-    information.put("bundleAccountsAccess", bundle.accountsAccess());
-    information.put("bundleAccountsNumberLimit", bundle.accountsNumberLimit());
     return information;
   }
 }

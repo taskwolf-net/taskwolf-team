@@ -3,6 +3,7 @@ package net.taskwolf.team;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import com.stripe.StripeClient;
 import net.taskwolf.core.bundle.BundleDatabaseTable;
 import net.taskwolf.core.bundle.BundlePresetRepository;
 import net.taskwolf.core.database.DatabaseConnection;
@@ -14,6 +15,8 @@ import net.taskwolf.core.question.QuestionDatabaseTable;
 import net.taskwolf.core.question.QuestionMessageDatabaseTable;
 import net.taskwolf.core.sale.SaleDatabaseTable;
 import net.taskwolf.core.sale.SaleMessageDatabaseTable;
+import net.taskwolf.core.stripe.StripeDatabaseTable;
+import net.taskwolf.core.stripe.TerminationDatabaseTable;
 import net.taskwolf.core.ticket.TicketDatabaseTable;
 import net.taskwolf.core.ticket.TicketMessageDatabaseTable;
 import net.taskwolf.core.user.UserDatabaseTable;
@@ -54,6 +57,9 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
   private final SaleDatabaseTable saleDatabaseTable;
   private final SaleMessageDatabaseTable saleMessageDatabaseTable;
+  private final StripeDatabaseTable stripeDatabaseTable;
+  private final StripeClient stripeClient;
+  private final TerminationDatabaseTable terminationDatabaseTable;
 
   @Inject
   private TeamContextInitializer(
@@ -77,7 +83,9 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     QuestionDatabaseTable questionDatabaseTable,
     QuestionMessageDatabaseTable questionMessageDatabaseTable,
     SaleDatabaseTable saleDatabaseTable,
-    SaleMessageDatabaseTable saleMessageDatabaseTable
+    SaleMessageDatabaseTable saleMessageDatabaseTable,
+    StripeDatabaseTable stripeDatabaseTable, StripeClient stripeClient,
+    TerminationDatabaseTable terminationDatabaseTable
   ) {
     this.log = log;
     this.key = key;
@@ -103,6 +111,9 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.questionMessageDatabaseTable = questionMessageDatabaseTable;
     this.saleDatabaseTable = saleDatabaseTable;
     this.saleMessageDatabaseTable = saleMessageDatabaseTable;
+    this.stripeDatabaseTable = stripeDatabaseTable;
+    this.stripeClient = stripeClient;
+    this.terminationDatabaseTable = terminationDatabaseTable;
   }
 
   @Override
@@ -138,5 +149,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("saleDatabaseTable", saleDatabaseTable);
     beanFactory.registerSingleton("saleMessageDatabaseTable",
       saleMessageDatabaseTable);
+    beanFactory.registerSingleton("stripeDatabaseTable", stripeDatabaseTable);
+    beanFactory.registerSingleton("stripeClient", stripeClient);
+    beanFactory.registerSingleton("terminationDatabaseTable", terminationDatabaseTable);
   }
 }

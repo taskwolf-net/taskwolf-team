@@ -1,5 +1,6 @@
 package net.taskwolf.team.access.user;
 
+import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
@@ -14,15 +15,18 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Key;
+import java.text.DecimalFormat;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class TeamUserModificationController extends TeamController {
+public final class TeamUserBundleController extends TeamController {
   private final UserDatabaseTable userDatabaseTable;
   private final BundleDatabaseTable bundleDatabaseTable;
   private final BundlePresetRepository bundlePresetRepository;
 
-  private TeamUserModificationController(
+  private TeamUserBundleController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, UserDatabaseTable userDatabaseTable,
     BundleDatabaseTable bundleDatabaseTable,
@@ -32,6 +36,58 @@ public final class TeamUserModificationController extends TeamController {
     this.userDatabaseTable = userDatabaseTable;
     this.bundleDatabaseTable = bundleDatabaseTable;
     this.bundlePresetRepository = bundlePresetRepository;
+  }
+
+  @RequestMapping(path = "/user/bundle/find/", method = RequestMethod.POST)
+  public CompletableFuture<Map<String, Object>> findUserBundle(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = TaskwolfRequestBody.of(payload, response);
+    var userId = body.getUUID("user");
+    return memberHasPermission(findMemberId(request), "user.bundle.find")
+      .thenCompose(hasPermission -> bundleDatabaseTable.bundleExists(userId)
+        .thenCompose(exists -> findUserBundle(userId, hasPermission, exists)));
+  }
+
+  private CompletableFuture<Map<String, Object>> findUserBundle(
+    UUID userId, boolean hasPermission, boolean bundleExists
+  ) {
+    if (!hasPermission) {
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    if (!bundleExists) {
+      return CompletableFuture.completedFuture(Map.of("found", false));
+    }
+    return bundleDatabaseTable.findBundle(userId)
+      .thenApply(this::assemblyBundleInformation);
+  }
+
+  private Map<String, Object> assemblyBundleInformation(Bundle bundle) {
+    var information = Maps.<String, Object>newHashMap();
+    information.put("found", true);
+    information.put("type", bundle.bundleType().toString());
+    information.put("class", bundle.bundleClass().toString());
+    information.put("Runtime", bundle.bundleRuntime().toString());
+    information.put("price", bundle.price());
+    information.put("expiration", bundle.expiration());
+    information.put("workflowAccess", bundle.workflowAccess());
+    information.put("workflowNumberLimit", bundle.workflowNumberLimit());
+    information.put("workflowOperationLimit", bundle.workflowOperationLimit());
+    information.put("workflowTemplateAccess", bundle.workflowTemplateAccess());
+    information.put("databaseAccess", bundle.databaseAccess());
+    information.put("databaseNumberLimit", bundle.databaseNumberLimit());
+    information.put("databaseDataLimit", new DecimalFormat("#.#").format(
+      bundle.databaseDataLimit()));
+    information.put("webhookAccess", bundle.webhookAccess());
+    information.put("webhookNumberLimit", bundle.webhookNumberLimit());
+    information.put("organizationAccess", bundle.organizationAccess());
+    information.put("organizationMemberLimit", bundle.organizationMemberLimit());
+    information.put("organizationTeamLimit", bundle.organizationTeamLimit());
+    information.put("deviceAccess", bundle.deviceAccess());
+    information.put("accountsAccess", bundle.accountsAccess());
+    information.put("accountsNumberLimit", bundle.accountsNumberLimit());
+    return information;
   }
 
   @RequestMapping(path = "/user/bundle/change/", method = RequestMethod.POST)
