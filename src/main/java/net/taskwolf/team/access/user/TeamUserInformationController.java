@@ -86,7 +86,7 @@ public final class TeamUserInformationController extends TeamController {
     var organizationInformation = Lists.<Map<String, Object>>newArrayList();
     for (var organization : organizations) {
       organizationInformation.add(Map.of("id", organization.id(),
-        "name", organization));
+        "name", organization.name()));
     }
     information.put("organizations", organizationInformation);
     information.putAll(bundleInformation);
