@@ -9,6 +9,7 @@ import net.taskwolf.core.database.DatabaseConnection;
 import net.taskwolf.core.database.DatabaseKeyspace;
 import net.taskwolf.core.log.Log;
 import net.taskwolf.core.mail.TaskwolfMail;
+import net.taskwolf.core.organization.OrganizationDatabaseTable;
 import net.taskwolf.core.question.QuestionDatabaseTable;
 import net.taskwolf.core.question.QuestionMessageDatabaseTable;
 import net.taskwolf.core.sale.SaleDatabaseTable;
@@ -35,6 +36,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final DatabaseKeyspace databaseKeyspace;
   private final UserDatabaseTable userDatabaseTable;
   private final UserActivityDatabaseTable activityDatabaseTable;
+  private final OrganizationDatabaseTable organizationDatabaseTable;
+  private final net.taskwolf.core.organization.team.TeamDatabaseTable organizationTeamDatabaseTable;
   private final BundleDatabaseTable bundleDatabaseTable;
   private final BundlePresetRepository bundlePresetRepository;
   private final WhitelistConfiguration whitelistConfiguration;
@@ -57,6 +60,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     Log log, @Named("teamKey") Key key, DatabaseConnection databaseConnection,
     DatabaseKeyspace databaseKeyspace, UserDatabaseTable userDatabaseTable,
     UserActivityDatabaseTable activityDatabaseTable,
+    OrganizationDatabaseTable organizationDatabaseTable,
+    net.taskwolf.core.organization.team.TeamDatabaseTable organizationTeamDatabaseTable,
     BundleDatabaseTable bundleDatabaseTable,
     BundlePresetRepository bundlePresetRepository,
     WhitelistConfiguration whitelistConfiguration,
@@ -80,6 +85,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.databaseKeyspace = databaseKeyspace;
     this.userDatabaseTable = userDatabaseTable;
     this.activityDatabaseTable = activityDatabaseTable;
+    this.organizationDatabaseTable = organizationDatabaseTable;
+    this.organizationTeamDatabaseTable = organizationTeamDatabaseTable;
     this.bundleDatabaseTable = bundleDatabaseTable;
     this.bundlePresetRepository = bundlePresetRepository;
     this.whitelistConfiguration = whitelistConfiguration;
@@ -107,9 +114,13 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("databaseKeyspace", databaseKeyspace);
     beanFactory.registerSingleton("userDatabaseTable", userDatabaseTable);
     beanFactory.registerSingleton("activityDatabaseTable", activityDatabaseTable);
+    beanFactory.registerSingleton("organizationDatabaseTable",
+      organizationDatabaseTable);
+    beanFactory.registerSingleton("organizationTeamDatabaseTable",
+      organizationTeamDatabaseTable);
     beanFactory.registerSingleton("bundleDatabaseTable", bundleDatabaseTable);
     beanFactory.registerSingleton("bundlePresetRepository", bundlePresetRepository);
-    beanFactory.registerSingleton("whitelistConfiguration", whitelistConfiguration);
+    beanFactory.registerSingleton(" whitelistConfiguration", whitelistConfiguration);
     beanFactory.registerSingleton("teamDatabaseTable", teamDatabaseTable);
     beanFactory.registerSingleton("teamVerificationDatabaseTable",
       teamVerificationDatabaseTable);
