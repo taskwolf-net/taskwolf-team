@@ -24,6 +24,7 @@ import java.security.Key;
 import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
@@ -44,19 +45,19 @@ public final class TeamUserInformationController extends TeamController {
     this.organizationDatabaseTable = organizationDatabaseTable;
   }
 
-  @RequestMapping(path = "/user/find/", method = RequestMethod.POST)
-  public CompletableFuture<Map<String, Object>> findUser(
+  @RequestMapping(path = "/user/search/", method = RequestMethod.POST)
+  public CompletableFuture<Map<String, Object>> searchUser(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    var user = body.getString("user");
-    return memberHasPermission(findMemberId(request), "user.find")
-      .thenCompose(hasPermission -> userDatabaseTable.userExists(user)
-        .thenCompose(exists -> findUser(user, hasPermission, exists)));
+    var userMail = body.getString("user");
+    return memberHasPermission(findMemberId(request), "user.search")
+      .thenCompose(hasPermission -> userDatabaseTable.userExists(userMail)
+        .thenCompose(exists -> searchUser(userMail, hasPermission, exists)));
   }
 
-  private CompletableFuture<Map<String, Object>> findUser(
+  private CompletableFuture<Map<String, Object>> searchUser(
     String userMail, boolean hasPermission, boolean userExists
   ) {
     if (!hasPermission) {
@@ -66,6 +67,31 @@ public final class TeamUserInformationController extends TeamController {
       return CompletableFuture.completedFuture(Map.of("userFound", false));
     }
     return userDatabaseTable.findUser(userMail)
+      .thenApply(user -> Map.of("userFound", true, "userId", user.id()));
+  }
+
+  @RequestMapping(path = "/user/find/", method = RequestMethod.POST)
+  public CompletableFuture<Map<String, Object>> findUser(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = TaskwolfRequestBody.of(payload, response);
+    var userId = body.getUUID("user");
+    return memberHasPermission(findMemberId(request), "user.find")
+      .thenCompose(hasPermission -> userDatabaseTable.userExists(userId)
+        .thenCompose(exists -> findUser(userId, hasPermission, exists)));
+  }
+
+  private CompletableFuture<Map<String, Object>> findUser(
+    UUID userId, boolean hasPermission, boolean userExists
+  ) {
+    if (!hasPermission) {
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    if (!userExists) {
+      return CompletableFuture.completedFuture(Map.of("userFound", false));
+    }
+    return userDatabaseTable.findUser(userId)
       .thenCompose(user -> AsyncIterator.execute(user.organizations(),
         organizationDatabaseTable::findOrganization)
         .thenCompose(organizations -> findBundle(user)
