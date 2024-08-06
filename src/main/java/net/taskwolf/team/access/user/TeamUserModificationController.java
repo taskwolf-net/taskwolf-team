@@ -3,8 +3,7 @@ package net.taskwolf.team.access.user;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
-import net.taskwolf.core.bundle.BundleDatabaseTable;
-import net.taskwolf.core.bundle.BundlePresetRepository;
+import net.taskwolf.core.bundle.*;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
@@ -55,7 +54,21 @@ public final class TeamUserModificationController extends TeamController {
       return;
     }
     bundleDatabaseTable.deleteBundle(userId);
-    //TODO: SET NEW BUNDLE WITH THE NEW LIMITATIONS / PARAMETERS
+    var bundlePreset = findBundlePreset(body);
+    var bundleRuntime = BundleRuntime.valueOf(body.getString("runtime"));
+    bundleDatabaseTable.insertBundle(Bundle.of(userId,
+      bundlePreset, bundleRuntime, body.getDouble("price"),
+      body.getLong("workflowOperationLimit"),
+      body.getLong("databaseDataLimit"), -1L, -1L));
+  }
+
+  private BundlePreset findBundlePreset(TaskwolfRequestBody body) {
+    var bundleType = BundleType.valueOf(body.getString("type"));
+    if (bundleType.isTrial() || bundleType.isEnterprise()) {
+      return bundlePresetRepository.findPreset(bundleType).get();
+    }
+    var bundleClass = BundleClass.valueOf(body.getString("class"));
+    return bundlePresetRepository.findPreset(bundleType, bundleClass).get();
   }
 
   @RequestMapping(path = "/user/bundle/delete/", method = RequestMethod.POST)
