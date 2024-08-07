@@ -109,7 +109,8 @@ public final class TeamUserGeneralController extends TeamController {
     var organizationInformation = Lists.<Map<String, Object>>newArrayList();
     for (var organization : organizations) {
       organizationInformation.add(Map.of("id", organization.id(),
-        "name", organization.name()));
+        "name", organization.name(), "role",
+        organization.owner().equals(user.id()) ? "OWNER" : "MEMBER"));
     }
     information.put("organizations", organizationInformation);
     var ticketInformation = Lists.<Map<String, Object>>newArrayList();
