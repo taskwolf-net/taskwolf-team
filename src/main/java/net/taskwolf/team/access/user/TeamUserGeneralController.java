@@ -8,6 +8,8 @@ import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.iterator.AsyncIterator;
 import net.taskwolf.core.organization.Organization;
 import net.taskwolf.core.organization.OrganizationDatabaseTable;
+import net.taskwolf.core.ticket.Ticket;
+import net.taskwolf.core.ticket.TicketDatabaseTable;
 import net.taskwolf.core.user.User;
 import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
@@ -28,15 +30,18 @@ import java.util.concurrent.CompletableFuture;
 public final class TeamUserGeneralController extends TeamController {
   private final UserDatabaseTable userDatabaseTable;
   private final OrganizationDatabaseTable organizationDatabaseTable;
+  private final TicketDatabaseTable ticketDatabaseTable;
 
   private TeamUserGeneralController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, UserDatabaseTable userDatabaseTable,
-    OrganizationDatabaseTable organizationDatabaseTable
+    OrganizationDatabaseTable organizationDatabaseTable,
+    TicketDatabaseTable ticketDatabaseTable
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.userDatabaseTable = userDatabaseTable;
     this.organizationDatabaseTable = organizationDatabaseTable;
+    this.ticketDatabaseTable = ticketDatabaseTable;
   }
 
   @RequestMapping(path = "/user/search/", method = RequestMethod.POST)
@@ -88,11 +93,12 @@ public final class TeamUserGeneralController extends TeamController {
     return userDatabaseTable.findUser(userId)
       .thenCompose(user -> AsyncIterator.execute(user.organizations(),
           organizationDatabaseTable::findOrganization)
-        .thenApply(organizations -> assemblyUserInformation(user, organizations)));
+        .thenCompose(organizations -> ticketDatabaseTable.findTicketsByCreator(userId)
+          .thenApply(tickets -> assemblyUserInformation(user, organizations, tickets))));
   }
 
   private Map<String, Object> assemblyUserInformation(
-    User user, List<Organization> organizations
+    User user, List<Organization> organizations, List<Ticket> tickets
   ) {
     var information = Maps.<String, Object>newHashMap();
     information.put("found", true);
@@ -106,6 +112,12 @@ public final class TeamUserGeneralController extends TeamController {
         "name", organization.name()));
     }
     information.put("organizations", organizationInformation);
+    var ticketInformation = Lists.<Map<String, Object>>newArrayList();
+    for (var ticket : tickets) {
+      ticketInformation.add(Map.of("id", ticket.id(),
+        "name", ticket.title(), "type", ticket.type(), "status", ticket.status()));
+    }
+    information.put("tickets", ticketInformation);
     return information;
   }
 }
