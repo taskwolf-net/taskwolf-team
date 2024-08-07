@@ -106,7 +106,7 @@ public final class TeamUserTerminationController extends TeamController {
     return Map.of("terminable", true, "terminated", true);
   }
 
-  @RequestMapping(path = "/user/bundle/terminate/", method = RequestMethod.GET)
+  @RequestMapping(path = "/user/bundle/terminate/", method = RequestMethod.POST)
   public void terminateUserBundle(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
