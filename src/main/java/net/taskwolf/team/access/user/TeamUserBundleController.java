@@ -68,7 +68,7 @@ public final class TeamUserBundleController extends TeamController {
     information.put("found", true);
     information.put("type", bundle.bundleType().toString());
     information.put("class", bundle.bundleClass().toString());
-    information.put("Runtime", bundle.bundleRuntime().toString());
+    information.put("runtime", bundle.bundleRuntime().toString());
     information.put("price", bundle.price());
     information.put("expiration", bundle.expiration());
     information.put("workflowAccess", bundle.workflowAccess());
