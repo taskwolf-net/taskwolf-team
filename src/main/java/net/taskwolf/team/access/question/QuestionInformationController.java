@@ -30,12 +30,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @RestController
-public final class TeamQuestionInformationController extends TeamController {
+public final class QuestionInformationController extends TeamController {
   private final TaskwolfMail supportMail;
   private final QuestionDatabaseTable questionDatabaseTable;
   private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
 
-  private TeamQuestionInformationController(
+  private QuestionInformationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     @Qualifier("supportMail") TaskwolfMail supportMail,

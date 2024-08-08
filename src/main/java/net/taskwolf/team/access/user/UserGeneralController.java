@@ -27,12 +27,12 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class TeamUserGeneralController extends TeamController {
+public final class UserGeneralController extends TeamController {
   private final UserDatabaseTable userDatabaseTable;
   private final OrganizationDatabaseTable organizationDatabaseTable;
   private final TicketDatabaseTable ticketDatabaseTable;
 
-  private TeamUserGeneralController(
+  private UserGeneralController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, UserDatabaseTable userDatabaseTable,
     OrganizationDatabaseTable organizationDatabaseTable,

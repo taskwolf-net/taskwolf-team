@@ -26,12 +26,12 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class TeamTicketInformationController extends TeamController {
+public final class TicketInformationController extends TeamController {
   private final TicketDatabaseTable ticketDatabaseTable;
   private final TicketMessageDatabaseTable ticketMessageDatabaseTable;
   private final UserDatabaseTable userDatabaseTable;
 
-  private TeamTicketInformationController(
+  private TicketInformationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, TicketDatabaseTable ticketDatabaseTable,
     TicketMessageDatabaseTable ticketMessageDatabaseTable,

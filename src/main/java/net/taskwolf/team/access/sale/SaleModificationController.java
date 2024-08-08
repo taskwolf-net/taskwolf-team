@@ -23,13 +23,13 @@ import java.security.Key;
 import java.util.UUID;
 
 @RestController
-public final class TeamSaleModificationController extends TeamController {
+public final class SaleModificationController extends TeamController {
   private final TaskwolfMail saleMail;
   private final SaleDatabaseTable saleDatabaseTable;
   private final SaleMessageDatabaseTable saleMessageDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
 
-  private TeamSaleModificationController(
+  private SaleModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     @Qualifier("saleMail") TaskwolfMail saleMail,

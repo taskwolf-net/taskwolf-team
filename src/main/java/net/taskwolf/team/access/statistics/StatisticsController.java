@@ -3,10 +3,8 @@ package net.taskwolf.team.access.statistics;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
 import net.taskwolf.core.ticket.TicketDatabaseTable;
-import net.taskwolf.core.user.User;
-import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
-import net.taskwolf.team.access.question.TeamQuestionInformationController;
+import net.taskwolf.team.access.question.QuestionInformationController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.member.TeamMember;
@@ -22,16 +20,16 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class TeamStatisticsController extends TeamController {
+public final class StatisticsController extends TeamController {
   private final TicketDatabaseTable ticketDatabaseTable;
-  private final TeamQuestionInformationController teamEmailInformationController;
+  private final QuestionInformationController teamEmailInformationController;
   private final TeamDatabaseTable teamDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
 
-  private TeamStatisticsController(
+  private StatisticsController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, TicketDatabaseTable ticketDatabaseTable,
-    TeamQuestionInformationController teamEmailInformationController,
+    QuestionInformationController teamEmailInformationController,
     TeamWorkDatabaseTable teamWorkDatabaseTable
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);

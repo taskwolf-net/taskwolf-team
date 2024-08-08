@@ -10,6 +10,7 @@ import net.taskwolf.core.database.DatabaseConnection;
 import net.taskwolf.core.database.DatabaseKeyspace;
 import net.taskwolf.core.log.Log;
 import net.taskwolf.core.mail.TaskwolfMail;
+import net.taskwolf.core.offer.OfferDatabaseTable;
 import net.taskwolf.core.organization.OrganizationDatabaseTable;
 import net.taskwolf.core.question.QuestionDatabaseTable;
 import net.taskwolf.core.question.QuestionMessageDatabaseTable;
@@ -60,6 +61,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final StripeDatabaseTable stripeDatabaseTable;
   private final StripeClient stripeClient;
   private final TerminationDatabaseTable terminationDatabaseTable;
+  private final OfferDatabaseTable offerDatabaseTable;
 
   @Inject
   private TeamContextInitializer(
@@ -85,7 +87,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     SaleDatabaseTable saleDatabaseTable,
     SaleMessageDatabaseTable saleMessageDatabaseTable,
     StripeDatabaseTable stripeDatabaseTable, StripeClient stripeClient,
-    TerminationDatabaseTable terminationDatabaseTable
+    TerminationDatabaseTable terminationDatabaseTable,
+    OfferDatabaseTable offerDatabaseTable
   ) {
     this.log = log;
     this.key = key;
@@ -114,6 +117,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.stripeDatabaseTable = stripeDatabaseTable;
     this.stripeClient = stripeClient;
     this.terminationDatabaseTable = terminationDatabaseTable;
+    this.offerDatabaseTable = offerDatabaseTable;
   }
 
   @Override
@@ -151,6 +155,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
       saleMessageDatabaseTable);
     beanFactory.registerSingleton("stripeDatabaseTable", stripeDatabaseTable);
     beanFactory.registerSingleton("stripeClient", stripeClient);
-    beanFactory.registerSingleton("terminationDatabaseTable", terminationDatabaseTable);
+    beanFactory.registerSingleton("terminationDatabaseTable",
+      terminationDatabaseTable);
+    beanFactory.registerSingleton("offerDatabaseTable", offerDatabaseTable);
   }
 }

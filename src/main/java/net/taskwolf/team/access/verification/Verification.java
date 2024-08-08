@@ -13,7 +13,7 @@ import java.util.concurrent.CompletableFuture;
 
 @Accessors(fluent = true)
 @RequiredArgsConstructor(staticName = "create")
-public final class TeamVerification {
+public final class Verification {
   private final TeamDatabaseTable teamDatabaseTable;
   private final Key secret;
   @Getter

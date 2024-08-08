@@ -8,8 +8,6 @@ import net.taskwolf.core.ticket.Ticket;
 import net.taskwolf.core.ticket.TicketDatabaseTable;
 import net.taskwolf.core.ticket.TicketMessage;
 import net.taskwolf.core.ticket.TicketMessageDatabaseTable;
-import net.taskwolf.core.user.User;
-import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.core.user.activity.ActivityType;
 import net.taskwolf.core.user.activity.UserActivityDatabaseTable;
 import net.taskwolf.team.access.TeamController;
@@ -26,13 +24,13 @@ import java.security.Key;
 import java.util.UUID;
 
 @RestController
-public final class TeamTicketModificationController extends TeamController {
+public final class TicketModificationController extends TeamController {
   private final TicketDatabaseTable ticketDatabaseTable;
   private final TicketMessageDatabaseTable ticketMessageDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
   private final UserActivityDatabaseTable activityDatabaseTable;
 
-  private TeamTicketModificationController(
+  private TicketModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, TicketDatabaseTable ticketDatabaseTable,
     TicketMessageDatabaseTable ticketMessageDatabaseTable,

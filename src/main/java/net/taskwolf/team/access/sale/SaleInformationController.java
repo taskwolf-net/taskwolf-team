@@ -10,7 +10,6 @@ import net.taskwolf.core.sale.Sale;
 import net.taskwolf.core.sale.SaleDatabaseTable;
 import net.taskwolf.core.sale.SaleMessage;
 import net.taskwolf.core.sale.SaleMessageDatabaseTable;
-import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
@@ -27,11 +26,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @RestController
-public final class TeamSaleInformationController extends TeamController {
+public final class SaleInformationController extends TeamController {
   private final SaleDatabaseTable saleDatabaseTable;
   private final SaleMessageDatabaseTable saleMessageDatabaseTable;
 
-  private TeamSaleInformationController(
+  private SaleInformationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, SaleDatabaseTable saleDatabaseTable,
     SaleMessageDatabaseTable saleMessageDatabaseTable

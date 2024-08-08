@@ -17,12 +17,12 @@ import java.security.Key;
 import java.util.UUID;
 
 @RestController
-public final class TeamOrganizationModificationController extends TeamController {
+public final class OrganizationModificationController extends TeamController {
   private final OrganizationDatabaseTable organizationDatabaseTable;
   private final BundleDatabaseTable bundleDatabaseTable;
   private final BundlePresetRepository bundlePresetRepository;
 
-  private TeamOrganizationModificationController(
+  private OrganizationModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     OrganizationDatabaseTable organizationDatabaseTable,

@@ -21,12 +21,12 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class TeamUserBundleController extends TeamController {
+public final class UserBundleController extends TeamController {
   private final UserDatabaseTable userDatabaseTable;
   private final BundleDatabaseTable bundleDatabaseTable;
   private final BundlePresetRepository bundlePresetRepository;
 
-  private TeamUserBundleController(
+  private UserBundleController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, UserDatabaseTable userDatabaseTable,
     BundleDatabaseTable bundleDatabaseTable,

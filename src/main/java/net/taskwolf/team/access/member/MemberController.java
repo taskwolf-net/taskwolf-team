@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.mail.TaskwolfMail;
-import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
@@ -25,11 +24,11 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class TeamMemberController extends TeamController {
+public final class MemberController extends TeamController {
   private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
   private final TaskwolfMail verificationMail;
 
-  private TeamMemberController(
+  private MemberController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable,

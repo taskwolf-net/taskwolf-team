@@ -26,11 +26,11 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class TeamUserPaymentController extends TeamController {
+public final class UserPaymentController extends TeamController {
   private final StripeDatabaseTable stripeDatabaseTable;
   private final StripeClient stripeClient;
 
-  private TeamUserPaymentController(
+  private UserPaymentController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     StripeDatabaseTable stripeDatabaseTable,

@@ -25,13 +25,13 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class TeamUserTerminationController extends TeamController {
+public final class UserTerminationController extends TeamController {
   private final BundleDatabaseTable bundleDatabaseTable;
   private final StripeDatabaseTable stripeDatabaseTable;
   private final TerminationDatabaseTable terminationDatabaseTable;
   private final StripeClient stripeClient;
 
-  private TeamUserTerminationController(
+  private UserTerminationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     BundleDatabaseTable bundleDatabaseTable,

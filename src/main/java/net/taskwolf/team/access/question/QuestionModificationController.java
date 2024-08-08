@@ -23,13 +23,13 @@ import java.security.Key;
 import java.util.*;
 
 @RestController
-public final class TeamQuestionModificationController extends TeamController {
+public final class QuestionModificationController extends TeamController {
   private final TaskwolfMail supportMail;
   private final QuestionDatabaseTable questionDatabaseTable;
   private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
 
-  private TeamQuestionModificationController(
+  private QuestionModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     @Qualifier("supportMail") TaskwolfMail supportMail,

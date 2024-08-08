@@ -5,7 +5,6 @@ import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
-import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.Group;
 import net.taskwolf.team.group.GroupDatabaseTable;
@@ -20,8 +19,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class TeamGroupController extends TeamController {
-  private TeamGroupController(
+public final class GroupController extends TeamController {
+  private GroupController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable
   ) {

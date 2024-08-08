@@ -20,12 +20,12 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class TeamVerificationController {
+public final class VerificationController {
   private final Key secretKey;
   private final TeamDatabaseTable teamDatabaseTable;
   private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
 
-  private TeamVerificationController(
+  private VerificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable
   ) {
@@ -79,7 +79,7 @@ public final class TeamVerificationController {
     @RequestBody String payload, HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    var verification = TeamVerification.create(teamDatabaseTable, secretKey,
+    var verification = Verification.create(teamDatabaseTable, secretKey,
       body.getString("email"), hashPassword(body.getString("password")));
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     verification.isAuthenticated().thenAccept(isAuthenticated ->
@@ -88,7 +88,7 @@ public final class TeamVerificationController {
   }
 
   private void checkAuthorization(
-    HttpServletResponse servletResponse, TeamVerification verification,
+    HttpServletResponse servletResponse, Verification verification,
     CompletableFuture<Map<String, Object>> futureResponse, boolean isAuthenticated
   ) {
     if (!isAuthenticated) {

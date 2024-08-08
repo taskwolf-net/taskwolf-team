@@ -26,12 +26,12 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class TeamOrganizationInformationController extends TeamController {
+public final class OrganizationInformationController extends TeamController {
   private final OrganizationDatabaseTable organizationDatabaseTable;
   private final net.taskwolf.core.organization.team.TeamDatabaseTable organizationTeamDatabaseTable;
   private final BundleDatabaseTable bundleDatabaseTable;
 
-  private TeamOrganizationInformationController(
+  private OrganizationInformationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     OrganizationDatabaseTable organizationDatabaseTable,
