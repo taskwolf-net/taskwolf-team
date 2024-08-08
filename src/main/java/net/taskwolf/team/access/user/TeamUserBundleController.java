@@ -109,13 +109,67 @@ public final class TeamUserBundleController extends TeamController {
     if (!hasPermission || !userExists) {
       return;
     }
+    var preset = findBundlePreset(body);
+    var runtime = BundleRuntime.valueOf(body.getString("runtime"));
+    var price = findBundlePrice(body, preset, runtime);
+    var workflowNumberLimit = findBundleWorkflowNumberLimit(body, preset);
+    var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
+    var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
+    var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
     bundleDatabaseTable.deleteBundle(userId);
-    var bundlePreset = findBundlePreset(body);
-    var bundleRuntime = BundleRuntime.valueOf(body.getString("runtime"));
     bundleDatabaseTable.insertBundle(Bundle.of(userId,
-      bundlePreset, bundleRuntime, body.getDouble("price"),
-      body.getLong("workflowOperationLimit"),
-      body.getLong("databaseDataLimit"), -1L, -1L));
+      preset, runtime, price, workflowNumberLimit, workflowOperationLimit,
+      databaseNumberLimit, databaseDataLimit, -1L, -1L));
+  }
+
+  private double findBundlePrice(
+    TaskwolfRequestBody body, BundlePreset preset, BundleRuntime runtime
+  ) {
+    if (runtime.isWeekly()) {
+      return 0;
+    }
+    if (!body.has("price")) {
+      return preset.hasPrice() ? (runtime.isMonthly() ?
+        preset.monthlyPrice() : preset.yearlyPrice()) : 0;
+    }
+    return body.getDouble("price");
+  }
+
+  private long findBundleWorkflowNumberLimit(
+    TaskwolfRequestBody body, BundlePreset preset
+  ) {
+    if (!body.has("workflowNumberLimit")) {
+      return preset.workflowNumberLimit();
+    }
+    return body.getLong("workflowNumberLimit");
+  }
+
+  private long findBundleWorkflowOperationLimit(
+    TaskwolfRequestBody body, BundlePreset preset
+  ) {
+    if (!body.has("workflowOperationLimit")) {
+      return preset.hasWorkflowOperationLimit() ?
+        preset.workflowOperationLimit() : 0;
+    }
+    return body.getLong("workflowOperationLimit");
+  }
+
+  private long findBundleDatabaseNumberLimit(
+    TaskwolfRequestBody body, BundlePreset preset
+  ) {
+    if (!body.has("databaseNumberLimit")) {
+      return preset.databaseNumberLimit();
+    }
+    return body.getLong("databaseNumberLimit");
+  }
+
+  private double findBundleDatabaseDataLimit(
+    TaskwolfRequestBody body, BundlePreset preset
+  ) {
+    if (!body.has("databaseDataLimit")) {
+      return preset.databaseDataLimit();
+    }
+    return body.getDouble("databaseDataLimit");
   }
 
   private BundlePreset findBundlePreset(TaskwolfRequestBody body) {
