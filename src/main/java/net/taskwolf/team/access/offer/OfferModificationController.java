@@ -1,5 +1,6 @@
 package net.taskwolf.team.access.offer;
 
+import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
@@ -9,45 +10,50 @@ import net.taskwolf.core.offer.OfferStatus;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
+import net.taskwolf.team.offer.TeamOfferConfiguration;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Key;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 public final class OfferModificationController extends TeamController {
   private final OfferDatabaseTable offerDatabaseTable;
   private final BundlePresetRepository bundlePresetRepository;
+  private final TeamOfferConfiguration teamOfferConfiguration;
 
   private OfferModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, OfferDatabaseTable offerDatabaseTable,
-    BundlePresetRepository bundlePresetRepository
+    BundlePresetRepository bundlePresetRepository,
+    TeamOfferConfiguration teamOfferConfiguration
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.offerDatabaseTable = offerDatabaseTable;
     this.bundlePresetRepository = bundlePresetRepository;
+    this.teamOfferConfiguration = teamOfferConfiguration;
   }
 
   @RequestMapping(path = "/offer/price/suggestion/", method = RequestMethod.POST)
-  public void createOfferPriceSuggestion(
+  public CompletableFuture<Map<String, Object>> createOfferPriceSuggestion(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    var targetId = body.getUUID("target");
-    memberHasPermission(findMemberId(request), "offer.price.suggestion")
-      .thenAccept(hasPermission -> createOffer(targetId, body, hasPermission));
+    return memberHasPermission(findMemberId(request), "offer.price.suggestion")
+      .thenApply(hasPermission -> createOfferPriceSuggestion(body, hasPermission));
   }
 
-  private void createOfferPriceSuggestion(
-    UUID targetId, TaskwolfRequestBody body, boolean hasPermission
+  private Map<String, Object> createOfferPriceSuggestion(
+    TaskwolfRequestBody body, boolean hasPermission
   ) {
     if (!hasPermission) {
-      return;
+      return Maps.newHashMap();
     }
     var preset = findBundlePreset(body);
     var runtime = BundleRuntime.valueOf(body.getString("runtime"));
@@ -55,6 +61,14 @@ public final class OfferModificationController extends TeamController {
     var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
     var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
     var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
+    var price = teamOfferConfiguration.workflowPrice() * workflowNumberLimit +
+      teamOfferConfiguration.workflowOperationPrice() * workflowOperationLimit +
+      teamOfferConfiguration.databasePrice() * databaseNumberLimit +
+      teamOfferConfiguration.databaseDataPrice() * databaseDataLimit;
+    if (runtime.isYearly()) {
+      price *= 0.75;
+    }
+    return Map.of("price", price);
   }
 
   @RequestMapping(path = "/offer/create/", method = RequestMethod.POST)
@@ -74,6 +88,13 @@ public final class OfferModificationController extends TeamController {
     if (!hasPermission) {
       return;
     }
+    var preset = findBundlePreset(body);
+    var runtime = BundleRuntime.valueOf(body.getString("runtime"));
+    var workflowNumberLimit = findBundleWorkflowNumberLimit(body, preset);
+    var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
+    var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
+    var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
+    var price = body.getDouble("price");
   }
 
   private long findBundleWorkflowNumberLimit(
