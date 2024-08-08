@@ -189,14 +189,14 @@ public final class UserBundleController extends TeamController {
     var body = TaskwolfRequestBody.of(payload, response);
     var userId = body.getUUID("user");
     memberHasPermission(findMemberId(request), "user.bundle.delete")
-      .thenAccept(hasPermission -> userDatabaseTable.userExists(userId)
+      .thenAccept(hasPermission -> bundleDatabaseTable.bundleExists(userId)
         .thenAccept(exists -> deleteUserBundle(userId, hasPermission, exists)));
   }
 
   private void deleteUserBundle(
-    UUID userId, boolean hasPermission, boolean userExists
+    UUID userId, boolean hasPermission, boolean bundleExists
   ) {
-    if (!hasPermission || !userExists) {
+    if (!hasPermission || !bundleExists) {
       return;
     }
     bundleDatabaseTable.deleteBundle(userId);
