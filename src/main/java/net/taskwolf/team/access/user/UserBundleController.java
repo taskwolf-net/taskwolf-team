@@ -116,10 +116,10 @@ public final class UserBundleController extends TeamController {
     var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
     var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
     var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
-    bundleDatabaseTable.deleteBundle(userId);
-    bundleDatabaseTable.insertBundle(Bundle.of(userId,
-      preset, runtime, price, workflowNumberLimit, workflowOperationLimit,
-      databaseNumberLimit, databaseDataLimit, -1L, -1L));
+    bundleDatabaseTable.deleteBundle(userId).thenAccept(value ->
+      bundleDatabaseTable.insertBundle(Bundle.of(userId,
+        preset, runtime, price, workflowNumberLimit, workflowOperationLimit,
+        databaseNumberLimit, databaseDataLimit, -1L, -1L)));
   }
 
   private double findBundlePrice(
