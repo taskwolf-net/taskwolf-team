@@ -27,6 +27,7 @@ import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.member.TeamVerificationDatabaseTable;
 import net.taskwolf.team.member.TeamWorkDatabaseTable;
+import net.taskwolf.team.offer.TeamOfferConfiguration;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 
@@ -62,6 +63,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final StripeClient stripeClient;
   private final TerminationDatabaseTable terminationDatabaseTable;
   private final OfferDatabaseTable offerDatabaseTable;
+  private final TeamOfferConfiguration offerConfiguration;
 
   @Inject
   private TeamContextInitializer(
@@ -88,7 +90,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     SaleMessageDatabaseTable saleMessageDatabaseTable,
     StripeDatabaseTable stripeDatabaseTable, StripeClient stripeClient,
     TerminationDatabaseTable terminationDatabaseTable,
-    OfferDatabaseTable offerDatabaseTable
+    OfferDatabaseTable offerDatabaseTable, TeamOfferConfiguration offerConfiguration
   ) {
     this.log = log;
     this.key = key;
@@ -118,6 +120,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.stripeClient = stripeClient;
     this.terminationDatabaseTable = terminationDatabaseTable;
     this.offerDatabaseTable = offerDatabaseTable;
+    this.offerConfiguration = offerConfiguration;
   }
 
   @Override
@@ -158,5 +161,6 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("terminationDatabaseTable",
       terminationDatabaseTable);
     beanFactory.registerSingleton("offerDatabaseTable", offerDatabaseTable);
+    beanFactory.registerSingleton("offerConfiguration", offerConfiguration);
   }
 }

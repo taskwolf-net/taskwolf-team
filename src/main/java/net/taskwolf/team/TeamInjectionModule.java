@@ -26,6 +26,7 @@ import net.taskwolf.core.whitelist.WhitelistInjectionModule;
 import net.taskwolf.team.configuration.TeamConfiguration;
 import net.taskwolf.team.group.GroupInjectionModule;
 import net.taskwolf.team.member.TeamMemberInjectionModule;
+import net.taskwolf.team.offer.TeamOfferInjectionModule;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
@@ -48,6 +49,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(AccessInjectionModule.create());
     install(StripeInjectionModule.create());
     install(OfferInjectionModule.create());
+    install(TeamOfferInjectionModule.create());
     install(CommandInjectionModule.create());
     install(TeamMemberInjectionModule.create());
     install(GroupInjectionModule.create());
