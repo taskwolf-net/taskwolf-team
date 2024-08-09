@@ -7,9 +7,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.bundle.*;
+import net.taskwolf.core.offer.Offer;
 import net.taskwolf.core.offer.OfferDatabaseTable;
 import net.taskwolf.core.offer.OfferStatus;
-import net.taskwolf.core.stripe.StripeDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
@@ -74,7 +74,7 @@ public final class OfferModificationController extends TeamController {
     if (runtime.isYearly()) {
       price *= 0.75;
     }
-    return Map.of("price", price);
+    return Map.of("price", Math.round(price * 100.0) / 100.0);
   }
 
   @RequestMapping(path = "/offer/create/", method = RequestMethod.POST)
@@ -100,14 +100,23 @@ public final class OfferModificationController extends TeamController {
     var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
     var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
     var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
-    var price = body.getDouble("price");
-    var stripePriceId = createStripeOffer(price);
+    var price = Math.round(body.getDouble("price") * 100.0) / 100.0;
+    var priceId = createStripeOffer(price);
+    offerDatabaseTable.generateAvailableOfferId()
+      .thenAccept(id -> offerDatabaseTable.insertOffer(Offer.of(id, targetId,
+        priceId, OfferStatus.PENDING, preset, runtime, price, workflowNumberLimit,
+        workflowOperationLimit, databaseNumberLimit, databaseDataLimit, 0, 0)));
   }
 
   private String createStripeOffer(double price) {
     try {
+      var productData = PriceCreateParams.ProductData.builder()
+        .setName("Individual package")
+        .build();
       var parameters = PriceCreateParams.builder()
         .setUnitAmount(Math.round(price * 100))
+        .setCurrency("eur")
+        .setProductData(productData)
         .build();
       var stripePrice = stripeClient.prices().create(parameters);
       return stripePrice.getId();
