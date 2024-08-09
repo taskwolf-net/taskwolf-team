@@ -1,11 +1,10 @@
-package net.taskwolf.team.access.user;
+package net.taskwolf.team.access.entity;
 
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.bundle.*;
-import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
@@ -21,37 +20,35 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class UserBundleController extends TeamController {
-  private final UserDatabaseTable userDatabaseTable;
+public final class EntityBundleController extends TeamController {
   private final BundleDatabaseTable bundleDatabaseTable;
   private final BundlePresetRepository bundlePresetRepository;
 
-  private UserBundleController(
+  private EntityBundleController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
-    GroupDatabaseTable groupDatabaseTable, UserDatabaseTable userDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable,
     BundleDatabaseTable bundleDatabaseTable,
     BundlePresetRepository bundlePresetRepository
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
-    this.userDatabaseTable = userDatabaseTable;
     this.bundleDatabaseTable = bundleDatabaseTable;
     this.bundlePresetRepository = bundlePresetRepository;
   }
 
-  @RequestMapping(path = "/user/bundle/find/", method = RequestMethod.POST)
-  public CompletableFuture<Map<String, Object>> findUserBundle(
+  @RequestMapping(path = "/entity/bundle/find/", method = RequestMethod.POST)
+  public CompletableFuture<Map<String, Object>> findEntityBundle(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    var userId = body.getUUID("user");
-    return memberHasPermission(findMemberId(request), "user.bundle.find")
-      .thenCompose(hasPermission -> bundleDatabaseTable.bundleExists(userId)
-        .thenCompose(exists -> findUserBundle(userId, hasPermission, exists)));
+    var entityId = body.getUUID("entity");
+    return memberHasPermission(findMemberId(request), "entity.bundle.find")
+      .thenCompose(hasPermission -> bundleDatabaseTable.bundleExists(entityId)
+        .thenCompose(exists -> findEntityBundle(entityId, hasPermission, exists)));
   }
 
-  private CompletableFuture<Map<String, Object>> findUserBundle(
-    UUID userId, boolean hasPermission, boolean bundleExists
+  private CompletableFuture<Map<String, Object>> findEntityBundle(
+    UUID entityId, boolean hasPermission, boolean bundleExists
   ) {
     if (!hasPermission) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
@@ -59,7 +56,7 @@ public final class UserBundleController extends TeamController {
     if (!bundleExists) {
       return CompletableFuture.completedFuture(Map.of("found", false));
     }
-    return bundleDatabaseTable.findBundle(userId)
+    return bundleDatabaseTable.findBundle(entityId)
       .thenApply(this::assemblyBundleInformation);
   }
 
@@ -90,23 +87,22 @@ public final class UserBundleController extends TeamController {
     return information;
   }
 
-  @RequestMapping(path = "/user/bundle/change/", method = RequestMethod.POST)
-  public void changeUserBundle(
+  @RequestMapping(path = "/entity/bundle/change/", method = RequestMethod.POST)
+  public void changeEntityBundle(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    var userId = body.getUUID("user");
-    memberHasPermission(findMemberId(request), "user.bundle.change")
-      .thenAccept(hasPermission -> userDatabaseTable.userExists(userId)
-        .thenAccept(exists -> changeUserBundle(userId, body, hasPermission, exists)));
+    var entityId = body.getUUID("entity");
+    memberHasPermission(findMemberId(request), "entity.bundle.change")
+      .thenAccept(hasPermission -> changeEntityBundle(entityId, body,
+        hasPermission));
   }
 
-  private void changeUserBundle(
-    UUID userId, TaskwolfRequestBody body, boolean hasPermission,
-    boolean userExists
+  private void changeEntityBundle(
+    UUID entityId, TaskwolfRequestBody body, boolean hasPermission
   ) {
-    if (!hasPermission || !userExists) {
+    if (!hasPermission) {
       return;
     }
     var preset = findBundlePreset(body);
@@ -116,8 +112,8 @@ public final class UserBundleController extends TeamController {
     var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
     var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
     var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
-    bundleDatabaseTable.deleteBundle(userId).thenAccept(value ->
-      bundleDatabaseTable.insertBundle(Bundle.of(userId,
+    bundleDatabaseTable.deleteBundle(entityId).thenAccept(value ->
+      bundleDatabaseTable.insertBundle(Bundle.of(entityId,
         preset, runtime, price, workflowNumberLimit, workflowOperationLimit,
         databaseNumberLimit, databaseDataLimit, -1L, -1L)));
   }
@@ -181,24 +177,24 @@ public final class UserBundleController extends TeamController {
     return bundlePresetRepository.findPreset(bundleType, bundleClass).get();
   }
 
-  @RequestMapping(path = "/user/bundle/delete/", method = RequestMethod.POST)
-  public void deleteUserBundle(
+  @RequestMapping(path = "/entity/bundle/delete/", method = RequestMethod.POST)
+  public void deleteEntityBundle(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    var userId = body.getUUID("user");
-    memberHasPermission(findMemberId(request), "user.bundle.delete")
-      .thenAccept(hasPermission -> bundleDatabaseTable.bundleExists(userId)
-        .thenAccept(exists -> deleteUserBundle(userId, hasPermission, exists)));
+    var entityId = body.getUUID("entity");
+    memberHasPermission(findMemberId(request), "entity.bundle.delete")
+      .thenAccept(hasPermission -> bundleDatabaseTable.bundleExists(entityId)
+        .thenAccept(exists -> deleteEntityBundle(entityId, hasPermission, exists)));
   }
 
-  private void deleteUserBundle(
-    UUID userId, boolean hasPermission, boolean bundleExists
+  private void deleteEntityBundle(
+    UUID entityId, boolean hasPermission, boolean bundleExists
   ) {
     if (!hasPermission || !bundleExists) {
       return;
     }
-    bundleDatabaseTable.deleteBundle(userId);
+    bundleDatabaseTable.deleteBundle(entityId);
   }
 }

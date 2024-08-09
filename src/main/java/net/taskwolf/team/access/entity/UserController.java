@@ -1,4 +1,4 @@
-package net.taskwolf.team.access.user;
+package net.taskwolf.team.access.entity;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -27,12 +27,12 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class UserGeneralController extends TeamController {
+public final class UserController extends TeamController {
   private final UserDatabaseTable userDatabaseTable;
   private final OrganizationDatabaseTable organizationDatabaseTable;
   private final TicketDatabaseTable ticketDatabaseTable;
 
-  private UserGeneralController(
+  private UserController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, UserDatabaseTable userDatabaseTable,
     OrganizationDatabaseTable organizationDatabaseTable,
