@@ -13,6 +13,7 @@ import net.taskwolf.core.stripe.StripeAccount;
 import net.taskwolf.core.stripe.StripeDatabaseTable;
 import net.taskwolf.core.stripe.TerminationDatabaseTable;
 import net.taskwolf.core.user.UserDatabaseTable;
+import net.taskwolf.team.access.stripe.StripeController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,7 +27,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class EntityTerminationController extends EntityStripeController {
+public final class EntityTerminationController extends StripeController {
   private final BundleDatabaseTable bundleDatabaseTable;
   private final TerminationDatabaseTable terminationDatabaseTable;
 

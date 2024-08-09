@@ -1,4 +1,4 @@
-package net.taskwolf.team.access.entity;
+package net.taskwolf.team.access.stripe;
 
 import com.stripe.StripeClient;
 import lombok.Getter;
@@ -17,13 +17,13 @@ import java.util.concurrent.CompletableFuture;
 
 @Getter
 @Accessors(fluent = true)
-public class EntityStripeController extends TeamController {
+public class StripeController extends TeamController {
   private final StripeDatabaseTable stripeDatabaseTable;
   private final StripeClient stripeClient;
   private final UserDatabaseTable userDatabaseTable;
   private final OrganizationDatabaseTable organizationDatabaseTable;
 
-  protected EntityStripeController(
+  protected StripeController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     StripeDatabaseTable stripeDatabaseTable,

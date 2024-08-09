@@ -1,13 +1,18 @@
 package net.taskwolf.team.access.offer;
 
 import com.google.common.collect.Maps;
+import com.stripe.StripeClient;
+import com.stripe.param.PriceCreateParams;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.bundle.*;
 import net.taskwolf.core.offer.OfferDatabaseTable;
 import net.taskwolf.core.offer.OfferStatus;
-import net.taskwolf.team.access.TeamController;
+import net.taskwolf.core.organization.OrganizationDatabaseTable;
+import net.taskwolf.core.stripe.StripeDatabaseTable;
+import net.taskwolf.core.user.UserDatabaseTable;
+import net.taskwolf.team.access.stripe.StripeController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.offer.TeamOfferConfiguration;
@@ -22,18 +27,23 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class OfferModificationController extends TeamController {
+public final class OfferModificationController extends StripeController {
   private final OfferDatabaseTable offerDatabaseTable;
   private final BundlePresetRepository bundlePresetRepository;
   private final TeamOfferConfiguration teamOfferConfiguration;
 
   private OfferModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
-    GroupDatabaseTable groupDatabaseTable, OfferDatabaseTable offerDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable,
+    StripeDatabaseTable stripeDatabaseTable, StripeClient stripeClient,
+    UserDatabaseTable userDatabaseTable,
+    OrganizationDatabaseTable organizationDatabaseTable,
+    OfferDatabaseTable offerDatabaseTable,
     BundlePresetRepository bundlePresetRepository,
     TeamOfferConfiguration teamOfferConfiguration
   ) {
-    super(secretKey, teamDatabaseTable, groupDatabaseTable);
+    super(secretKey, teamDatabaseTable, groupDatabaseTable, stripeDatabaseTable,
+      stripeClient, userDatabaseTable, organizationDatabaseTable);
     this.offerDatabaseTable = offerDatabaseTable;
     this.bundlePresetRepository = bundlePresetRepository;
     this.teamOfferConfiguration = teamOfferConfiguration;
@@ -79,7 +89,7 @@ public final class OfferModificationController extends TeamController {
     var body = TaskwolfRequestBody.of(payload, response);
     var targetId = body.getUUID("target");
     memberHasPermission(findMemberId(request), "offer.create")
-      .thenAccept(hasPermission -> createOffer(targetId, body, hasPermission));
+      .thenAcceptAsync(hasPermission -> createOffer(targetId, body, hasPermission));
   }
 
   private void createOffer(
@@ -95,6 +105,20 @@ public final class OfferModificationController extends TeamController {
     var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
     var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
     var price = body.getDouble("price");
+    var stripePriceId = createStripeOffer(price);
+  }
+
+  private String createStripeOffer(double price) {
+    try {
+      var parameters = PriceCreateParams.builder()
+        .setUnitAmount(Math.round(price * 100))
+        .build();
+      var stripePrice = stripeClient().prices().create(parameters);
+      return stripePrice.getId();
+    } catch (Exception exception) {
+      exception.printStackTrace();
+      return null;
+    }
   }
 
   private long findBundleWorkflowNumberLimit(

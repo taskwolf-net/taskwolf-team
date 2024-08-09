@@ -9,11 +9,10 @@ import com.stripe.param.PaymentIntentListParams;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
-import net.taskwolf.core.organization.Organization;
 import net.taskwolf.core.organization.OrganizationDatabaseTable;
 import net.taskwolf.core.stripe.StripeDatabaseTable;
 import net.taskwolf.core.user.UserDatabaseTable;
-import net.taskwolf.team.access.TeamController;
+import net.taskwolf.team.access.stripe.StripeController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,7 +28,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class EntityPaymentController extends EntityStripeController {
+public final class EntityPaymentController extends StripeController {
   private EntityPaymentController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
