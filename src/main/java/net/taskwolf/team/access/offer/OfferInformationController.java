@@ -60,8 +60,8 @@ public final class OfferInformationController extends TeamController {
     HttpServletResponse response
   ) {
     var body = TaskwolfRequestBody.of(payload, response);
-    var offerId = body.getUUID("offerId");
-    return memberHasPermission(findMemberId(request), "offer.withdraw")
+    var offerId = body.getUUID("offer");
+    return memberHasPermission(findMemberId(request), "offer.find")
       .thenCompose(hasPermission -> offerDatabaseTable.offerExists(offerId)
         .thenCompose(exists -> findOffer(offerId, hasPermission, exists)));
   }
