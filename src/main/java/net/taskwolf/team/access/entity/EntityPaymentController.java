@@ -9,10 +9,8 @@ import com.stripe.param.PaymentIntentListParams;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
-import net.taskwolf.core.organization.OrganizationDatabaseTable;
 import net.taskwolf.core.stripe.StripeDatabaseTable;
-import net.taskwolf.core.user.UserDatabaseTable;
-import net.taskwolf.team.access.stripe.StripeController;
+import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,17 +26,19 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class EntityPaymentController extends StripeController {
+public final class EntityPaymentController extends TeamController {
+  private final StripeDatabaseTable stripeDatabaseTable;
+  private final StripeClient stripeClient;
+
   private EntityPaymentController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     StripeDatabaseTable stripeDatabaseTable,
-    StripeClient stripeClient, UserDatabaseTable userDatabaseTable,
-    OrganizationDatabaseTable organizationDatabaseTable
+    StripeClient stripeClient
   ) {
-    super(secretKey, teamDatabaseTable, groupDatabaseTable,
-      stripeDatabaseTable, stripeClient, userDatabaseTable,
-      organizationDatabaseTable);
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
+    this.stripeDatabaseTable = stripeDatabaseTable;
+    this.stripeClient = stripeClient;
   }
 
   @RequestMapping(path = "/entity/payments/find/", method = RequestMethod.POST)
@@ -49,10 +49,10 @@ public final class EntityPaymentController extends StripeController {
     var body = TaskwolfRequestBody.of(payload, response);
     var entityId = body.getUUID("entity");
     return memberHasPermission(findMemberId(request), "entity.payments.find")
-      .thenCompose(hasPermission -> findStripeTarget(entityId)
-        .thenCompose(target -> stripeDatabaseTable().stripeAccountExistsByTarget(target)
-          .thenComposeAsync(stripeExists -> findEntityPayments(target,
-            hasPermission, stripeExists))));
+      .thenCompose(hasPermission ->
+        stripeDatabaseTable.stripeAccountExistsByTarget(entityId)
+          .thenComposeAsync(stripeExists -> findEntityPayments(entityId,
+            hasPermission, stripeExists)));
   }
 
   private CompletableFuture<Map<String, Object>> findEntityPayments(
@@ -64,7 +64,7 @@ public final class EntityPaymentController extends StripeController {
     if (!stripeAccountExists) {
       return CompletableFuture.completedFuture(Map.of("found", false));
     }
-    return stripeDatabaseTable().findStripeAccountByTarget(target)
+    return stripeDatabaseTable.findStripeAccountByTarget(target)
       .thenApplyAsync(account -> findPayments(account.accountId()));
   }
 
@@ -72,10 +72,10 @@ public final class EntityPaymentController extends StripeController {
     try {
       var parameters = PaymentIntentListParams.builder()
         .setCustomer(accountId).build();
-      var payments = stripeClient().paymentIntents().list(parameters);
+      var payments = stripeClient.paymentIntents().list(parameters);
       var information = Lists.newArrayList();
       for (var payment : payments.getData()) {
-        var invoice = stripeClient().invoices().retrieve(payment.getInvoice());
+        var invoice = stripeClient.invoices().retrieve(payment.getInvoice());
         information.add(assemblyPaymentInformation(payment, invoice));
       }
       return Map.of("payments", information);
@@ -91,7 +91,7 @@ public final class EntityPaymentController extends StripeController {
     var information = Maps.<String, Object>newHashMap();
     information.put("time", formatTime(payment.getCreated() * 1000));
     information.put("amount", payment.getAmount() / 100D);
-    information.put("method", stripeClient().paymentMethods()
+    information.put("method", stripeClient.paymentMethods()
       .retrieve(payment.getPaymentMethod()).getType());
     information.put("status", payment.getStatus());
     information.put("invoice", invoice.getInvoicePdf());

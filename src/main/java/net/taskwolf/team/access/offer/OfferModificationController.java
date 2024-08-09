@@ -9,10 +9,8 @@ import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.bundle.*;
 import net.taskwolf.core.offer.OfferDatabaseTable;
 import net.taskwolf.core.offer.OfferStatus;
-import net.taskwolf.core.organization.OrganizationDatabaseTable;
 import net.taskwolf.core.stripe.StripeDatabaseTable;
-import net.taskwolf.core.user.UserDatabaseTable;
-import net.taskwolf.team.access.stripe.StripeController;
+import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.offer.TeamOfferConfiguration;
@@ -27,26 +25,24 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class OfferModificationController extends StripeController {
+public final class OfferModificationController extends TeamController {
   private final OfferDatabaseTable offerDatabaseTable;
   private final BundlePresetRepository bundlePresetRepository;
   private final TeamOfferConfiguration teamOfferConfiguration;
+  private final StripeClient stripeClient;
 
   private OfferModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
-    StripeDatabaseTable stripeDatabaseTable, StripeClient stripeClient,
-    UserDatabaseTable userDatabaseTable,
-    OrganizationDatabaseTable organizationDatabaseTable,
     OfferDatabaseTable offerDatabaseTable,
     BundlePresetRepository bundlePresetRepository,
-    TeamOfferConfiguration teamOfferConfiguration
+    TeamOfferConfiguration teamOfferConfiguration, StripeClient stripeClient
   ) {
-    super(secretKey, teamDatabaseTable, groupDatabaseTable, stripeDatabaseTable,
-      stripeClient, userDatabaseTable, organizationDatabaseTable);
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.offerDatabaseTable = offerDatabaseTable;
     this.bundlePresetRepository = bundlePresetRepository;
     this.teamOfferConfiguration = teamOfferConfiguration;
+    this.stripeClient = stripeClient;
   }
 
   @RequestMapping(path = "/offer/price/suggestion/", method = RequestMethod.POST)
@@ -113,7 +109,7 @@ public final class OfferModificationController extends StripeController {
       var parameters = PriceCreateParams.builder()
         .setUnitAmount(Math.round(price * 100))
         .build();
-      var stripePrice = stripeClient().prices().create(parameters);
+      var stripePrice = stripeClient.prices().create(parameters);
       return stripePrice.getId();
     } catch (Exception exception) {
       exception.printStackTrace();

@@ -8,12 +8,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.bundle.Bundle;
 import net.taskwolf.core.bundle.BundleDatabaseTable;
-import net.taskwolf.core.organization.OrganizationDatabaseTable;
 import net.taskwolf.core.stripe.StripeAccount;
 import net.taskwolf.core.stripe.StripeDatabaseTable;
 import net.taskwolf.core.stripe.TerminationDatabaseTable;
-import net.taskwolf.core.user.UserDatabaseTable;
-import net.taskwolf.team.access.stripe.StripeController;
+import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,24 +25,24 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class EntityTerminationController extends StripeController {
+public final class EntityTerminationController extends TeamController {
   private final BundleDatabaseTable bundleDatabaseTable;
   private final TerminationDatabaseTable terminationDatabaseTable;
+  private final StripeDatabaseTable stripeDatabaseTable;
+  private final StripeClient stripeClient;
 
   private EntityTerminationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
-    StripeDatabaseTable stripeDatabaseTable,
-    StripeClient stripeClient, UserDatabaseTable userDatabaseTable,
-    OrganizationDatabaseTable organizationDatabaseTable,
     BundleDatabaseTable bundleDatabaseTable,
-    TerminationDatabaseTable terminationDatabaseTable
+    TerminationDatabaseTable terminationDatabaseTable,
+    StripeDatabaseTable stripeDatabaseTable, StripeClient stripeClient
   ) {
-    super(secretKey, teamDatabaseTable, groupDatabaseTable,
-      stripeDatabaseTable, stripeClient, userDatabaseTable,
-      organizationDatabaseTable);
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.bundleDatabaseTable = bundleDatabaseTable;
     this.terminationDatabaseTable = terminationDatabaseTable;
+    this.stripeDatabaseTable = stripeDatabaseTable;
+    this.stripeClient = stripeClient;
   }
 
   @RequestMapping(path = "/entity/termination/status/", method = RequestMethod.POST)
@@ -55,12 +53,11 @@ public final class EntityTerminationController extends StripeController {
     var body = TaskwolfRequestBody.of(payload, response);
     var entityId = body.getUUID("entity");
     return memberHasPermission(findMemberId(request), "entity.termination.status")
-      .thenCompose(hasPermission -> findStripeTarget(entityId)
-        .thenCompose(target -> bundleDatabaseTable.bundleExists(target)
-          .thenCompose(bundleExists ->
-            stripeDatabaseTable().stripeAccountExistsByTarget(target)
-              .thenCompose(stripeExists -> findEntityTerminationStatus(
-                target, hasPermission, bundleExists, stripeExists)))));
+      .thenCompose(hasPermission -> bundleDatabaseTable.bundleExists(entityId)
+        .thenCompose(bundleExists ->
+          stripeDatabaseTable.stripeAccountExistsByTarget(entityId)
+            .thenCompose(stripeExists -> findEntityTerminationStatus(
+              entityId, hasPermission, bundleExists, stripeExists))));
   }
 
   private CompletableFuture<Map<String, Object>> findEntityTerminationStatus(
@@ -74,7 +71,7 @@ public final class EntityTerminationController extends StripeController {
       return CompletableFuture.completedFuture(Map.of("terminable", false));
     }
     return bundleDatabaseTable.findBundle(targetId)
-      .thenCompose(bundle -> stripeDatabaseTable().findStripeAccountByTarget(targetId)
+      .thenCompose(bundle -> stripeDatabaseTable.findStripeAccountByTarget(targetId)
         .thenCompose(stripeAccount -> findEntityTerminationStatus(targetId, bundle,
           stripeAccount.accountId())));
   }
@@ -83,7 +80,7 @@ public final class EntityTerminationController extends StripeController {
     UUID targetId, Bundle bundle, String stripeAccountId
   ) {
     try {
-      var subscriptions = stripeClient().subscriptions()
+      var subscriptions = stripeClient.subscriptions()
         .list(SubscriptionListParams.builder().setCustomer(stripeAccountId).build())
         .getData();
       if (subscriptions.isEmpty()) {
@@ -116,12 +113,11 @@ public final class EntityTerminationController extends StripeController {
     var body = TaskwolfRequestBody.of(payload, response);
     var entityId = body.getUUID("entity");
     memberHasPermission(findMemberId(request), "entity.bundle.terminate")
-      .thenAccept(hasPermission -> findStripeTarget(entityId)
-        .thenCompose(target -> bundleDatabaseTable.bundleExists(target)
-          .thenAccept(bundleExists ->
-            stripeDatabaseTable().stripeAccountExistsByTarget(target)
-              .thenAccept(stripeExists -> terminateEntityBundle(target,
-                hasPermission, bundleExists, stripeExists)))));
+      .thenAccept(hasPermission -> bundleDatabaseTable.bundleExists(entityId)
+        .thenAccept(bundleExists ->
+          stripeDatabaseTable.stripeAccountExistsByTarget(entityId)
+            .thenAccept(stripeExists -> terminateEntityBundle(entityId,
+              hasPermission, bundleExists, stripeExists))));
   }
 
   private void terminateEntityBundle(
@@ -132,7 +128,7 @@ public final class EntityTerminationController extends StripeController {
       return;
     }
     bundleDatabaseTable.findBundle(targetId)
-      .thenAccept(bundle -> stripeDatabaseTable().findStripeAccountByTarget(targetId)
+      .thenAccept(bundle -> stripeDatabaseTable.findStripeAccountByTarget(targetId)
         .thenAccept(stripeAccount -> terminateEntityBundle(targetId, bundle,
           stripeAccount)));
   }
@@ -157,14 +153,14 @@ public final class EntityTerminationController extends StripeController {
 
   public void cancelSubscription(StripeAccount account) {
     try {
-      var subscriptions = stripeClient().subscriptions()
+      var subscriptions = stripeClient.subscriptions()
         .list(SubscriptionListParams.builder().setCustomer(account.accountId()).build())
         .getData();
       if (subscriptions.isEmpty()) {
         return;
       }
       subscriptions.get(0).cancel();
-      stripeDatabaseTable().updateStripeAccount(account.accountId(),
+      stripeDatabaseTable.updateStripeAccount(account.accountId(),
         account.targetId(), account.userId(), "");
     } catch (Exception exception) {
       exception.printStackTrace();
