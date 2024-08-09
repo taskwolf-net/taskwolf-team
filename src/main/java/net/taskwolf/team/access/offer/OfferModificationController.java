@@ -67,10 +67,18 @@ public final class OfferModificationController extends TeamController {
     var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
     var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
     var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
+    var isOrganization = preset.bundleType().isTeam() ||
+      preset.bundleType().isEnterprise();
+    var organizationMemberLimit = isOrganization ?
+      findBundleOrganizationMemberLimit(body, preset) : 0;
+    var organizationTeamLimit = isOrganization ?
+      findBundleOrganizationTeamLimit(body, preset) : 0;
     var price = teamOfferConfiguration.workflowPrice() * workflowNumberLimit +
       teamOfferConfiguration.workflowOperationPrice() * workflowOperationLimit +
       teamOfferConfiguration.databasePrice() * databaseNumberLimit +
-      teamOfferConfiguration.databaseDataPrice() * databaseDataLimit;
+      teamOfferConfiguration.databaseDataPrice() * databaseDataLimit +
+      teamOfferConfiguration.organizationMemberPrice() * organizationMemberLimit +
+      teamOfferConfiguration.organizationTeamPrice() * organizationTeamLimit;
     if (runtime.isYearly()) {
       price *= 0.75;
     }
@@ -100,12 +108,19 @@ public final class OfferModificationController extends TeamController {
     var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
     var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
     var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
+    var isOrganization = preset.bundleType().isTeam() ||
+      preset.bundleType().isEnterprise();
+    var organizationMemberLimit = isOrganization ?
+      findBundleOrganizationMemberLimit(body, preset) : 0;
+    var organizationTeamLimit = isOrganization ?
+      findBundleOrganizationTeamLimit(body, preset) : 0;
     var price = Math.round(body.getDouble("price") * 100.0) / 100.0;
     var priceId = createStripeOffer(price);
     offerDatabaseTable.generateAvailableOfferId()
       .thenAccept(id -> offerDatabaseTable.insertOffer(Offer.of(id, targetId,
         priceId, OfferStatus.PENDING, preset, runtime, price, workflowNumberLimit,
-        workflowOperationLimit, databaseNumberLimit, databaseDataLimit, 0, 0)));
+        workflowOperationLimit, databaseNumberLimit, databaseDataLimit,
+        organizationMemberLimit, organizationTeamLimit)));
   }
 
   private String createStripeOffer(double price) {
@@ -161,6 +176,24 @@ public final class OfferModificationController extends TeamController {
       return preset.databaseDataLimit();
     }
     return body.getDouble("databaseDataLimit");
+  }
+
+  private long findBundleOrganizationMemberLimit(
+    TaskwolfRequestBody body, BundlePreset preset
+  ) {
+    if (!body.has("organizationMemberLimit")) {
+      return preset.organizationMemberLimit();
+    }
+    return body.getLong("organizationMemberLimit");
+  }
+
+  private long findBundleOrganizationTeamLimit(
+    TaskwolfRequestBody body, BundlePreset preset
+  ) {
+    if (!body.has("organizationTeamLimit")) {
+      return preset.organizationTeamLimit();
+    }
+    return body.getLong("organizationTeamLimit");
   }
 
   private BundlePreset findBundlePreset(TaskwolfRequestBody body) {

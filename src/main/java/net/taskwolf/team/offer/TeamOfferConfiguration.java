@@ -20,6 +20,8 @@ public final class TeamOfferConfiguration extends Configuration {
   private float workflowOperationPrice;
   private float databasePrice;
   private float databaseDataPrice;
+  private float organizationMemberPrice;
+  private float organizationTeamPrice;
 
   private TeamOfferConfiguration(String path) {
     super(path);
@@ -31,5 +33,7 @@ public final class TeamOfferConfiguration extends Configuration {
     workflowOperationPrice = json.getFloat("workflowOperationPrice");
     databasePrice = json.getFloat("databasePrice");
     databaseDataPrice = json.getFloat("databaseDataPrice");
+    organizationMemberPrice = json.getFloat("organizationMemberPrice");
+    organizationTeamPrice = json.getFloat("organizationTeamPrice");
   }
 }

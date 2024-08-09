@@ -112,10 +112,18 @@ public final class EntityBundleController extends TeamController {
     var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
     var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
     var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
+    var isOrganization = preset.bundleType().isTeam() ||
+      preset.bundleType().isEnterprise();
+    var organizationMemberLimit = isOrganization ?
+      findBundleOrganizationMemberLimit(body, preset) : 0;
+    var organizationTeamLimit = isOrganization ?
+      findBundleOrganizationTeamLimit(body, preset) : 0;
+    System.out.println(organizationMemberLimit + ":" + organizationTeamLimit);
     bundleDatabaseTable.deleteBundle(entityId).thenAccept(value ->
       bundleDatabaseTable.insertBundle(Bundle.of(entityId,
         preset, runtime, price, workflowNumberLimit, workflowOperationLimit,
-        databaseNumberLimit, databaseDataLimit, -1L, -1L)));
+        databaseNumberLimit, databaseDataLimit, organizationMemberLimit,
+        organizationTeamLimit)));
   }
 
   private double findBundlePrice(
@@ -166,6 +174,24 @@ public final class EntityBundleController extends TeamController {
       return preset.databaseDataLimit();
     }
     return body.getDouble("databaseDataLimit");
+  }
+
+  private long findBundleOrganizationMemberLimit(
+    TaskwolfRequestBody body, BundlePreset preset
+  ) {
+    if (!body.has("organizationMemberLimit")) {
+      return preset.organizationMemberLimit();
+    }
+    return body.getLong("organizationMemberLimit");
+  }
+
+  private long findBundleOrganizationTeamLimit(
+    TaskwolfRequestBody body, BundlePreset preset
+  ) {
+    if (!body.has("organizationTeamLimit")) {
+      return preset.organizationTeamLimit();
+    }
+    return body.getLong("organizationTeamLimit");
   }
 
   private BundlePreset findBundlePreset(TaskwolfRequestBody body) {
