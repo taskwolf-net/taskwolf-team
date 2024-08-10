@@ -47,8 +47,18 @@ public final class TeamDatabaseTable extends DatabaseTable {
       permissions));
   }
 
-  public void changeTeamMemberPassword(UUID userId, String passwordHash) {
-    findTeamMember(userId).thenAccept(member ->
+  public void changeTeamMemberName(UUID memberId, String name) {
+    findTeamMember(memberId).thenAccept(member ->
+      changeTeamMemberName(member, name));
+  }
+
+  public void changeTeamMemberName(TeamMember teamMember, String name) {
+    teamMember.changeName(name);
+    updateTeamMember(teamMember);
+  }
+
+  public void changeTeamMemberPassword(UUID memberId, String passwordHash) {
+    findTeamMember(memberId).thenAccept(member ->
       changeTeamMemberPassword(member, passwordHash));
   }
 
@@ -57,8 +67,18 @@ public final class TeamDatabaseTable extends DatabaseTable {
     updateTeamMember(teamMember);
   }
 
-  public void addTeamMemberPermission(UUID userId, String permission) {
-    findTeamMember(userId).thenAccept(member ->
+  public void changeTeamMemberLanguage(UUID memberId, String language) {
+    findTeamMember(memberId).thenAccept(member ->
+      changeTeamMemberLanguage(member, language));
+  }
+
+  public void changeTeamMemberLanguage(TeamMember teamMember, String language) {
+    teamMember.changeLanguage(language);
+    updateTeamMember(teamMember);
+  }
+
+  public void addTeamMemberPermission(UUID memberId, String permission) {
+    findTeamMember(memberId).thenAccept(member ->
       addTeamMemberPermission(member, permission));
   }
 
@@ -67,8 +87,8 @@ public final class TeamDatabaseTable extends DatabaseTable {
     updateTeamMember(teamMember);
   }
 
-  public void removeTeamMemberPermission(UUID userId, String permission) {
-    findTeamMember(userId).thenAccept(member ->
+  public void removeTeamMemberPermission(UUID memberId, String permission) {
+    findTeamMember(memberId).thenAccept(member ->
       removeTeamMemberPermission(member, permission));
   }
 
@@ -77,8 +97,8 @@ public final class TeamDatabaseTable extends DatabaseTable {
     updateTeamMember(teamMember);
   }
 
-  public void changeTeamMemberGroup(UUID userId, String group) {
-    findTeamMember(userId).thenAccept(member ->
+  public void changeTeamMemberGroup(UUID memberId, String group) {
+    findTeamMember(memberId).thenAccept(member ->
       changeTeamMemberGroup(member, group));
   }
 

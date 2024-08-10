@@ -32,8 +32,16 @@ public final class TeamMember {
   private String group;
   private final List<String> permissions;
 
+  public void changeName(String newName) {
+    name = newName;
+  }
+
   public void changePassword(String newPasswordHash) {
     passwordHash = newPasswordHash;
+  }
+
+  public void changeLanguage(String newLanguage) {
+    language = newLanguage;
   }
 
   public void changeGroup(String newGroup) {
