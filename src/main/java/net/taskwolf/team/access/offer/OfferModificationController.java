@@ -125,13 +125,17 @@ public final class OfferModificationController extends TeamController {
 
   private String createStripeOffer(double price) {
     try {
-      var productData = PriceCreateParams.ProductData.builder()
+      var product = PriceCreateParams.ProductData.builder()
         .setName("Individual package")
+        .build();
+      var recurring = PriceCreateParams.Recurring.builder()
+        .setInterval(PriceCreateParams.Recurring.Interval.MONTH)
         .build();
       var parameters = PriceCreateParams.builder()
         .setUnitAmount(Math.round(price * 100))
+        .setRecurring(recurring)
         .setCurrency("eur")
-        .setProductData(productData)
+        .setProductData(product)
         .build();
       var stripePrice = stripeClient.prices().create(parameters);
       return stripePrice.getId();
