@@ -7,13 +7,19 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.bundle.*;
+import net.taskwolf.core.mail.TaskwolfMail;
 import net.taskwolf.core.offer.Offer;
 import net.taskwolf.core.offer.OfferDatabaseTable;
 import net.taskwolf.core.offer.OfferStatus;
+import net.taskwolf.core.organization.Organization;
+import net.taskwolf.core.organization.OrganizationDatabaseTable;
+import net.taskwolf.core.user.User;
+import net.taskwolf.core.user.UserDatabaseTable;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.offer.TeamOfferConfiguration;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -30,19 +36,28 @@ public final class OfferModificationController extends TeamController {
   private final BundlePresetRepository bundlePresetRepository;
   private final TeamOfferConfiguration teamOfferConfiguration;
   private final StripeClient stripeClient;
+  private final UserDatabaseTable userDatabaseTable;
+  private final OrganizationDatabaseTable organizationDatabaseTable;
+  private final TaskwolfMail saleMail;
 
   private OfferModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     OfferDatabaseTable offerDatabaseTable,
     BundlePresetRepository bundlePresetRepository,
-    TeamOfferConfiguration teamOfferConfiguration, StripeClient stripeClient
+    TeamOfferConfiguration teamOfferConfiguration, StripeClient stripeClient,
+    UserDatabaseTable userDatabaseTable,
+    OrganizationDatabaseTable organizationDatabaseTable,
+    @Qualifier("saleMail") TaskwolfMail saleMail
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.offerDatabaseTable = offerDatabaseTable;
     this.bundlePresetRepository = bundlePresetRepository;
     this.teamOfferConfiguration = teamOfferConfiguration;
     this.stripeClient = stripeClient;
+    this.userDatabaseTable = userDatabaseTable;
+    this.organizationDatabaseTable = organizationDatabaseTable;
+    this.saleMail = saleMail;
   }
 
   @RequestMapping(path = "/offer/price/suggestion/", method = RequestMethod.POST)
@@ -117,10 +132,48 @@ public final class OfferModificationController extends TeamController {
     var price = Math.round(body.getDouble("price") * 100.0) / 100.0;
     var priceId = createStripeOffer(price);
     offerDatabaseTable.generateAvailableOfferId()
-      .thenAccept(id -> offerDatabaseTable.insertOffer(Offer.of(id, targetId,
-        priceId, OfferStatus.PENDING, preset, runtime, price, workflowNumberLimit,
-        workflowOperationLimit, databaseNumberLimit, databaseDataLimit,
-        organizationMemberLimit, organizationTeamLimit)));
+      .thenAccept(id -> createOffer(id, targetId, priceId, preset, runtime,
+        price, workflowNumberLimit, workflowOperationLimit, databaseNumberLimit,
+        databaseDataLimit, organizationMemberLimit, organizationTeamLimit));
+  }
+
+  private void createOffer(
+    UUID id, UUID targetId, String priceId, BundlePreset preset,
+    BundleRuntime runtime, double price, long workflowNumberLimit,
+    long workflowOperationLimit, long databaseNumberLimit, double databaseDataLimit,
+    long organizationMemberLimit, long organizationTeamLimit
+  ) {
+    offerDatabaseTable.insertOffer(Offer.of(id, targetId,
+      priceId, OfferStatus.PENDING, preset, runtime, price, workflowNumberLimit,
+      workflowOperationLimit, databaseNumberLimit, databaseDataLimit,
+      organizationMemberLimit, organizationTeamLimit));
+    userDatabaseTable.userExists(targetId)
+      .thenCompose(exists -> exists ?
+        CompletableFuture.completedFuture(targetId) :
+        organizationDatabaseTable.findOrganization(targetId)
+          .thenApply(Organization::owner))
+      .thenCompose(userDatabaseTable::findUser)
+      .thenAccept(user -> sendOfferEmail(user, id));
+  }
+
+  private static final String OFFER_EMAIL_TITLE = "Offer";
+  private static final String OFFER_EMAIL_BODY = "Hey %s,\n" +
+    "\n" +
+    "we are pleased to inform you that we have put together " +
+    "a customized Taskwolf package for you.\n" +
+    "\n" +
+    "This package is personalized to your needs.\n" +
+    "\n" +
+    "Click on the link below to view and accept or decline the offer.\n" +
+    "\n" +
+    "https://taskwolf.net/offer/%s/\n" +
+    "\n" +
+    "We hope we have been able to meet your requirements.\n" +
+    "Here's to good cooperation!";
+
+  private void sendOfferEmail(User user, UUID offerId) {
+    saleMail.send(user.email(), OFFER_EMAIL_TITLE,
+      String.format(OFFER_EMAIL_BODY, user.name(), offerId.toString()));
   }
 
   private String createStripeOffer(double price) {
