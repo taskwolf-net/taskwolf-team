@@ -79,7 +79,7 @@ public final class SaleModificationController extends TeamController {
     var body = TaskwolfRequestBody.of(payload, response);
     var saleId = body.getUUID("sale");
     findMember(request).thenAccept(teamMember ->
-      memberHasPermission(findMemberId(request), "sale.answer")
+      memberHasPermission(teamMember.id(), "sale.answer")
         .thenAccept(hasPermission -> saleDatabaseTable.saleExists(saleId)
           .thenAccept(exists -> answerSale(teamMember, saleId,
             body.getString("message"), hasPermission, exists))));

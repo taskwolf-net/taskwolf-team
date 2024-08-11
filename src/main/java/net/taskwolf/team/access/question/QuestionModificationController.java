@@ -81,7 +81,7 @@ public final class QuestionModificationController extends TeamController {
     var body = TaskwolfRequestBody.of(payload, response);
     var questionId = body.getUUID("question");
     findMember(request).thenAccept(teamMember ->
-      memberHasPermission(findMemberId(request), "question.answer")
+      memberHasPermission(teamMember.id(), "question.answer")
         .thenAccept(hasPermission -> questionDatabaseTable.questionExists(questionId)
           .thenAccept(exists -> answerQuestion(teamMember, questionId,
             body.getString("message"), hasPermission, exists))));
