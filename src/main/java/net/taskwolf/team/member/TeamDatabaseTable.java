@@ -131,7 +131,7 @@ public final class TeamDatabaseTable extends DatabaseTable {
   }
 
   public CompletableFuture<Boolean> teamMemberExists(String email) {
-    return exists("email='" + email.toLowerCase() + "' ALLOW FILTERING");
+    return exists("email='" + email.toLowerCase() + "'");
   }
 
   public CompletableFuture<TeamMember> findTeamMember(UUID id) {
@@ -139,7 +139,7 @@ public final class TeamDatabaseTable extends DatabaseTable {
   }
 
   public CompletableFuture<TeamMember> findTeamMember(String email) {
-    return selectRow("email='" + email.toLowerCase() + "' ALLOW FILTERING")
+    return selectRow("email='" + email.toLowerCase() + "'")
       .thenApply(TeamMember::of);
   }
 

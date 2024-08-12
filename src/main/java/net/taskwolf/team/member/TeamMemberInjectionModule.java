@@ -17,6 +17,7 @@ public final class TeamMemberInjectionModule extends AbstractModule {
     var teamDatabaseTable = TeamDatabaseTable.create(databaseConnection,
       databaseKeyspace);
     teamDatabaseTable.createIfNotExists();
+    teamDatabaseTable.createIndexIfNotExists("email");
     return teamDatabaseTable;
   }
 
