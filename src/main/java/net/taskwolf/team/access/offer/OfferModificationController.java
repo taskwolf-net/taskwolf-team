@@ -179,7 +179,7 @@ public final class OfferModificationController extends TeamController {
   private String createStripeOffer(double price) {
     try {
       var product = PriceCreateParams.ProductData.builder()
-        .setName("Individual package")
+        .setName("Manually compiled package")
         .build();
       var recurring = PriceCreateParams.Recurring.builder()
         .setInterval(PriceCreateParams.Recurring.Interval.MONTH)
