@@ -24,7 +24,6 @@ import net.taskwolf.core.ticket.TicketInjectionModule;
 import net.taskwolf.core.user.UserInjectionModule;
 import net.taskwolf.core.whitelist.WhitelistInjectionModule;
 import net.taskwolf.team.configuration.TeamConfiguration;
-import net.taskwolf.team.database.TeamDatabaseInjectionModule;
 import net.taskwolf.team.group.GroupInjectionModule;
 import net.taskwolf.team.member.TeamMemberInjectionModule;
 import net.taskwolf.team.offer.TeamOfferInjectionModule;
@@ -38,7 +37,7 @@ public final class TeamInjectionModule extends AbstractModule {
   @Override
   protected void configure() {
     install(IntroInjectionModule.create());
-    install(TeamDatabaseInjectionModule.create());
+    install(DatabaseInjectionModule.create());
     install(UserInjectionModule.create());
     install(OrganizationInjectionModule.create());
     install(BundleInjectionModule.create());
