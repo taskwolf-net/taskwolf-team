@@ -72,6 +72,8 @@ public final class EntityBundleController extends TeamController {
     information.put("workflowNumberLimit", bundle.workflowNumberLimit());
     information.put("workflowOperationLimit", bundle.workflowOperationLimit());
     information.put("workflowTemplateAccess", bundle.workflowTemplateAccess());
+    information.put("processAccess", bundle.processAccess());
+    information.put("processNumberLimit", bundle.processNumberLimit());
     information.put("databaseAccess", bundle.databaseAccess());
     information.put("databaseNumberLimit", bundle.databaseNumberLimit());
     information.put("databaseDataLimit", new DecimalFormat("#.#").format(
@@ -110,6 +112,7 @@ public final class EntityBundleController extends TeamController {
     var price = findBundlePrice(body, preset, runtime);
     var workflowNumberLimit = findBundleWorkflowNumberLimit(body, preset);
     var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
+    var processNumberLimit = findBundleProcessNumberLimit(body, preset);
     var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
     var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
     var isOrganization = preset.bundleType().isTeam() ||
@@ -122,8 +125,8 @@ public final class EntityBundleController extends TeamController {
     bundleDatabaseTable.deleteBundle(entityId).thenAccept(value ->
       bundleDatabaseTable.insertBundle(Bundle.of(entityId,
         preset, runtime, price, workflowNumberLimit, workflowOperationLimit,
-        databaseNumberLimit, databaseDataLimit, organizationMemberLimit,
-        organizationTeamLimit)));
+        processNumberLimit, databaseNumberLimit, databaseDataLimit,
+        organizationMemberLimit, organizationTeamLimit)));
   }
 
   private double findBundlePrice(
@@ -156,6 +159,15 @@ public final class EntityBundleController extends TeamController {
         preset.workflowOperationLimit() : 0;
     }
     return body.getLong("workflowOperationLimit");
+  }
+
+  private long findBundleProcessNumberLimit(
+    TaskwolfRequestBody body, BundlePreset preset
+  ) {
+    if (!body.has("processNumberLimit")) {
+      return preset.processNumberLimit();
+    }
+    return body.getLong("processNumberLimit");
   }
 
   private long findBundleDatabaseNumberLimit(

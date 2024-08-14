@@ -3,6 +3,7 @@ package net.taskwolf.team.access.offer;
 import com.google.common.collect.Maps;
 import com.stripe.StripeClient;
 import com.stripe.param.PriceCreateParams;
+import com.stripe.param.PriceUpdateParams;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
@@ -80,6 +81,7 @@ public final class OfferModificationController extends TeamController {
     var runtime = BundleRuntime.valueOf(body.getString("runtime"));
     var workflowNumberLimit = findBundleWorkflowNumberLimit(body, preset);
     var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
+    var processNumberLimit = findBundleProcessNumberLimit(body, preset);
     var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
     var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
     var isOrganization = preset.bundleType().isTeam() ||
@@ -90,6 +92,7 @@ public final class OfferModificationController extends TeamController {
       findBundleOrganizationTeamLimit(body, preset) : 0;
     var price = teamOfferConfiguration.workflowPrice() * workflowNumberLimit +
       teamOfferConfiguration.workflowOperationPrice() * workflowOperationLimit +
+      teamOfferConfiguration.processPrice() * processNumberLimit +
       teamOfferConfiguration.databasePrice() * databaseNumberLimit +
       teamOfferConfiguration.databaseDataPrice() * databaseDataLimit +
       teamOfferConfiguration.organizationMemberPrice() * organizationMemberLimit +
@@ -121,6 +124,7 @@ public final class OfferModificationController extends TeamController {
     var runtime = BundleRuntime.valueOf(body.getString("runtime"));
     var workflowNumberLimit = findBundleWorkflowNumberLimit(body, preset);
     var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
+    var processNumberLimit = findBundleProcessNumberLimit(body, preset);
     var databaseNumberLimit = findBundleDatabaseNumberLimit(body, preset);
     var databaseDataLimit = findBundleDatabaseDataLimit(body, preset);
     var isOrganization = preset.bundleType().isTeam() ||
@@ -133,20 +137,21 @@ public final class OfferModificationController extends TeamController {
     var priceId = createStripeOffer(price);
     offerDatabaseTable.generateAvailableOfferId()
       .thenAccept(id -> createOffer(id, targetId, priceId, preset, runtime,
-        price, workflowNumberLimit, workflowOperationLimit, databaseNumberLimit,
-        databaseDataLimit, organizationMemberLimit, organizationTeamLimit));
+        price, workflowNumberLimit, workflowOperationLimit, processNumberLimit,
+        databaseNumberLimit, databaseDataLimit, organizationMemberLimit,
+        organizationTeamLimit));
   }
 
   private void createOffer(
     UUID id, UUID targetId, String priceId, BundlePreset preset,
     BundleRuntime runtime, double price, long workflowNumberLimit,
-    long workflowOperationLimit, long databaseNumberLimit, double databaseDataLimit,
-    long organizationMemberLimit, long organizationTeamLimit
+    long workflowOperationLimit, long processNumberLimit, long databaseNumberLimit,
+    double databaseDataLimit, long organizationMemberLimit, long organizationTeamLimit
   ) {
     offerDatabaseTable.insertOffer(Offer.of(id, targetId,
       priceId, OfferStatus.PENDING, preset, runtime, price, workflowNumberLimit,
-      workflowOperationLimit, databaseNumberLimit, databaseDataLimit,
-      organizationMemberLimit, organizationTeamLimit));
+      workflowOperationLimit, processNumberLimit, databaseNumberLimit,
+      databaseDataLimit, organizationMemberLimit, organizationTeamLimit));
     userDatabaseTable.userExists(targetId)
       .thenCompose(exists -> exists ?
         CompletableFuture.completedFuture(targetId) :
@@ -217,6 +222,15 @@ public final class OfferModificationController extends TeamController {
     return body.getLong("workflowOperationLimit");
   }
 
+  private long findBundleProcessNumberLimit(
+    TaskwolfRequestBody body, BundlePreset preset
+  ) {
+    if (!body.has("processNumberLimit")) {
+      return preset.processNumberLimit();
+    }
+    return body.getLong("processNumberLimit");
+  }
+
   private long findBundleDatabaseNumberLimit(
     TaskwolfRequestBody body, BundlePreset preset
   ) {
@@ -280,7 +294,16 @@ public final class OfferModificationController extends TeamController {
     if (!hasPermission || !offerExists) {
       return;
     }
-    offerDatabaseTable.findOffer(offerId).thenAccept(offer ->
-      offerDatabaseTable.updateOfferStatus(offer, OfferStatus.WITHDRAWN));
+    offerDatabaseTable.findOffer(offerId).thenAccept(this::withdrawOffer);
+  }
+
+  private void withdrawOffer(Offer offer) {
+    offerDatabaseTable.updateOfferStatus(offer, OfferStatus.WITHDRAWN);
+    try {
+      stripeClient.prices().update(offer.priceId(),
+        PriceUpdateParams.builder().setActive(false).build());
+    } catch (Exception exception) {
+      exception.printStackTrace();
+    }
   }
 }

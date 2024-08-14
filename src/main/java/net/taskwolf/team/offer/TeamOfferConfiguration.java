@@ -18,6 +18,7 @@ public final class TeamOfferConfiguration extends Configuration {
 
   private float workflowPrice;
   private float workflowOperationPrice;
+  private float processPrice;
   private float databasePrice;
   private float databaseDataPrice;
   private float organizationMemberPrice;
@@ -31,6 +32,7 @@ public final class TeamOfferConfiguration extends Configuration {
   protected void deserialize(JSONObject json) {
     workflowPrice = json.getFloat("workflowPrice");
     workflowOperationPrice = json.getFloat("workflowOperationPrice");
+    processPrice = json.getFloat("processPrice");
     databasePrice = json.getFloat("databasePrice");
     databaseDataPrice = json.getFloat("databaseDataPrice");
     organizationMemberPrice = json.getFloat("organizationMemberPrice");
