@@ -18,6 +18,7 @@ import net.taskwolf.core.sale.SaleDatabaseTable;
 import net.taskwolf.core.sale.SaleMessageDatabaseTable;
 import net.taskwolf.core.stripe.StripeDatabaseTable;
 import net.taskwolf.core.stripe.TerminationDatabaseTable;
+import net.taskwolf.core.template.TemplateDatabaseTable;
 import net.taskwolf.core.ticket.TicketDatabaseTable;
 import net.taskwolf.core.ticket.TicketMessageDatabaseTable;
 import net.taskwolf.core.user.UserDatabaseTable;
@@ -64,6 +65,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final TerminationDatabaseTable terminationDatabaseTable;
   private final OfferDatabaseTable offerDatabaseTable;
   private final TeamOfferConfiguration offerConfiguration;
+  private final TemplateDatabaseTable templateDatabaseTable;
 
   @Inject
   private TeamContextInitializer(
@@ -90,7 +92,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     SaleMessageDatabaseTable saleMessageDatabaseTable,
     StripeDatabaseTable stripeDatabaseTable, StripeClient stripeClient,
     TerminationDatabaseTable terminationDatabaseTable,
-    OfferDatabaseTable offerDatabaseTable, TeamOfferConfiguration offerConfiguration
+    OfferDatabaseTable offerDatabaseTable, TeamOfferConfiguration offerConfiguration,
+    TemplateDatabaseTable templateDatabaseTable
   ) {
     this.log = log;
     this.key = key;
@@ -121,6 +124,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.terminationDatabaseTable = terminationDatabaseTable;
     this.offerDatabaseTable = offerDatabaseTable;
     this.offerConfiguration = offerConfiguration;
+    this.templateDatabaseTable = templateDatabaseTable;
   }
 
   @Override
@@ -162,5 +166,6 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
       terminationDatabaseTable);
     beanFactory.registerSingleton("offerDatabaseTable", offerDatabaseTable);
     beanFactory.registerSingleton("offerConfiguration", offerConfiguration);
+    beanFactory.registerSingleton("templateDatabaseTable", templateDatabaseTable);
   }
 }
