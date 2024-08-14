@@ -97,8 +97,8 @@ public final class OfferModificationController extends TeamController {
       teamOfferConfiguration.databaseDataPrice() * databaseDataLimit +
       teamOfferConfiguration.organizationMemberPrice() * organizationMemberLimit +
       teamOfferConfiguration.organizationTeamPrice() * organizationTeamLimit;
-    if (runtime.isYearly()) {
-      price *= 0.75;
+    if (runtime.isMonthly()) {
+      price *= 4D / 3;
     }
     return Map.of("price", Math.round(price * 100.0) / 100.0);
   }
