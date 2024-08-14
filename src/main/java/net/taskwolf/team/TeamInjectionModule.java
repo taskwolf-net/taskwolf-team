@@ -20,6 +20,7 @@ import net.taskwolf.core.organization.OrganizationInjectionModule;
 import net.taskwolf.core.question.QuestionInjectionModule;
 import net.taskwolf.core.sale.SaleInjectionModule;
 import net.taskwolf.core.stripe.StripeInjectionModule;
+import net.taskwolf.core.template.TemplateInjectionModule;
 import net.taskwolf.core.ticket.TicketInjectionModule;
 import net.taskwolf.core.user.UserInjectionModule;
 import net.taskwolf.core.whitelist.WhitelistInjectionModule;
@@ -49,6 +50,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(AccessInjectionModule.create());
     install(StripeInjectionModule.create());
     install(OfferInjectionModule.create());
+    install(TemplateInjectionModule.create());
     install(TeamOfferInjectionModule.create());
     install(CommandInjectionModule.create());
     install(TeamMemberInjectionModule.create());
