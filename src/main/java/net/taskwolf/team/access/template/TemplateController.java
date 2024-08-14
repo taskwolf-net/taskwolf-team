@@ -3,9 +3,7 @@ package net.taskwolf.team.access.template;
 import com.google.common.collect.Lists;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import net.taskwolf.core.CoreModule;
 import net.taskwolf.core.access.TaskwolfRequestBody;
-import net.taskwolf.core.sale.Sale;
 import net.taskwolf.core.template.*;
 import net.taskwolf.team.access.TeamController;
 import net.taskwolf.team.group.GroupDatabaseTable;
@@ -20,10 +18,10 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-public final class TemplateModificationController extends TeamController {
+public final class TemplateController extends TeamController {
   private final TemplateDatabaseTable templateDatabaseTable;
 
-  private TemplateModificationController(
+  private TemplateController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     TemplateDatabaseTable templateDatabaseTable
