@@ -38,23 +38,20 @@ public final class TemplateController extends TeamController {
     var body = TaskwolfRequestBody.of(payload, response);
     memberHasPermission(findMemberId(request), "template.create")
       .thenAccept(hasPermission -> templateDatabaseTable.generateAvailableTemplateId()
-        .thenAccept(id -> createTemplate(id, body.getObject("names"),
-          body.getObject("descriptions"), body.getObject("trigger"),
+        .thenAccept(id -> createTemplate(id, body.getString("englishName"),
+          body.getString("englishDescription"), body.getString("germanName"),
+          body.getString("germanDescription"), body.getObject("trigger"),
           body.getObjectList("actions"), body.getString("accessType"), hasPermission)));
   }
 
   private void createTemplate(
-    UUID templateId, TaskwolfRequestBody nameData,
-    TaskwolfRequestBody descriptionData, TaskwolfRequestBody triggerData,
+    UUID templateId, String englishName, String englishDescription,
+    String germanName, String germanDescription, TaskwolfRequestBody triggerData,
     List<TaskwolfRequestBody> actionData, String accessType, boolean hasPermission
   ) {
     if (!hasPermission) {
       return;
     }
-    var names = Lists.newArrayList(nameData.getString("english"),
-      nameData.getString("german"));
-    var descriptions = Lists.newArrayList(descriptionData.getString("english"),
-      descriptionData.getString("german"));
     var actions = Lists.<TemplateAction>newArrayList();
     for (int i = 0; i < actionData.size(); i++) {
       var action = actionData.get(i);
@@ -64,7 +61,8 @@ public final class TemplateController extends TeamController {
     var trigger = TemplateTrigger.create(triggerData.getString("module"),
       triggerData.getString("type"));
     templateDatabaseTable.insertTemplate(Template.create(templateId, trigger,
-      actions, names, descriptions, TemplateAccessType.valueOf(accessType)));
+      actions, englishName, englishDescription, germanName, germanDescription,
+      TemplateAccessType.valueOf(accessType)));
   }
 
   @RequestMapping(path = "/template/update/", method = RequestMethod.POST)
@@ -76,23 +74,20 @@ public final class TemplateController extends TeamController {
     var templateId = body.getUUID("template");
     memberHasPermission(findMemberId(request), "template.update")
       .thenAccept(hasPermission -> updateTemplate(templateId,
-        body.getObject("names"), body.getObject("descriptions"),
+        body.getString("englishName"), body.getString("englishDescription"),
+        body.getString("germanName"), body.getString("germanDescription"),
         body.getObject("trigger"), body.getObjectList("actions"),
         body.getString("accessType"), hasPermission));
   }
 
   private void updateTemplate(
-    UUID templateId, TaskwolfRequestBody nameData,
-    TaskwolfRequestBody descriptionData, TaskwolfRequestBody triggerData,
+    UUID templateId, String englishName, String englishDescription,
+    String germanName, String germanDescription, TaskwolfRequestBody triggerData,
     List<TaskwolfRequestBody> actionData, String accessType, boolean hasPermission
   ) {
     if (!hasPermission) {
       return;
     }
-    var names = Lists.newArrayList(nameData.getString("english"),
-      nameData.getString("german"));
-    var descriptions = Lists.newArrayList(descriptionData.getString("english"),
-      descriptionData.getString("german"));
     var actions = Lists.<TemplateAction>newArrayList();
     for (int i = 0; i < actionData.size(); i++) {
       var action = actionData.get(i);
@@ -102,7 +97,8 @@ public final class TemplateController extends TeamController {
     var trigger = TemplateTrigger.create(triggerData.getString("module"),
       triggerData.getString("type"));
     templateDatabaseTable.updateTemplate(Template.create(templateId, trigger,
-      actions, names, descriptions, TemplateAccessType.valueOf(accessType)));
+      actions, englishName, englishDescription, germanName, germanDescription,
+      TemplateAccessType.valueOf(accessType)));
   }
 
   @RequestMapping(path = "/template/delete/", method = RequestMethod.POST)
