@@ -10,6 +10,7 @@ import net.taskwolf.core.database.DatabaseConnection;
 import net.taskwolf.core.database.DatabaseKeyspace;
 import net.taskwolf.core.log.Log;
 import net.taskwolf.core.mail.TaskwolfMail;
+import net.taskwolf.core.maintenance.MaintenanceDatabaseTable;
 import net.taskwolf.core.offer.OfferDatabaseTable;
 import net.taskwolf.core.organization.OrganizationDatabaseTable;
 import net.taskwolf.core.question.QuestionDatabaseTable;
@@ -66,6 +67,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final OfferDatabaseTable offerDatabaseTable;
   private final TeamOfferConfiguration offerConfiguration;
   private final TemplateDatabaseTable templateDatabaseTable;
+  private final MaintenanceDatabaseTable maintenanceDatabaseTable;
 
   @Inject
   private TeamContextInitializer(
@@ -93,7 +95,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     StripeDatabaseTable stripeDatabaseTable, StripeClient stripeClient,
     TerminationDatabaseTable terminationDatabaseTable,
     OfferDatabaseTable offerDatabaseTable, TeamOfferConfiguration offerConfiguration,
-    TemplateDatabaseTable templateDatabaseTable
+    TemplateDatabaseTable templateDatabaseTable,
+    MaintenanceDatabaseTable maintenanceDatabaseTable
   ) {
     this.log = log;
     this.key = key;
@@ -125,6 +128,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.offerDatabaseTable = offerDatabaseTable;
     this.offerConfiguration = offerConfiguration;
     this.templateDatabaseTable = templateDatabaseTable;
+    this.maintenanceDatabaseTable = maintenanceDatabaseTable;
   }
 
   @Override
@@ -167,5 +171,6 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("offerDatabaseTable", offerDatabaseTable);
     beanFactory.registerSingleton("offerConfiguration", offerConfiguration);
     beanFactory.registerSingleton("templateDatabaseTable", templateDatabaseTable);
+    beanFactory.registerSingleton("maintenanceDatabaseTable", maintenanceDatabaseTable);
   }
 }
