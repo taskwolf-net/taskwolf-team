@@ -62,6 +62,7 @@ public final class MaintenanceInformationController extends TeamController {
     information.put("id", maintenance.id());
     information.put("startTime", maintenance.startTime());
     information.put("duration", maintenance.duration());
+    information.put("status", maintenance.status().toString());
     return information;
   }
 }

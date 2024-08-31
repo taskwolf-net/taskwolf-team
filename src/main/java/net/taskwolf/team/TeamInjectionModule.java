@@ -15,6 +15,7 @@ import net.taskwolf.core.locale.LocaleInjectionModule;
 import net.taskwolf.core.log.Log;
 import net.taskwolf.core.mail.TaskwolfMail;
 import net.taskwolf.core.mail.TaskwolfMailConfiguration;
+import net.taskwolf.core.maintenance.MaintenanceInjectionModule;
 import net.taskwolf.core.offer.OfferInjectionModule;
 import net.taskwolf.core.organization.OrganizationInjectionModule;
 import net.taskwolf.core.question.QuestionInjectionModule;
@@ -55,6 +56,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(CommandInjectionModule.create());
     install(TeamMemberInjectionModule.create());
     install(GroupInjectionModule.create());
+    install(MaintenanceInjectionModule.create());
   }
 
   @Provides
