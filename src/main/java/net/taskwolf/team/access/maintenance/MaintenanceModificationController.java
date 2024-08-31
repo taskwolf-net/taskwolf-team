@@ -52,6 +52,33 @@ public final class MaintenanceModificationController extends TeamController {
         duration, MaintenanceStatus.SCHEDULED));
   }
 
+  @RequestMapping(path = "/maintenance/finish/", method = RequestMethod.POST)
+  public void finishMaintenance(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = TaskwolfRequestBody.of(payload, response);
+    var maintenanceId = body.getUUID("maintenance");
+    memberHasPermission(findMemberId(request), "maintenance.finish")
+      .thenAccept(hasPermission -> maintenanceDatabaseTable.maintenanceExists(maintenanceId)
+        .thenAccept(exists -> finishMaintenance(maintenanceId, hasPermission, exists)));
+  }
+
+  private void finishMaintenance(
+    UUID maintenanceId, boolean hasPermission, boolean exists
+  ) {
+    if (!hasPermission || !exists) {
+      return;
+    }
+    maintenanceDatabaseTable.findMaintenance(maintenanceId)
+      .thenAccept(this::finishMaintenance);
+  }
+
+  private void finishMaintenance(Maintenance maintenance) {
+    maintenanceDatabaseTable.updateMaintenanceStatus(maintenance,
+      MaintenanceStatus.COMPLETED);
+  }
+
   @RequestMapping(path = "/maintenance/delete/", method = RequestMethod.POST)
   public void deleteMaintenance(
     HttpServletRequest request, @RequestBody String payload,
