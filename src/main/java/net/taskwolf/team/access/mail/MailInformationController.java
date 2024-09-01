@@ -58,7 +58,7 @@ public final class MailInformationController extends TeamController {
     return userDatabaseTable.findUser(userId)
       .thenCompose(user -> mailDatabaseTable.findOutgoingMailsByReceiver(user.email())
         .thenApply(mails -> Map.of("mails", mails.stream()
-          .sorted(Comparator.comparingLong(OutgoingMail::time))
+          .sorted(Comparator.comparingLong(OutgoingMail::time).reversed())
           .map(this::assemblyMailInformation).toList())));
   }
 
@@ -67,7 +67,7 @@ public final class MailInformationController extends TeamController {
     information.put("id", mail.id());
     information.put("sender", mail.sender());
     information.put("time", mail.time());
-    information.put("title", mail.time());
+    information.put("title", mail.title());
     return information;
   }
 }

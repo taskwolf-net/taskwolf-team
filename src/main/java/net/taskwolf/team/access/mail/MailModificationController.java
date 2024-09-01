@@ -61,7 +61,7 @@ public final class MailModificationController extends TeamController {
   }
 
   private Mail createMail(String sender) throws Exception {
-    var mailConfiguration = MailConfiguration.createAndLoad(sender);
+    var mailConfiguration = MailConfiguration.createAndLoad(sender.split("@")[0]);
     return mailFactory.create(mailConfiguration.mail(),
       mailConfiguration.smtpMailHost(), mailConfiguration.smtpMailPort(),
       mailConfiguration.imapMailHost(), mailConfiguration.imapMailPort(),
