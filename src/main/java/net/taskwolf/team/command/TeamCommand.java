@@ -7,7 +7,7 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import net.taskwolf.core.command.Command;
 import net.taskwolf.core.log.Log;
-import net.taskwolf.core.mail.TaskwolfMail;
+import net.taskwolf.core.mail.Mail;
 import net.taskwolf.team.member.TeamDatabaseTable;
 import net.taskwolf.team.member.TeamMember;
 import net.taskwolf.team.member.TeamVerificationDatabaseTable;
@@ -19,7 +19,7 @@ public final class TeamCommand extends Command {
   public static TeamCommand create(
     Log log, TeamDatabaseTable teamDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable,
-    @Named("verificationMail") TaskwolfMail verificationMail
+    @Named("verificationMail") Mail verificationMail
   ) {
     return new TeamCommand(log, teamDatabaseTable, teamVerificationDatabaseTable,
       verificationMail);
@@ -27,13 +27,13 @@ public final class TeamCommand extends Command {
 
   private final TeamDatabaseTable teamDatabaseTable;
   private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
-  private final TaskwolfMail verificationMail;
+  private final Mail verificationMail;
 
   @Inject
   private TeamCommand(
     Log log, TeamDatabaseTable teamDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable,
-    @Named("verificationMail") TaskwolfMail verificationMail
+    @Named("verificationMail") Mail verificationMail
   ) {
     super(log, "team", new String[] {"member", "members", "teammember",
       "teammembers"}, new String[] {"add <name, email, group>", "remove <id>",

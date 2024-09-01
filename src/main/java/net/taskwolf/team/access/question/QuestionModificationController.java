@@ -4,7 +4,7 @@ import com.google.common.collect.Lists;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
-import net.taskwolf.core.mail.TaskwolfMail;
+import net.taskwolf.core.mail.Mail;
 import net.taskwolf.core.question.Question;
 import net.taskwolf.core.question.QuestionDatabaseTable;
 import net.taskwolf.core.question.QuestionMessageDatabaseTable;
@@ -24,7 +24,7 @@ import java.util.*;
 
 @RestController
 public final class QuestionModificationController extends TeamController {
-  private final TaskwolfMail supportMail;
+  private final Mail supportMail;
   private final QuestionDatabaseTable questionDatabaseTable;
   private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
@@ -32,7 +32,7 @@ public final class QuestionModificationController extends TeamController {
   private QuestionModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
-    @Qualifier("supportMail") TaskwolfMail supportMail,
+    @Qualifier("supportMail") Mail supportMail,
     QuestionDatabaseTable questionDatabaseTable,
     QuestionMessageDatabaseTable questionMessageDatabaseTable,
     TeamWorkDatabaseTable teamWorkDatabaseTable

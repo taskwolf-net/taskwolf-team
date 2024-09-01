@@ -6,8 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.iterator.AsyncIterator;
-import net.taskwolf.core.mail.TaskwolfMail;
-import net.taskwolf.core.mail.TaskwolfMailMessage;
+import net.taskwolf.core.mail.Mail;
+import net.taskwolf.core.mail.MailMessage;
 import net.taskwolf.core.question.Question;
 import net.taskwolf.core.question.QuestionDatabaseTable;
 import net.taskwolf.core.question.QuestionMessage;
@@ -31,14 +31,14 @@ import java.util.stream.Stream;
 
 @RestController
 public final class QuestionInformationController extends TeamController {
-  private final TaskwolfMail supportMail;
+  private final Mail supportMail;
   private final QuestionDatabaseTable questionDatabaseTable;
   private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
 
   private QuestionInformationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
-    @Qualifier("supportMail") TaskwolfMail supportMail,
+    @Qualifier("supportMail") Mail supportMail,
     QuestionDatabaseTable questionDatabaseTable,
     QuestionMessageDatabaseTable questionMessageDatabaseTable
   ) {
@@ -134,7 +134,7 @@ public final class QuestionInformationController extends TeamController {
     return futureResponse;
   }
 
-  private CompletableFuture<Void> saveInbox(List<TaskwolfMailMessage> inbox) {
+  private CompletableFuture<Void> saveInbox(List<MailMessage> inbox) {
     if (inbox.isEmpty()) {
       return CompletableFuture.completedFuture(null);
     }
@@ -146,7 +146,7 @@ public final class QuestionInformationController extends TeamController {
   }
 
   private void saveSupportMail(
-    TaskwolfMailMessage incomingMessage, List<TaskwolfMailMessage> inbox,
+    MailMessage incomingMessage, List<MailMessage> inbox,
     Runnable futureResponse
   ) {
     var sender = ((InternetAddress) incomingMessage.sender()).getAddress();
@@ -159,7 +159,7 @@ public final class QuestionInformationController extends TeamController {
   }
 
   private CompletableFuture<UUID> saveSupportMailMessage(
-    TaskwolfMailMessage message
+    MailMessage message
   ) {
     var futureResponse = new CompletableFuture<UUID>();
     var sender = ((InternetAddress) message.sender()).getAddress();
@@ -171,8 +171,8 @@ public final class QuestionInformationController extends TeamController {
   }
 
   private void saveSupportMail(
-    TaskwolfMailMessage incomingMessage, UUID incomingMessageId,
-    Optional<Question> repliedMail, List<TaskwolfMailMessage> inbox,
+    MailMessage incomingMessage, UUID incomingMessageId,
+    Optional<Question> repliedMail, List<MailMessage> inbox,
     Runnable futureResponse
   ) {
     if (repliedMail.isPresent()) {
@@ -190,7 +190,7 @@ public final class QuestionInformationController extends TeamController {
   }
 
   private void saveNextSupportMail(
-    List<TaskwolfMailMessage> inbox, Runnable futureResponse
+    List<MailMessage> inbox, Runnable futureResponse
   ) {
     if (inbox.isEmpty()) {
       futureResponse.run();

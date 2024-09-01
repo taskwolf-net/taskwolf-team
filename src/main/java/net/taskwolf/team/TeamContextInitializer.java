@@ -9,7 +9,9 @@ import net.taskwolf.core.bundle.BundlePresetRepository;
 import net.taskwolf.core.database.DatabaseConnection;
 import net.taskwolf.core.database.DatabaseKeyspace;
 import net.taskwolf.core.log.Log;
-import net.taskwolf.core.mail.TaskwolfMail;
+import net.taskwolf.core.mail.Mail;
+import net.taskwolf.core.mail.MailFactory;
+import net.taskwolf.core.mail.OutgoingMailDatabaseTable;
 import net.taskwolf.core.maintenance.MaintenanceDatabaseTable;
 import net.taskwolf.core.offer.OfferDatabaseTable;
 import net.taskwolf.core.organization.OrganizationDatabaseTable;
@@ -44,6 +46,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final UserDatabaseTable userDatabaseTable;
   private final UserActivityDatabaseTable activityDatabaseTable;
   private final OrganizationDatabaseTable organizationDatabaseTable;
+  private final OutgoingMailDatabaseTable outgoingMailDatabaseTable;
   private final net.taskwolf.core.organization.team.TeamDatabaseTable organizationTeamDatabaseTable;
   private final BundleDatabaseTable bundleDatabaseTable;
   private final BundlePresetRepository bundlePresetRepository;
@@ -52,9 +55,10 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
   private final GroupDatabaseTable groupDatabaseTable;
-  private final TaskwolfMail verificationMail;
-  private final TaskwolfMail supportMail;
-  private final TaskwolfMail saleMail;
+  private final MailFactory mailFactory;
+  private final Mail verificationMail;
+  private final Mail supportMail;
+  private final Mail saleMail;
   private final TicketDatabaseTable ticketDatabaseTable;
   private final TicketMessageDatabaseTable ticketMessageDatabaseTable;
   private final QuestionDatabaseTable questionDatabaseTable;
@@ -76,16 +80,17 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     UserActivityDatabaseTable activityDatabaseTable,
     OrganizationDatabaseTable organizationDatabaseTable,
     net.taskwolf.core.organization.team.TeamDatabaseTable organizationTeamDatabaseTable,
+    OutgoingMailDatabaseTable outgoingMailDatabaseTable,
     BundleDatabaseTable bundleDatabaseTable,
     BundlePresetRepository bundlePresetRepository,
     WhitelistConfiguration whitelistConfiguration,
     TeamDatabaseTable teamDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable,
     TeamWorkDatabaseTable teamWorkDatabaseTable,
-    GroupDatabaseTable groupDatabaseTable,
-    @Named("verificationMail") TaskwolfMail verificationMail,
-    @Named("supportMail") TaskwolfMail supportMail,
-    @Named("saleMail") TaskwolfMail saleMail,
+    GroupDatabaseTable groupDatabaseTable, MailFactory mailFactory,
+    @Named("verificationMail") Mail verificationMail,
+    @Named("supportMail") Mail supportMail,
+    @Named("saleMail") Mail saleMail,
     TicketDatabaseTable ticketDatabaseTable,
     TicketMessageDatabaseTable ticketMessageDatabaseTable,
     QuestionDatabaseTable questionDatabaseTable,
@@ -106,6 +111,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.activityDatabaseTable = activityDatabaseTable;
     this.organizationDatabaseTable = organizationDatabaseTable;
     this.organizationTeamDatabaseTable = organizationTeamDatabaseTable;
+    this.outgoingMailDatabaseTable = outgoingMailDatabaseTable;
     this.bundleDatabaseTable = bundleDatabaseTable;
     this.bundlePresetRepository = bundlePresetRepository;
     this.whitelistConfiguration = whitelistConfiguration;
@@ -113,6 +119,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.teamVerificationDatabaseTable = teamVerificationDatabaseTable;
     this.teamWorkDatabaseTable = teamWorkDatabaseTable;
     this.groupDatabaseTable = groupDatabaseTable;
+    this.mailFactory = mailFactory;
     this.verificationMail = verificationMail;
     this.supportMail = supportMail;
     this.saleMail = saleMail;
@@ -144,6 +151,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
       organizationDatabaseTable);
     beanFactory.registerSingleton("organizationTeamDatabaseTable",
       organizationTeamDatabaseTable);
+    beanFactory.registerSingleton("outgoingMailDatabaseTable", outgoingMailDatabaseTable);
     beanFactory.registerSingleton("bundleDatabaseTable", bundleDatabaseTable);
     beanFactory.registerSingleton("bundlePresetRepository", bundlePresetRepository);
     beanFactory.registerSingleton(" whitelistConfiguration", whitelistConfiguration);
@@ -152,6 +160,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
       teamVerificationDatabaseTable);
     beanFactory.registerSingleton("teamWorkDatabaseTable", teamWorkDatabaseTable);
     beanFactory.registerSingleton("groupDatabaseTable", groupDatabaseTable);
+    beanFactory.registerSingleton("mailFactory", mailFactory);
     beanFactory.registerSingleton("verificationMail", verificationMail);
     beanFactory.registerSingleton("supportMail", supportMail);
     beanFactory.registerSingleton("saleMail", saleMail);

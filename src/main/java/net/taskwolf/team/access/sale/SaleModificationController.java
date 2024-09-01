@@ -4,7 +4,7 @@ import com.google.common.collect.Lists;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
-import net.taskwolf.core.mail.TaskwolfMail;
+import net.taskwolf.core.mail.Mail;
 import net.taskwolf.core.sale.Sale;
 import net.taskwolf.core.sale.SaleDatabaseTable;
 import net.taskwolf.core.sale.SaleMessageDatabaseTable;
@@ -24,7 +24,7 @@ import java.util.UUID;
 
 @RestController
 public final class SaleModificationController extends TeamController {
-  private final TaskwolfMail saleMail;
+  private final Mail saleMail;
   private final SaleDatabaseTable saleDatabaseTable;
   private final SaleMessageDatabaseTable saleMessageDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
@@ -32,7 +32,7 @@ public final class SaleModificationController extends TeamController {
   private SaleModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
-    @Qualifier("saleMail") TaskwolfMail saleMail,
+    @Qualifier("saleMail") Mail saleMail,
     SaleDatabaseTable saleDatabaseTable,
     SaleMessageDatabaseTable saleMessageDatabaseTable,
     TeamWorkDatabaseTable teamWorkDatabaseTable

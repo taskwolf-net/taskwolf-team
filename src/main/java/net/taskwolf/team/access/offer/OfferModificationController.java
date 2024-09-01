@@ -8,7 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.bundle.*;
-import net.taskwolf.core.mail.TaskwolfMail;
+import net.taskwolf.core.mail.Mail;
 import net.taskwolf.core.offer.Offer;
 import net.taskwolf.core.offer.OfferDatabaseTable;
 import net.taskwolf.core.offer.OfferStatus;
@@ -39,7 +39,7 @@ public final class OfferModificationController extends TeamController {
   private final StripeClient stripeClient;
   private final UserDatabaseTable userDatabaseTable;
   private final OrganizationDatabaseTable organizationDatabaseTable;
-  private final TaskwolfMail saleMail;
+  private final Mail saleMail;
 
   private OfferModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
@@ -49,7 +49,7 @@ public final class OfferModificationController extends TeamController {
     TeamOfferConfiguration teamOfferConfiguration, StripeClient stripeClient,
     UserDatabaseTable userDatabaseTable,
     OrganizationDatabaseTable organizationDatabaseTable,
-    @Qualifier("saleMail") TaskwolfMail saleMail
+    @Qualifier("saleMail") Mail saleMail
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.offerDatabaseTable = offerDatabaseTable;

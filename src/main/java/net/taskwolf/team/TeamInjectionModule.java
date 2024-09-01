@@ -13,8 +13,10 @@ import net.taskwolf.core.database.DatabaseInjectionModule;
 import net.taskwolf.core.intro.IntroInjectionModule;
 import net.taskwolf.core.locale.LocaleInjectionModule;
 import net.taskwolf.core.log.Log;
-import net.taskwolf.core.mail.TaskwolfMail;
-import net.taskwolf.core.mail.TaskwolfMailConfiguration;
+import net.taskwolf.core.mail.Mail;
+import net.taskwolf.core.mail.MailConfiguration;
+import net.taskwolf.core.mail.MailFactory;
+import net.taskwolf.core.mail.MailInjectionModule;
 import net.taskwolf.core.maintenance.MaintenanceInjectionModule;
 import net.taskwolf.core.offer.OfferInjectionModule;
 import net.taskwolf.core.organization.OrganizationInjectionModule;
@@ -42,6 +44,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(DatabaseInjectionModule.create());
     install(UserInjectionModule.create());
     install(OrganizationInjectionModule.create());
+    install(MailInjectionModule.create());
     install(BundleInjectionModule.create());
     install(TicketInjectionModule.create());
     install(QuestionInjectionModule.create());
@@ -82,9 +85,9 @@ public final class TeamInjectionModule extends AbstractModule {
   @Provides
   @Singleton
   @Named("verificationMail")
-  TaskwolfMail provideVerificationMail() throws Exception {
-    var mailConfiguration = TaskwolfMailConfiguration.createAndLoad("verification");
-    return TaskwolfMail.create(mailConfiguration.mail(),
+  Mail provideVerificationMail(MailFactory mailFactory) throws Exception {
+    var mailConfiguration = MailConfiguration.createAndLoad("verification");
+    return mailFactory.create(mailConfiguration.mail(),
       mailConfiguration.smtpMailHost(), mailConfiguration.smtpMailPort(),
       mailConfiguration.imapMailHost(), mailConfiguration.imapMailPort(),
       mailConfiguration.mailUser(), mailConfiguration.mailPassword());
@@ -93,9 +96,9 @@ public final class TeamInjectionModule extends AbstractModule {
   @Provides
   @Singleton
   @Named("supportMail")
-  TaskwolfMail provideSupportMail() throws Exception {
-    var mailConfiguration = TaskwolfMailConfiguration.createAndLoad("support");
-    return TaskwolfMail.create(mailConfiguration.mail(),
+  Mail provideSupportMail(MailFactory mailFactory) throws Exception {
+    var mailConfiguration = MailConfiguration.createAndLoad("support");
+    return mailFactory.create(mailConfiguration.mail(),
       mailConfiguration.smtpMailHost(), mailConfiguration.smtpMailPort(),
       mailConfiguration.imapMailHost(), mailConfiguration.imapMailPort(),
       mailConfiguration.mailUser(), mailConfiguration.mailPassword());
@@ -104,9 +107,9 @@ public final class TeamInjectionModule extends AbstractModule {
   @Provides
   @Singleton
   @Named("saleMail")
-  TaskwolfMail provideSaleMail() throws Exception {
-    var mailConfiguration = TaskwolfMailConfiguration.createAndLoad("sale");
-    return TaskwolfMail.create(mailConfiguration.mail(),
+  Mail provideSaleMail(MailFactory mailFactory) throws Exception {
+    var mailConfiguration = MailConfiguration.createAndLoad("sale");
+    return mailFactory.create(mailConfiguration.mail(),
       mailConfiguration.smtpMailHost(), mailConfiguration.smtpMailPort(),
       mailConfiguration.imapMailHost(), mailConfiguration.imapMailPort(),
       mailConfiguration.mailUser(), mailConfiguration.mailPassword());
