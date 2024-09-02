@@ -8,6 +8,7 @@ import net.taskwolf.core.bundle.BundleDatabaseTable;
 import net.taskwolf.core.bundle.BundlePresetRepository;
 import net.taskwolf.core.database.DatabaseConnection;
 import net.taskwolf.core.database.DatabaseKeyspace;
+import net.taskwolf.core.locale.Translation;
 import net.taskwolf.core.log.Log;
 import net.taskwolf.core.mail.Mail;
 import net.taskwolf.core.mail.MailFactory;
@@ -55,6 +56,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
   private final GroupDatabaseTable groupDatabaseTable;
+  private final Translation translation;
   private final MailFactory mailFactory;
   private final Mail verificationMail;
   private final Mail supportMail;
@@ -87,8 +89,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     TeamDatabaseTable teamDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable,
     TeamWorkDatabaseTable teamWorkDatabaseTable,
-    GroupDatabaseTable groupDatabaseTable, MailFactory mailFactory,
-    @Named("verificationMail") Mail verificationMail,
+    GroupDatabaseTable groupDatabaseTable, Translation translation,
+    MailFactory mailFactory, @Named("verificationMail") Mail verificationMail,
     @Named("supportMail") Mail supportMail,
     @Named("saleMail") Mail saleMail,
     TicketDatabaseTable ticketDatabaseTable,
@@ -119,6 +121,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.teamVerificationDatabaseTable = teamVerificationDatabaseTable;
     this.teamWorkDatabaseTable = teamWorkDatabaseTable;
     this.groupDatabaseTable = groupDatabaseTable;
+    this.translation = translation;
     this.mailFactory = mailFactory;
     this.verificationMail = verificationMail;
     this.supportMail = supportMail;
@@ -160,6 +163,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
       teamVerificationDatabaseTable);
     beanFactory.registerSingleton("teamWorkDatabaseTable", teamWorkDatabaseTable);
     beanFactory.registerSingleton("groupDatabaseTable", groupDatabaseTable);
+    beanFactory.registerSingleton("translation", translation);
     beanFactory.registerSingleton("mailFactory", mailFactory);
     beanFactory.registerSingleton("verificationMail", verificationMail);
     beanFactory.registerSingleton("supportMail", supportMail);

@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.taskwolf.core.access.TaskwolfRequestBody;
 import net.taskwolf.core.bundle.*;
+import net.taskwolf.core.locale.Translation;
 import net.taskwolf.core.mail.Mail;
 import net.taskwolf.core.offer.Offer;
 import net.taskwolf.core.offer.OfferDatabaseTable;
@@ -40,6 +41,7 @@ public final class OfferModificationController extends TeamController {
   private final UserDatabaseTable userDatabaseTable;
   private final OrganizationDatabaseTable organizationDatabaseTable;
   private final Mail saleMail;
+  private final Translation translation;
 
   private OfferModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
@@ -49,7 +51,7 @@ public final class OfferModificationController extends TeamController {
     TeamOfferConfiguration teamOfferConfiguration, StripeClient stripeClient,
     UserDatabaseTable userDatabaseTable,
     OrganizationDatabaseTable organizationDatabaseTable,
-    @Qualifier("saleMail") Mail saleMail
+    @Qualifier("saleMail") Mail saleMail, Translation translation
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.offerDatabaseTable = offerDatabaseTable;
@@ -59,6 +61,7 @@ public final class OfferModificationController extends TeamController {
     this.userDatabaseTable = userDatabaseTable;
     this.organizationDatabaseTable = organizationDatabaseTable;
     this.saleMail = saleMail;
+    this.translation = translation;
   }
 
   @RequestMapping(path = "/offer/price/suggestion/", method = RequestMethod.POST)
@@ -161,24 +164,11 @@ public final class OfferModificationController extends TeamController {
       .thenAccept(user -> sendOfferEmail(user, id));
   }
 
-  private static final String OFFER_EMAIL_TITLE = "Offer";
-  private static final String OFFER_EMAIL_BODY = "Hey %s,\n" +
-    "\n" +
-    "we are pleased to inform you that we have put together " +
-    "a customized Taskwolf package for you.\n" +
-    "\n" +
-    "This package is personalized to your needs.\n" +
-    "\n" +
-    "Click on the link below to view and accept or decline the offer.\n" +
-    "\n" +
-    "https://taskwolf.net/offer/%s/\n" +
-    "\n" +
-    "We hope we have been able to meet your requirements.\n" +
-    "Here's to good cooperation!";
-
   private void sendOfferEmail(User user, UUID offerId) {
-    saleMail.send(user.email(), OFFER_EMAIL_TITLE,
-      String.format(OFFER_EMAIL_BODY, user.name(), offerId.toString()));
+    var title = translation.translate(user, "offer.email.title");
+    var body = String.format(translation.translate(user, "offer.email.body"),
+      user.name(), offerId.toString());
+    saleMail.send(user.email(), title, body);
   }
 
   private String createStripeOffer(double price) {
