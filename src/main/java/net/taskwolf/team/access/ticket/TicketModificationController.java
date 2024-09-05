@@ -52,7 +52,7 @@ public final class TicketModificationController extends TeamController {
     var body = TaskwolfRequestBody.of(payload, response);
     var ticketId = body.getUUID("ticket");
     findMember(request).thenAccept(teamMember ->
-      memberHasPermission(findMemberId(request), "ticket.answer")
+      memberHasPermission(teamMember.id(), "ticket.answer")
         .thenAccept(hasPermission -> ticketDatabaseTable.ticketExists(ticketId)
           .thenAccept(exists -> answerTicket(teamMember, ticketId,
             body.getString("message"), hasPermission, exists))));
