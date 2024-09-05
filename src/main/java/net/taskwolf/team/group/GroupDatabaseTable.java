@@ -77,20 +77,20 @@ public final class GroupDatabaseTable extends DatabaseTable {
   }
 
   private void updateGroup(Group group) {
-    update(DatabaseCell.create(group.name()), DatabaseRow.of(group.name(),
+    update(group.name(), DatabaseRow.of(group.name(),
       group.priority(), group.permissions()));
   }
 
   public void deleteGroup(String name) {
-    delete(DatabaseCell.create(name));
+    delete(name);
   }
 
   public CompletableFuture<Boolean> groupExists(String name) {
-    return exists(DatabaseCell.create(name));
+    return exists(name);
   }
 
   public CompletableFuture<Group> findGroup(String name) {
-    return selectRow(DatabaseCell.create(name)).thenApply(Group::of);
+    return selectRow(name).thenApply(Group::of);
   }
 
   public CompletableFuture<List<Group>> findAllGroups() {

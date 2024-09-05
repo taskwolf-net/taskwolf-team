@@ -2,6 +2,7 @@ package net.taskwolf.team.member;
 
 import com.google.common.collect.Lists;
 import net.taskwolf.core.database.*;
+import net.taskwolf.core.database.condition.DatabaseCondition;
 
 import java.util.List;
 import java.util.UUID;
@@ -108,13 +109,13 @@ public final class TeamDatabaseTable extends DatabaseTable {
   }
 
   private void updateTeamMember(TeamMember teamMember) {
-    update(DatabaseCell.create(teamMember.id()), DatabaseRow.of(teamMember.id(),
+    update(teamMember.id(), DatabaseRow.of(teamMember.id(),
       teamMember.name(), teamMember.email(), teamMember.passwordHash(),
       teamMember.language(), teamMember.group(), teamMember.permissions()));
   }
 
   public void deleteTeamMember(UUID id) {
-    delete(DatabaseCell.create(id));
+    delete(id);
   }
 
   public CompletableFuture<UUID> generateAvailableMemberId() {
@@ -127,19 +128,19 @@ public final class TeamDatabaseTable extends DatabaseTable {
   }
 
   public CompletableFuture<Boolean> teamMemberExists(UUID id) {
-    return exists(DatabaseCell.create(id));
+    return exists(id);
   }
 
   public CompletableFuture<Boolean> teamMemberExists(String email) {
-    return exists("email='" + email.toLowerCase() + "'");
+    return exists(DatabaseCondition.of("email", email.toLowerCase()));
   }
 
   public CompletableFuture<TeamMember> findTeamMember(UUID id) {
-    return selectRow(DatabaseCell.create(id)).thenApply(TeamMember::of);
+    return selectRow(id).thenApply(TeamMember::of);
   }
 
   public CompletableFuture<TeamMember> findTeamMember(String email) {
-    return selectRow("email='" + email.toLowerCase() + "'")
+    return selectRow(DatabaseCondition.of("email", email.toLowerCase()))
       .thenApply(TeamMember::of);
   }
 

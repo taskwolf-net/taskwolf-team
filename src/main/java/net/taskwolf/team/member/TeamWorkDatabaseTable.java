@@ -56,19 +56,18 @@ public final class TeamWorkDatabaseTable extends DatabaseTable {
   }
 
   private void updateRequestReplies(UUID id, List<Long> requestReplies) {
-    update(DatabaseCell.create(id), DatabaseRow.of(id, requestReplies));
+    update(id, DatabaseRow.of(id, requestReplies));
   }
 
   public void deleteRequestReplies(UUID id) {
-    delete(DatabaseCell.create(id));
+    delete(id);
   }
 
   public CompletableFuture<Boolean> hasRequestReplies(UUID id) {
-    return exists(DatabaseCell.create(id));
+    return exists(id);
   }
 
   public CompletableFuture<List<Long>> findRequestReplies(UUID id) {
-    return selectRow(DatabaseCell.create(id)).thenApply(row ->
-      row.findCell(1).listValue());
+    return selectRow(id).thenApply(row -> row.findCell(1).listValue());
   }
 }
