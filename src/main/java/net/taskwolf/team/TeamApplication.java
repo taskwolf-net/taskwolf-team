@@ -15,6 +15,7 @@ import net.taskwolf.team.command.GroupCommand;
 import net.taskwolf.team.command.PermissionCommand;
 import net.taskwolf.team.command.TeamCommand;
 import net.taskwolf.team.configuration.TeamConfiguration;
+import net.taskwolf.team.maintenance.TeamMaintenanceSchedule;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -41,6 +42,7 @@ public class TeamApplication {
     application.addInitializers(injector.getInstance(TeamContextInitializer.class));
     application.run(args);
     initializeTaskwolfUser(injector);
+    injector.getInstance(TeamMaintenanceSchedule.class).start();
     log.info("Successfully booted Taskwolf - Team");
   }
 
