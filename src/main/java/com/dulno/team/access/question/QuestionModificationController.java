@@ -1,0 +1,125 @@
+package com.dulno.team.access.question;
+
+import com.google.common.collect.Lists;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.mail.Mail;
+import com.dulno.core.question.Question;
+import com.dulno.core.question.QuestionDatabaseTable;
+import com.dulno.core.question.QuestionMessageDatabaseTable;
+import com.dulno.team.access.TeamController;
+import com.dulno.team.group.GroupDatabaseTable;
+import com.dulno.team.member.TeamDatabaseTable;
+import com.dulno.team.member.TeamMember;
+import com.dulno.team.member.TeamWorkDatabaseTable;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.security.Key;
+import java.util.*;
+
+@RestController
+public final class QuestionModificationController extends TeamController {
+  private final Mail supportMail;
+  private final QuestionDatabaseTable questionDatabaseTable;
+  private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
+  private final TeamWorkDatabaseTable teamWorkDatabaseTable;
+
+  private QuestionModificationController(
+    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable,
+    @Qualifier("supportMail") Mail supportMail,
+    QuestionDatabaseTable questionDatabaseTable,
+    QuestionMessageDatabaseTable questionMessageDatabaseTable,
+    TeamWorkDatabaseTable teamWorkDatabaseTable
+  ) {
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
+    this.supportMail = supportMail;
+    this.questionDatabaseTable = questionDatabaseTable;
+    this.questionMessageDatabaseTable = questionMessageDatabaseTable;
+    this.teamWorkDatabaseTable = teamWorkDatabaseTable;
+  }
+
+  @RequestMapping(path = "/question/delete/", method = RequestMethod.POST)
+  public void deleteQuestion(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = DulnoRequestBody.of(payload, response);
+    var questionId = body.getUUID("question");
+    memberHasPermission(findMemberId(request), "question.delete")
+      .thenAccept(hasPermission -> questionDatabaseTable.questionExists(questionId)
+        .thenAccept(exists -> deleteQuestion(questionId, hasPermission, exists)));
+  }
+
+  private void deleteQuestion(
+    UUID questionId, boolean hasPermission, boolean exists
+  ) {
+    if (!hasPermission || !exists) {
+      return;
+    }
+    questionDatabaseTable.findQuestion(questionId).thenAccept(this::deleteQuestion);
+  }
+
+  private void deleteQuestion(Question question) {
+    questionDatabaseTable.deleteQuestion(question.requestMessage());
+    questionMessageDatabaseTable.deleteQuestionMessage(question.requestMessage());
+    for (var message : question.conversationMessages()) {
+      questionMessageDatabaseTable.deleteQuestionMessage(message);
+    }
+  }
+
+  @RequestMapping(path = "/question/answer/", method = RequestMethod.POST)
+  public void answerQuestion(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = DulnoRequestBody.of(payload, response);
+    var questionId = body.getUUID("question");
+    findMember(request).thenAccept(teamMember ->
+      memberHasPermission(teamMember.id(), "question.answer")
+        .thenAccept(hasPermission -> questionDatabaseTable.questionExists(questionId)
+          .thenAccept(exists -> answerQuestion(teamMember, questionId,
+            body.getString("message"), hasPermission, exists))));
+  }
+
+  private void answerQuestion(
+    TeamMember teamMember, UUID questionId, String message, boolean hasPermission,
+    boolean exists
+  ) {
+    if (!hasPermission || !exists) {
+      return;
+    }
+    questionDatabaseTable.findQuestion(questionId).thenAccept(question ->
+      questionMessageDatabaseTable.generateAvailableMessageId().thenAccept(id ->
+        answerQuestion(teamMember, question, message, id)));
+  }
+
+  private void answerQuestion(
+    TeamMember teamMember, Question question, String message, UUID messageId
+  ) {
+    questionMessageDatabaseTable.insertQuestionMessage(messageId, "Dulno",
+      message, System.currentTimeMillis());
+    question.addConversationMessage(messageId);
+    question.resetExpirationTime();
+    questionDatabaseTable.updateQuestion(question);
+    supportMail.send(question.sender(), "Re: " + question.title(), message,
+      "text/html; charset=utf-8");
+    teamWorkDatabaseTable.hasRequestReplies(teamMember.id())
+      .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
+  }
+
+  private void addTeamMemberReply(TeamMember teamMember, boolean workExists) {
+    if (!workExists) {
+      teamWorkDatabaseTable.insertRequestReplies(teamMember.id(),
+        Lists.newArrayList(System.currentTimeMillis()));
+      return;
+    }
+    teamWorkDatabaseTable.addRequestReply(teamMember.id(),
+      System.currentTimeMillis());
+  }
+}

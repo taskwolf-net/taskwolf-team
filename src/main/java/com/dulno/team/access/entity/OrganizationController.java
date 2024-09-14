@@ -1,0 +1,103 @@
+package com.dulno.team.access.entity;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.iterator.AsyncIterator;
+import com.dulno.core.organization.Organization;
+import com.dulno.core.organization.OrganizationDatabaseTable;
+import com.dulno.core.organization.team.Team;
+import com.dulno.core.user.User;
+import com.dulno.core.user.UserDatabaseTable;
+import com.dulno.team.access.TeamController;
+import com.dulno.team.group.GroupDatabaseTable;
+import com.dulno.team.member.TeamDatabaseTable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.security.Key;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
+
+@RestController
+public final class OrganizationController extends TeamController {
+  private final OrganizationDatabaseTable organizationDatabaseTable;
+  private final com.dulno.core.organization.team.TeamDatabaseTable organizationTeamDatabaseTable;
+  private final UserDatabaseTable userDatabaseTable;
+
+  private OrganizationController(
+    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable,
+    OrganizationDatabaseTable organizationDatabaseTable,
+    com.dulno.core.organization.team.TeamDatabaseTable organizationTeamDatabaseTable,
+    UserDatabaseTable userDatabaseTable
+  ) {
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
+    this.organizationDatabaseTable = organizationDatabaseTable;
+    this.organizationTeamDatabaseTable = organizationTeamDatabaseTable;
+    this.userDatabaseTable = userDatabaseTable;
+  }
+  @RequestMapping(path = "/organization/find/", method = RequestMethod.POST)
+  public CompletableFuture<Map<String, Object>> findOrganization(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = DulnoRequestBody.of(payload, response);
+    var organizationId = body.getUUID("organization");
+    return memberHasPermission(findMemberId(request), "organization.find")
+      .thenCompose(hasPermission ->
+        organizationDatabaseTable.organizationExists(organizationId)
+          .thenCompose(exists -> findOrganization(organizationId,
+            hasPermission, exists)));
+  }
+
+  private CompletableFuture<Map<String, Object>> findOrganization(
+    UUID organizationId, boolean hasPermission, boolean organizationExists
+  ) {
+    if (!hasPermission) {
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    if (!organizationExists) {
+      return CompletableFuture.completedFuture(Map.of("found", false));
+    }
+    return organizationDatabaseTable.findOrganization(organizationId)
+      .thenCompose(organization ->
+        AsyncIterator.execute(Stream.concat(organization.members().stream(),
+            Stream.of(organization.owner())).toList(), userDatabaseTable::findUser)
+          .thenCompose(members ->
+            organizationTeamDatabaseTable.findTeamsByOrganization(organizationId)
+              .thenApply(teams -> assemblyOrganizationInformation(organization,
+                members, teams))));
+  }
+
+  private Map<String, Object> assemblyOrganizationInformation(
+    Organization organization, List<User> members, List<Team> teams
+  ) {
+    var information = Maps.<String, Object>newHashMap();
+    information.put("found", true);
+    information.put("id", organization.id());
+    information.put("name", organization.name());
+    information.put("owner", members.stream().filter(member ->
+      organization.owner().equals(member.id())).findFirst().get().name());
+    var memberInformation = Lists.<Map<String, Object>>newArrayList();
+    for (var member : members) {
+      memberInformation.add(Map.of("id", member.id(), "name", member.name(),
+        "role", organization.owner().equals(member.id()) ? "OWNER" : "MEMBER"));
+    }
+    information.put("members", memberInformation);
+    var teamInformation = Lists.<Map<String, Object>>newArrayList();
+    for (var team : teams) {
+      teamInformation.add(Map.of("id", team.id(), "name", team.name(),
+        "members", team.members().size()));
+    }
+    information.put("teams", teamInformation);
+    return information;
+  }
+}
