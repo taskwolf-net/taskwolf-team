@@ -1,5 +1,6 @@
 package com.dulno.team;
 
+import com.dulno.core.workflow.WorkflowInjectionModule;
 import com.dulno.team.distribution.TeamDistributionConfiguration;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -52,6 +53,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(SaleInjectionModule.create());
     install(WhitelistInjectionModule.create());
     install(LocaleInjectionModule.create());
+    install(WorkflowInjectionModule.create());
     install(AccessInjectionModule.create());
     install(StripeInjectionModule.create());
     install(OfferInjectionModule.create());

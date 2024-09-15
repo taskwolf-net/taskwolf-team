@@ -1,5 +1,8 @@
 package com.dulno.team;
 
+import com.dulno.core.user.UserTargetDatabaseTable;
+import com.dulno.core.workflow.operation.OperationDatabaseTable;
+import com.dulno.core.workflow.throttle.WorkflowThrottleDatabaseTable;
 import com.dulno.team.distribution.TeamDistributionConfiguration;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -76,6 +79,9 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final TemplateDatabaseTable templateDatabaseTable;
   private final MaintenanceDatabaseTable maintenanceDatabaseTable;
   private final TeamDistributionConfiguration teamDistributionConfiguration;
+  private final UserTargetDatabaseTable userTargetDatabaseTable;
+  private final OperationDatabaseTable operationDatabaseTable;
+  private final WorkflowThrottleDatabaseTable workflowThrottleDatabaseTable;
 
   @Inject
   private TeamContextInitializer(
@@ -106,7 +112,10 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     OfferDatabaseTable offerDatabaseTable, TeamOfferConfiguration offerConfiguration,
     TemplateDatabaseTable templateDatabaseTable,
     MaintenanceDatabaseTable maintenanceDatabaseTable,
-    TeamDistributionConfiguration teamDistributionConfiguration
+    TeamDistributionConfiguration teamDistributionConfiguration,
+    UserTargetDatabaseTable userTargetDatabaseTable,
+    OperationDatabaseTable operationDatabaseTable,
+    WorkflowThrottleDatabaseTable workflowThrottleDatabaseTable
   ) {
     this.log = log;
     this.key = key;
@@ -143,6 +152,9 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.templateDatabaseTable = templateDatabaseTable;
     this.maintenanceDatabaseTable = maintenanceDatabaseTable;
     this.teamDistributionConfiguration = teamDistributionConfiguration;
+    this.userTargetDatabaseTable = userTargetDatabaseTable;
+    this.operationDatabaseTable = operationDatabaseTable;
+    this.workflowThrottleDatabaseTable = workflowThrottleDatabaseTable;
   }
 
   @Override
@@ -191,5 +203,11 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("maintenanceDatabaseTable", maintenanceDatabaseTable);
     beanFactory.registerSingleton("teamDistributionConfiguration",
       teamDistributionConfiguration);
+    beanFactory.registerSingleton("userTargetDatabaseTable",
+      userTargetDatabaseTable);
+    beanFactory.registerSingleton("operationDatabaseTable",
+      operationDatabaseTable);
+    beanFactory.registerSingleton("workflowThrottleDatabaseTable",
+      workflowThrottleDatabaseTable);
   }
 }

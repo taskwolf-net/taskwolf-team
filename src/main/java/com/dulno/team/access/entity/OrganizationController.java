@@ -1,6 +1,7 @@
 package com.dulno.team.access.entity;
 
 import com.dulno.core.locale.Translation;
+import com.dulno.core.user.UserTargetDatabaseTable;
 import com.dulno.team.distribution.TeamDistributionConfiguration;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -40,6 +41,7 @@ public final class OrganizationController extends TeamController {
   private final UserDatabaseTable userDatabaseTable;
   private final Translation translation;
   private final TeamDistributionConfiguration teamDistributionConfiguration;
+  private final UserTargetDatabaseTable targetDatabaseTable;
   private final HttpClient httpClient = HttpClient.newHttpClient();
 
   private OrganizationController(
@@ -48,7 +50,8 @@ public final class OrganizationController extends TeamController {
     OrganizationDatabaseTable organizationDatabaseTable,
     com.dulno.core.organization.team.TeamDatabaseTable organizationTeamDatabaseTable,
     UserDatabaseTable userDatabaseTable, Translation translation,
-    TeamDistributionConfiguration teamDistributionConfiguration
+    TeamDistributionConfiguration teamDistributionConfiguration,
+    UserTargetDatabaseTable targetDatabaseTable
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.organizationDatabaseTable = organizationDatabaseTable;
@@ -56,7 +59,9 @@ public final class OrganizationController extends TeamController {
     this.userDatabaseTable = userDatabaseTable;
     this.translation = translation;
     this.teamDistributionConfiguration = teamDistributionConfiguration;
+    this.targetDatabaseTable = targetDatabaseTable;
   }
+
   @RequestMapping(path = "/organization/find/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> findOrganization(
     HttpServletRequest request, @RequestBody String payload,
@@ -148,13 +153,14 @@ public final class OrganizationController extends TeamController {
       Lists.newArrayList(), UUID.randomUUID().toString());
     userDatabaseTable.addUserOrganization(owner.id(), organizationId);
     sendDistributionRequest(organizationId);
+    targetDatabaseTable.changeTarget(owner.id(), organizationId);
   }
 
   private void sendDistributionRequest(UUID id) {
     var body = new JSONObject(Map.of("key",
       teamDistributionConfiguration.distributionKey(), "user", id)).toString();
     var requestBuilder = HttpRequest.newBuilder().uri(
-      URI.create("https://api.dulno.com/v1/distribution/add/"))
+      URI.create("http://10.96.0.4/v1/distribution/add/"))
       .POST(HttpRequest.BodyPublishers.ofString(body))
       .setHeader("Content-Type", "application/json");
     try {

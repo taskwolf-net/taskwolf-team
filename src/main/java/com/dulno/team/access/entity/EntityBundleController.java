@@ -1,5 +1,8 @@
 package com.dulno.team.access.entity;
 
+import com.dulno.core.stripe.TerminationDatabaseTable;
+import com.dulno.core.workflow.operation.OperationDatabaseTable;
+import com.dulno.core.workflow.throttle.WorkflowThrottleDatabaseTable;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,16 +26,25 @@ import java.util.concurrent.CompletableFuture;
 public final class EntityBundleController extends TeamController {
   private final BundleDatabaseTable bundleDatabaseTable;
   private final BundlePresetRepository bundlePresetRepository;
+  private final OperationDatabaseTable operationDatabaseTable;
+  private final WorkflowThrottleDatabaseTable workflowThrottleDatabaseTable;
+  private final TerminationDatabaseTable terminationDatabaseTable;
 
   private EntityBundleController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     BundleDatabaseTable bundleDatabaseTable,
-    BundlePresetRepository bundlePresetRepository
+    BundlePresetRepository bundlePresetRepository,
+    OperationDatabaseTable operationDatabaseTable,
+    WorkflowThrottleDatabaseTable workflowThrottleDatabaseTable,
+    TerminationDatabaseTable terminationDatabaseTable
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.bundleDatabaseTable = bundleDatabaseTable;
     this.bundlePresetRepository = bundlePresetRepository;
+    this.operationDatabaseTable = operationDatabaseTable;
+    this.workflowThrottleDatabaseTable = workflowThrottleDatabaseTable;
+    this.terminationDatabaseTable = terminationDatabaseTable;
   }
 
   @RequestMapping(path = "/entity/bundle/find/", method = RequestMethod.POST)
@@ -121,12 +133,20 @@ public final class EntityBundleController extends TeamController {
       findBundleOrganizationMemberLimit(body, preset) : 0;
     var organizationTeamLimit = isOrganization ?
       findBundleOrganizationTeamLimit(body, preset) : 0;
-    System.out.println(organizationMemberLimit + ":" + organizationTeamLimit);
     bundleDatabaseTable.deleteBundle(entityId).thenAccept(value ->
       bundleDatabaseTable.insertBundle(Bundle.of(entityId,
         preset, runtime, price, workflowNumberLimit, workflowOperationLimit,
         processNumberLimit, databaseNumberLimit, databaseDataLimit,
         organizationMemberLimit, organizationTeamLimit)));
+    operationDatabaseTable.operationsExists(entityId)
+      .thenCompose(exists -> !exists ?
+        operationDatabaseTable.insertOperations(entityId) :
+        operationDatabaseTable.resetExpiration(entityId));
+    workflowThrottleDatabaseTable.throttleExists(entityId)
+      .thenCompose(exists -> !exists ?
+        workflowThrottleDatabaseTable.insertThrottle(entityId) :
+        workflowThrottleDatabaseTable.setThrottle(entityId, 0, 0));
+    terminationDatabaseTable.deleteTermination(entityId);
   }
 
   private double findBundlePrice(
