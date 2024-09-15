@@ -1,4 +1,6 @@
 {
   "offer.email.title": "Angebot",
-  "offer.email.body": "Hallo %s,\n\nwir freuen uns, Ihnen mitteilen zu können, dass wir ein maßgeschneidertes Dulno-Paket für Sie zusammengestellt haben.\n\nDieses Paket ist ganz auf deine Bedürfnisse zugeschnitten.\n\nKlicken Sie auf den untenstehenden Link, um das Angebot anzusehen und anzunehmen oder abzulehnen.\n\nhttps://dulno.com/offer/%s/\n\nWir hoffen, dass wir Ihre Anforderungen erfüllen konnten.\nAuf eine gute Zusammenarbeit!"
+  "offer.email.body": "Hallo %s,\n\nwir freuen uns, Ihnen mitteilen zu können, dass wir ein maßgeschneidertes Dulno-Paket für Sie zusammengestellt haben.\n\nDieses Paket ist ganz auf deine Bedürfnisse zugeschnitten.\n\nKlicken Sie auf den untenstehenden Link, um das Angebot anzusehen und anzunehmen oder abzulehnen.\n\nhttps://dulno.com/offer/%s/\n\nWir hoffen, dass wir Ihre Anforderungen erfüllen konnten.\nAuf eine gute Zusammenarbeit!",
+
+  "organization.default.name": "Organisation von %s"
 }

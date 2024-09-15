@@ -1,5 +1,6 @@
 package com.dulno.team;
 
+import com.dulno.team.distribution.TeamDistributionConfiguration;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
@@ -74,6 +75,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final TeamOfferConfiguration offerConfiguration;
   private final TemplateDatabaseTable templateDatabaseTable;
   private final MaintenanceDatabaseTable maintenanceDatabaseTable;
+  private final TeamDistributionConfiguration teamDistributionConfiguration;
 
   @Inject
   private TeamContextInitializer(
@@ -103,7 +105,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     TerminationDatabaseTable terminationDatabaseTable,
     OfferDatabaseTable offerDatabaseTable, TeamOfferConfiguration offerConfiguration,
     TemplateDatabaseTable templateDatabaseTable,
-    MaintenanceDatabaseTable maintenanceDatabaseTable
+    MaintenanceDatabaseTable maintenanceDatabaseTable,
+    TeamDistributionConfiguration teamDistributionConfiguration
   ) {
     this.log = log;
     this.key = key;
@@ -139,6 +142,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.offerConfiguration = offerConfiguration;
     this.templateDatabaseTable = templateDatabaseTable;
     this.maintenanceDatabaseTable = maintenanceDatabaseTable;
+    this.teamDistributionConfiguration = teamDistributionConfiguration;
   }
 
   @Override
@@ -185,5 +189,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("offerConfiguration", offerConfiguration);
     beanFactory.registerSingleton("templateDatabaseTable", templateDatabaseTable);
     beanFactory.registerSingleton("maintenanceDatabaseTable", maintenanceDatabaseTable);
+    beanFactory.registerSingleton("teamDistributionConfiguration",
+      teamDistributionConfiguration);
   }
 }
