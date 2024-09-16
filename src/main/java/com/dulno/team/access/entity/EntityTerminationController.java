@@ -79,6 +79,10 @@ public final class EntityTerminationController extends TeamController {
   private CompletableFuture<Map<String, Object>> findEntityTerminationStatus(
     UUID targetId, Bundle bundle, String stripeAccountId
   ) {
+    if (bundle.bundleType().isTrial() || bundle.bundleRuntime().isUnbound()) {
+      return CompletableFuture.completedFuture(Map.of("terminable", false,
+        "terminated", false));
+    }
     try {
       var subscriptions = stripeClient.subscriptions()
         .list(SubscriptionListParams.builder().setCustomer(stripeAccountId).build())
