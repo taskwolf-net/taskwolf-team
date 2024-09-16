@@ -121,7 +121,8 @@ public final class EntityBundleController extends TeamController {
     }
     var preset = findBundlePreset(body);
     var runtime = BundleRuntime.valueOf(body.getString("runtime"));
-    var expiration = runtime.isUnbound() ? body.getLong("expiration") : -1;
+    var expiration = runtime.isUnbound() ? System.currentTimeMillis() +
+      body.getLong("expiration") : -1;
     var price = findBundlePrice(body, preset, runtime);
     var workflowNumberLimit = findBundleWorkflowNumberLimit(body, preset);
     var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
