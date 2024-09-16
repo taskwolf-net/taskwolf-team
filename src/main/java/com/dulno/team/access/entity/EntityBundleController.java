@@ -121,6 +121,7 @@ public final class EntityBundleController extends TeamController {
     }
     var preset = findBundlePreset(body);
     var runtime = BundleRuntime.valueOf(body.getString("runtime"));
+    var expiration = runtime.isUnbound() ? body.getLong("expiration") : -1;
     var price = findBundlePrice(body, preset, runtime);
     var workflowNumberLimit = findBundleWorkflowNumberLimit(body, preset);
     var workflowOperationLimit = findBundleWorkflowOperationLimit(body, preset);
@@ -135,9 +136,9 @@ public final class EntityBundleController extends TeamController {
       findBundleOrganizationTeamLimit(body, preset) : 0;
     bundleDatabaseTable.deleteBundle(entityId).thenAccept(value ->
       bundleDatabaseTable.insertBundle(Bundle.of(entityId,
-        preset, runtime, price, workflowNumberLimit, workflowOperationLimit,
-        processNumberLimit, databaseNumberLimit, databaseDataLimit,
-        organizationMemberLimit, organizationTeamLimit)));
+        preset, runtime, expiration, price, workflowNumberLimit,
+        workflowOperationLimit, processNumberLimit, databaseNumberLimit,
+        databaseDataLimit, organizationMemberLimit, organizationTeamLimit)));
     operationDatabaseTable.operationsExists(entityId)
       .thenCompose(exists -> !exists ?
         operationDatabaseTable.insertOperations(entityId) :
