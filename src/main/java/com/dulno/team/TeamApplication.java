@@ -74,7 +74,7 @@ public class TeamApplication {
     var password = Hashing.sha256().hashString(UUID.randomUUID().toString(),
       StandardCharsets.UTF_8).toString();
     var user = User.create(DULNO_USER_ID, "Dulno", "support@dulno.com",
-      password, "en", Lists.newArrayList(), true, true);
+      password, "en", Lists.newArrayList(), true, true, System.currentTimeMillis());
     userDatabaseTable.insertUser(user);
     return user;
   }
