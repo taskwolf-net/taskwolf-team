@@ -5,6 +5,7 @@ import com.dulno.core.mail.Mail;
 import com.dulno.core.sale.Sale;
 import com.dulno.core.sale.SaleDatabaseTable;
 import com.dulno.core.sale.SaleMessageDatabaseTable;
+import com.dulno.core.sale.SaleMessageSenderType;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
@@ -100,8 +101,9 @@ public final class SaleModificationController extends TeamController {
   private void answerSale(
     TeamMember teamMember, Sale sale, String message, UUID messageId
   ) {
-    saleMessageDatabaseTable.insertSaleMessage(messageId, "Dulno",
-      message, System.currentTimeMillis());
+    saleMessageDatabaseTable.insertSaleMessage(messageId,
+      teamMember.id().toString(), SaleMessageSenderType.TEAM, message,
+      System.currentTimeMillis());
     sale.addConversationMessage(messageId);
     sale.resetExpirationTime();
     saleDatabaseTable.updateSale(sale);

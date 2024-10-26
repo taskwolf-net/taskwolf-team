@@ -9,6 +9,7 @@ import com.dulno.core.sale.SaleMessageDatabaseTable;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
+import com.dulno.team.member.TeamMember;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
@@ -54,7 +55,15 @@ public final class SaleInformationController extends TeamController {
     if (!hasPermission) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    return findAllSupportSales().thenApply(this::assemblySales);
+    return findAllSupportSales().thenCompose(this::assemblySales);
+  }
+
+  private CompletableFuture<Map<String, Object>> assemblySales(
+    Map<Sale, List<SaleMessage>> sales
+  ) {
+    return AsyncIterator.execute(Lists.newArrayList(sales.entrySet()),
+        entry -> saleInformation(entry.getKey(), entry.getValue()))
+      .thenApply(information -> Map.of("sales", information));
   }
 
   @RequestMapping(path = "/sale/find/", method = RequestMethod.POST)
@@ -64,12 +73,9 @@ public final class SaleInformationController extends TeamController {
   ) {
     var body = DulnoRequestBody.of(payload, response);
     var saleId = body.getUUID("sale");
-    var futureResponse = new CompletableFuture<Map<String, Object>>();
-    memberHasPermission(findMemberId(request), "sale.find")
-      .thenAccept(hasPermission -> saleDatabaseTable.saleExists(saleId)
-        .thenAccept(exists -> findSale(saleId, hasPermission, exists)
-          .thenAccept(futureResponse::complete)));
-    return futureResponse;
+    return memberHasPermission(findMemberId(request), "sale.find")
+      .thenCompose(hasPermission -> saleDatabaseTable.saleExists(saleId)
+        .thenCompose(exists -> findSale(saleId, hasPermission, exists)));
   }
 
   private CompletableFuture<Map<String, Object>> findSale(
@@ -78,15 +84,23 @@ public final class SaleInformationController extends TeamController {
     if (!hasPermission || !exists) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    var futureResponse = new CompletableFuture<Map<String, Object>>();
-    saleDatabaseTable.findSale(saleId).thenAccept(sale ->
-      findSaleMessages(sale).thenAccept(messages ->
-        futureResponse.complete(assemblySale(sale, messages))));
-    return futureResponse;
+    return saleDatabaseTable.findSale(saleId)
+      .thenCompose(sale -> findSaleMessages(sale)
+        .thenCompose(messages -> saleInformation(sale, messages)));
   }
 
-  private Map<String, Object> assemblySale(
+  private CompletableFuture<Map<String, Object>> saleInformation(
     Sale sale, List<SaleMessage> messages
+  ) {
+    messages.sort(Comparator.comparing(SaleMessage::time));
+    return AsyncIterator.execute(messages, this::messageInformation)
+      .thenApply(information -> assemblySaleInformation(sale,
+        messages, information));
+  }
+
+  private Map<String, Object> assemblySaleInformation(
+    Sale sale, List<SaleMessage> messages,
+    List<Map<String, Object>> messageInformation
   ) {
     var information = Maps.<String, Object>newHashMap();
     information.put("id", sale.requestMessage());
@@ -99,31 +113,33 @@ public final class SaleInformationController extends TeamController {
     information.put("companyName", sale.companyName());
     information.put("companySize", sale.companySize());
     information.put("companyRole", sale.companyRole());
-    messages.sort(Comparator.comparing(SaleMessage::time));
     information.put("date", formatTime(messages.get(messages.size() - 1).time()));
-    var messagesInformation = Lists.<Map<String, Object>>newArrayList();
-    for (var message : messages) {
-      var messageInformation = Maps.<String, Object>newHashMap();
-      messageInformation.put("id", message.id());
-      messageInformation.put("sender", message.sender());
-      messageInformation.put("body", message.content());
-      messageInformation.put("teamWritten", message.sender()
-        .equalsIgnoreCase("Dulno"));
-      messageInformation.put("time", formatTime(message.time()));
-      messagesInformation.add(messageInformation);
-    }
-    information.put("messages", messagesInformation);
+    information.put("messages", messageInformation);
     return information;
   }
 
-  private Map<String, Object> assemblySales(
-    Map<Sale, List<SaleMessage>> sales
+  private CompletableFuture<Map<String, Object>> messageInformation(
+    SaleMessage message
   ) {
-    var information = Lists.<Map<String, Object>>newArrayList();
-    for (var entry : sales.entrySet()) {
-      information.add(assemblySale(entry.getKey(), entry.getValue()));
-    }
-    return Map.of("sales", information);
+    var teamWritten = message.senderType().isTeam();
+    var futureSender = teamWritten ?
+      teamDatabaseTable().findTeamMember(UUID.fromString(message.sender()))
+        .thenApply(TeamMember::name) :
+      CompletableFuture.completedFuture(message.sender());
+    return futureSender.thenApply(sender ->
+      assemblyMessageInformation(message, sender, teamWritten));
+  }
+
+  private Map<String, Object> assemblyMessageInformation(
+    SaleMessage message, String sender, boolean teamWritten
+  ) {
+    var information = Maps.<String, Object>newHashMap();
+    information.put("id", message.id());
+    information.put("sender", sender);
+    information.put("body", message.content());
+    information.put("teamWritten", teamWritten);
+    information.put("time", formatTime(message.time()));
+    return information;
   }
 
   private CompletableFuture<Map<Sale, List<SaleMessage>>> findAllSupportSales() {
