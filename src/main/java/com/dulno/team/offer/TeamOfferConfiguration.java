@@ -1,8 +1,8 @@
 package com.dulno.team.offer;
 
+import com.dulno.core.configuration.Configuration;
 import lombok.Getter;
 import lombok.experimental.Accessors;
-import com.dulno.core.configuration.Configuration;
 import org.json.JSONObject;
 
 @Getter

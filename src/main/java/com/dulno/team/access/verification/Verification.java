@@ -1,10 +1,10 @@
 package com.dulno.team.access.verification;
 
+import com.dulno.team.member.TeamDatabaseTable;
 import io.jsonwebtoken.Jwts;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
-import com.dulno.team.member.TeamDatabaseTable;
 
 import java.security.Key;
 import java.util.Date;

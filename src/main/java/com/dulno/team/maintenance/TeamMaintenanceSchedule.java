@@ -1,12 +1,12 @@
 package com.dulno.team.maintenance;
 
+import com.dulno.core.maintenance.Maintenance;
+import com.dulno.core.maintenance.MaintenanceDatabaseTable;
+import com.dulno.core.maintenance.MaintenanceStatus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import com.dulno.core.maintenance.Maintenance;
-import com.dulno.core.maintenance.MaintenanceDatabaseTable;
-import com.dulno.core.maintenance.MaintenanceStatus;
 
 import java.time.Duration;
 import java.time.LocalDateTime;

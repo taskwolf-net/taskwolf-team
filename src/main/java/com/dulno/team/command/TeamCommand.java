@@ -1,16 +1,16 @@
 package com.dulno.team.command;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Multimap;
-import com.google.inject.Inject;
-import com.google.inject.name.Named;
 import com.dulno.core.command.Command;
 import com.dulno.core.log.Log;
 import com.dulno.core.mail.Mail;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.dulno.team.member.TeamMember;
 import com.dulno.team.member.TeamVerificationDatabaseTable;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
 import java.util.List;
 import java.util.UUID;

@@ -1,10 +1,10 @@
 package com.dulno.team.command;
 
-import com.google.inject.Inject;
 import com.dulno.core.command.Command;
 import com.dulno.core.log.Log;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
+import com.google.inject.Inject;
 
 import java.util.UUID;
 

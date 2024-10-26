@@ -1,13 +1,5 @@
 package com.dulno.team;
 
-import com.dulno.core.workflow.WorkflowInjectionModule;
-import com.dulno.team.distribution.TeamDistributionConfiguration;
-import com.google.inject.AbstractModule;
-import com.google.inject.Provides;
-import com.google.inject.Singleton;
-import com.google.inject.name.Named;
-import io.jsonwebtoken.SignatureAlgorithm;
-import lombok.RequiredArgsConstructor;
 import com.dulno.core.access.AccessInjectionModule;
 import com.dulno.core.bundle.BundleInjectionModule;
 import com.dulno.core.command.CommandInjectionModule;
@@ -29,10 +21,18 @@ import com.dulno.core.template.TemplateInjectionModule;
 import com.dulno.core.ticket.TicketInjectionModule;
 import com.dulno.core.user.UserInjectionModule;
 import com.dulno.core.whitelist.WhitelistInjectionModule;
+import com.dulno.core.workflow.WorkflowInjectionModule;
 import com.dulno.team.configuration.TeamConfiguration;
+import com.dulno.team.distribution.TeamDistributionConfiguration;
 import com.dulno.team.group.GroupInjectionModule;
 import com.dulno.team.member.TeamMemberInjectionModule;
 import com.dulno.team.offer.TeamOfferInjectionModule;
+import com.google.inject.AbstractModule;
+import com.google.inject.Provides;
+import com.google.inject.Singleton;
+import com.google.inject.name.Named;
+import io.jsonwebtoken.SignatureAlgorithm;
+import lombok.RequiredArgsConstructor;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;

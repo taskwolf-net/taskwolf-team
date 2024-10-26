@@ -1,13 +1,5 @@
 package com.dulno.team;
 
-import com.dulno.core.user.UserTargetDatabaseTable;
-import com.dulno.core.workflow.operation.OperationDatabaseTable;
-import com.dulno.core.workflow.throttle.WorkflowThrottleDatabaseTable;
-import com.dulno.team.distribution.TeamDistributionConfiguration;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import com.google.inject.name.Named;
-import com.stripe.StripeClient;
 import com.dulno.core.bundle.BundleDatabaseTable;
 import com.dulno.core.bundle.BundlePresetRepository;
 import com.dulno.core.database.DatabaseConnection;
@@ -30,13 +22,21 @@ import com.dulno.core.template.TemplateDatabaseTable;
 import com.dulno.core.ticket.TicketDatabaseTable;
 import com.dulno.core.ticket.TicketMessageDatabaseTable;
 import com.dulno.core.user.UserDatabaseTable;
+import com.dulno.core.user.UserTargetDatabaseTable;
 import com.dulno.core.user.activity.UserActivityDatabaseTable;
 import com.dulno.core.whitelist.WhitelistConfiguration;
+import com.dulno.core.workflow.operation.OperationDatabaseTable;
+import com.dulno.core.workflow.throttle.WorkflowThrottleDatabaseTable;
+import com.dulno.team.distribution.TeamDistributionConfiguration;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.dulno.team.member.TeamVerificationDatabaseTable;
 import com.dulno.team.member.TeamWorkDatabaseTable;
 import com.dulno.team.offer.TeamOfferConfiguration;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+import com.google.inject.name.Named;
+import com.stripe.StripeClient;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 

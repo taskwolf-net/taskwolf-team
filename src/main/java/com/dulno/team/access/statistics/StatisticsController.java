@@ -1,7 +1,5 @@
 package com.dulno.team.access.statistics;
 
-import com.google.common.collect.Maps;
-import jakarta.servlet.http.HttpServletRequest;
 import com.dulno.core.ticket.TicketDatabaseTable;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.access.question.QuestionInformationController;
@@ -9,6 +7,8 @@ import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.dulno.team.member.TeamMember;
 import com.dulno.team.member.TeamWorkDatabaseTable;
+import com.google.common.collect.Maps;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,7 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.security.Key;
 import java.text.SimpleDateFormat;
 import java.time.Year;
-import java.util.*;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @RestController

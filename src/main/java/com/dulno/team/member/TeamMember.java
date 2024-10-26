@@ -1,9 +1,9 @@
 package com.dulno.team.member;
 
+import com.dulno.core.database.DatabaseRow;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.experimental.Accessors;
-import com.dulno.core.database.DatabaseRow;
 
 import java.util.List;
 import java.util.UUID;

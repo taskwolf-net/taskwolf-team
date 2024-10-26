@@ -1,5 +1,6 @@
 package com.dulno.team.access.security;
 
+import com.dulno.core.whitelist.WhitelistConfiguration;
 import com.google.common.collect.Lists;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -7,7 +8,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import com.dulno.core.whitelist.WhitelistConfiguration;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 

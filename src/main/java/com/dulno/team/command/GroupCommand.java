@@ -1,11 +1,11 @@
 package com.dulno.team.command;
 
-import com.google.common.collect.Lists;
-import com.google.inject.Inject;
 import com.dulno.core.command.Command;
 import com.dulno.core.log.Log;
 import com.dulno.team.group.Group;
 import com.dulno.team.group.GroupDatabaseTable;
+import com.google.common.collect.Lists;
+import com.google.inject.Inject;
 
 import java.util.List;
 
