@@ -1,9 +1,5 @@
 package com.dulno.team.access.ticket;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import com.dulno.core.access.DulnoRequestBody;
 import com.dulno.core.iterator.AsyncIterator;
 import com.dulno.core.ticket.Ticket;
@@ -15,6 +11,11 @@ import com.dulno.core.user.UserDatabaseTable;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
+import com.dulno.team.member.TeamMember;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -153,19 +154,21 @@ public final class TicketInformationController extends TeamController {
   private CompletableFuture<Map<String, Object>> messageInformation(
     TicketMessage message
   ) {
-    return userDatabaseTable.findUser(message.author()).thenApply(author ->
-      assemblyMessageInformation(message, author));
+    var teamWritten = message.authorType().isTeam();
+    var futureAuthorName = teamWritten ?
+      teamDatabaseTable().findTeamMember(message.author()).thenApply(TeamMember::name) :
+      userDatabaseTable.findUser(message.author()).thenApply(User::name);
+    return futureAuthorName.thenApply(author ->
+      assemblyMessageInformation(message, author, teamWritten));
   }
 
-  private static final UUID DULNO_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
-
   private Map<String, Object> assemblyMessageInformation(
-    TicketMessage message, User author
+    TicketMessage message, String authorName, boolean teamWritten
   ) {
     var information = Maps.<String, Object>newHashMap();
     information.put("id", message.id());
-    information.put("author", author.name());
-    information.put("teamWritten", author.id().equals(DULNO_USER_ID));
+    information.put("author", authorName);
+    information.put("teamWritten", teamWritten);
     information.put("message", message.message());
     information.put("rawTime", message.time());
     information.put("time", formatTime(message.time()));

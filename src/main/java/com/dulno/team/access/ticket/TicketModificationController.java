@@ -1,13 +1,7 @@
 package com.dulno.team.access.ticket;
 
-import com.google.common.collect.Lists;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import com.dulno.core.access.DulnoRequestBody;
-import com.dulno.core.ticket.Ticket;
-import com.dulno.core.ticket.TicketDatabaseTable;
-import com.dulno.core.ticket.TicketMessage;
-import com.dulno.core.ticket.TicketMessageDatabaseTable;
+import com.dulno.core.ticket.*;
 import com.dulno.core.user.activity.ActivityType;
 import com.dulno.core.user.activity.UserActivityDatabaseTable;
 import com.dulno.team.access.TeamController;
@@ -15,6 +9,9 @@ import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.dulno.team.member.TeamMember;
 import com.dulno.team.member.TeamWorkDatabaseTable;
+import com.google.common.collect.Lists;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -70,8 +67,6 @@ public final class TicketModificationController extends TeamController {
         answerTicket(teamMember, ticket, message, id)));
   }
 
-  private static final UUID DULNO_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
-
   private void answerTicket(
     TeamMember teamMember, Ticket ticket, String message, UUID messageId
   ) {
@@ -79,7 +74,8 @@ public final class TicketModificationController extends TeamController {
     ticket.resetExpirationTime();
     ticketDatabaseTable.updateTicket(ticket);
     ticketMessageDatabaseTable.insertTicketMessage(TicketMessage.create(messageId,
-      ticket.id(), DULNO_USER_ID, message, System.currentTimeMillis()));
+      ticket.id(), teamMember.id(), TicketMessageAuthorType.TEAM, message,
+      System.currentTimeMillis()));
     activityDatabaseTable.insertActivity(ticket.creator(), "activity.ticket.answer.title",
       "activity.ticket.answer.description", ActivityType.TICKET);
     teamWorkDatabaseTable.hasRequestReplies(teamMember.id())
