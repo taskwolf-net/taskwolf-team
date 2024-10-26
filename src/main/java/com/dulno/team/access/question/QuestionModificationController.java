@@ -66,12 +66,11 @@ public final class QuestionModificationController extends TeamController {
     questionDatabaseTable.findQuestion(questionId).thenAccept(this::deleteQuestion);
   }
 
-  private void deleteQuestion(Question question) {
-    questionDatabaseTable.deleteQuestion(question.requestMessage());
-    questionMessageDatabaseTable.deleteQuestionMessage(question.requestMessage());
-    for (var message : question.conversationMessages()) {
-      questionMessageDatabaseTable.deleteQuestionMessage(message);
-    }
+  public void deleteQuestion(Question question) {
+    questionDatabaseTable.deleteQuestion(question.id());
+    questionMessageDatabaseTable.findMessagesOfQuestion(question.id())
+      .thenAccept(messages -> messages.forEach(message ->
+        questionMessageDatabaseTable.deleteQuestionMessage(message.id())));
   }
 
   @RequestMapping(path = "/question/answer/", method = RequestMethod.POST)
@@ -103,14 +102,13 @@ public final class QuestionModificationController extends TeamController {
   private void answerQuestion(
     TeamMember teamMember, Question question, String message, UUID messageId
   ) {
-    questionMessageDatabaseTable.insertQuestionMessage(messageId,
-      teamMember.id().toString(), QuestionMessageSenderType.TEAM, message,
-      System.currentTimeMillis());
-    question.addConversationMessage(messageId);
     question.resetExpirationTime();
     questionDatabaseTable.updateQuestion(question);
     supportMail.send(question.sender(), "Re: " + question.title(), message,
-      "text/html; charset=utf-8");
+      "text/html; charset=utf-8")
+      .thenAccept(publicId -> questionMessageDatabaseTable.insertQuestionMessage(
+        messageId, publicId, question.id(), teamMember.id().toString(),
+        QuestionMessageSenderType.TEAM, message, System.currentTimeMillis()));
     teamWorkDatabaseTable.hasRequestReplies(teamMember.id())
       .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
   }

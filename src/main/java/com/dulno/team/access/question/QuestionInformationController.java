@@ -25,25 +25,27 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @RestController
 public final class QuestionInformationController extends TeamController {
   private final Mail supportMail;
   private final QuestionDatabaseTable questionDatabaseTable;
   private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
+  private final QuestionModificationController questionModificationController;
 
   private QuestionInformationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     @Qualifier("supportMail") Mail supportMail,
     QuestionDatabaseTable questionDatabaseTable,
-    QuestionMessageDatabaseTable questionMessageDatabaseTable
+    QuestionMessageDatabaseTable questionMessageDatabaseTable,
+    QuestionModificationController questionModificationController
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.supportMail = supportMail;
     this.questionDatabaseTable = questionDatabaseTable;
     this.questionMessageDatabaseTable = questionMessageDatabaseTable;
+    this.questionModificationController = questionModificationController;
   }
 
   @RequestMapping(path = "/questions/find/", method = RequestMethod.GET)
@@ -89,18 +91,21 @@ public final class QuestionInformationController extends TeamController {
     if (!hasPermission || !exists) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    return questionDatabaseTable.findQuestion(questionId)
-      .thenCompose(question -> findQuestionMessages(question)
+    return questionDatabaseTable.findQuestion(questionId).thenCompose(question ->
+      questionMessageDatabaseTable.findMessagesOfQuestion(question.id())
         .thenCompose(messages -> questionInformation(question, messages)));
   }
 
   private CompletableFuture<Map<String, Object>> questionInformation(
     Question question, List<QuestionMessage> messages
   ) {
-    messages.sort(Comparator.comparing(QuestionMessage::time));
+    var sortedMessages = messages.stream()
+      .sorted(Comparator.comparing(QuestionMessage::time)).toList();
     return AsyncIterator.execute(messages, this::messageInformation)
+      .thenApply(information -> information.stream()
+        .sorted(Comparator.comparing(entry -> (long) entry.get("rawTime"))).toList())
       .thenApply(information -> assemblyQuestionInformation(question,
-        messages, information));
+        sortedMessages, information));
   }
 
   private Map<String, Object> assemblyQuestionInformation(
@@ -108,7 +113,7 @@ public final class QuestionInformationController extends TeamController {
     List<Map<String, Object>> messageInformation
   ) {
     var information = Maps.<String, Object>newHashMap();
-    information.put("id", question.requestMessage());
+    information.put("id", question.id());
     information.put("title", question.title());
     information.put("sender", question.sender());
     information.put("date", formatTime(messages.get(messages.size() - 1).time()));
@@ -137,6 +142,7 @@ public final class QuestionInformationController extends TeamController {
     information.put("body", message.content());
     information.put("teamWritten", teamWritten);
     information.put("time", formatTime(message.time()));
+    information.put("rawTime", message.time());
     return information;
   }
 
@@ -162,45 +168,52 @@ public final class QuestionInformationController extends TeamController {
     MailMessage incomingMessage, List<MailMessage> inbox,
     Runnable futureResponse
   ) {
-    var sender = ((InternetAddress) incomingMessage.sender()).getAddress();
-    saveSupportMailMessage(incomingMessage).thenAccept(incomingMessageId ->
-      questionDatabaseTable.findQuestionsBySender(sender)
-        .thenAccept(questions -> saveSupportMail(incomingMessage, incomingMessageId,
-          questions.stream().filter(question ->
-            incomingMessage.title().contains(question.title())).findFirst(),
-          inbox, futureResponse)));
+    questionMessageDatabaseTable.questionMessageExists(incomingMessage.inReplyTo())
+      .thenCompose(exists -> findQuestion(incomingMessage.inReplyTo(), exists))
+      .thenAccept(question -> saveSupportMail(incomingMessage, question, inbox,
+        futureResponse));
   }
 
-  private CompletableFuture<UUID> saveSupportMailMessage(
-    MailMessage message
+  private CompletableFuture<Question> findQuestion(
+    String inReplyTo, boolean exists
   ) {
-    var futureResponse = new CompletableFuture<UUID>();
-    var sender = ((InternetAddress) message.sender()).getAddress();
-    questionMessageDatabaseTable.generateAvailableMessageId().thenAccept(id ->
-      questionMessageDatabaseTable.insertQuestionMessage(
-        QuestionMessage.create(id, sender, QuestionMessageSenderType.USER,
-          message.body(), message.receiveDate().getTime()))
-        .thenAccept(value -> futureResponse.complete(id)));
-    return futureResponse;
+    if (!exists) {
+      return CompletableFuture.completedFuture(null);
+    }
+    return questionMessageDatabaseTable.findQuestionMessage(inReplyTo)
+      .thenCompose(message ->
+        questionDatabaseTable.findQuestion(message.questionId()));
   }
 
   private void saveSupportMail(
-    MailMessage incomingMessage, UUID incomingMessageId,
-    Optional<Question> repliedMail, List<MailMessage> inbox,
+    MailMessage incomingMessage, Question repliedMail, List<MailMessage> inbox,
     Runnable futureResponse
   ) {
-    if (repliedMail.isPresent()) {
-      var parentMail = repliedMail.get();
-      parentMail.addConversationMessage(incomingMessageId);
-      parentMail.disableExpirationTime();
-      questionDatabaseTable.updateQuestion(parentMail).thenAccept(value ->
-        saveNextSupportMail(inbox, futureResponse));
+    if (repliedMail != null) {
+      repliedMail.disableExpirationTime();
+      questionDatabaseTable.updateQuestion(repliedMail)
+        .thenCompose(value -> saveSupportMailMessage(repliedMail.id(),
+          incomingMessage))
+        .thenAccept(value -> saveNextSupportMail(inbox, futureResponse));
       return;
     }
-    questionDatabaseTable.insertQuestion(incomingMessageId,
-        ((InternetAddress) incomingMessage.sender()).getAddress(),
-        incomingMessage.title(), -1, Lists.newArrayList())
-      .thenAccept(value -> saveNextSupportMail(inbox, futureResponse));
+    questionDatabaseTable.generateAvailableQuestionId()
+      .thenAccept(id -> questionDatabaseTable.insertQuestion(id,
+          ((InternetAddress) incomingMessage.sender()).getAddress(),
+          incomingMessage.title(), -1)
+        .thenCompose(value -> saveSupportMailMessage(id, incomingMessage))
+        .thenAccept(value -> saveNextSupportMail(inbox, futureResponse)));
+  }
+
+  private CompletableFuture<Void> saveSupportMailMessage(
+    UUID questionId, MailMessage message
+  ) {
+    var sender = ((InternetAddress) message.sender()).getAddress();
+    return questionMessageDatabaseTable.generateAvailableMessageId()
+      .thenCompose(id -> questionMessageDatabaseTable.insertQuestionMessage(
+        QuestionMessage.create(id, message.messageId(), questionId, sender,
+          QuestionMessageSenderType.USER, message.body(),
+          message.receiveDate().getTime())));
   }
 
   private void saveNextSupportMail(
@@ -217,9 +230,9 @@ public final class QuestionInformationController extends TeamController {
   private CompletableFuture<Map<Question, List<QuestionMessage>>> findAllSupportQuestions() {
     var futureResponse = new CompletableFuture<Map<Question, List<QuestionMessage>>>();
     questionDatabaseTable.findAllQuestions().thenApply(this::sortOutExpiredQuestions)
-      .thenAccept(questions -> AsyncIterator.execute(questions,
-          question -> findQuestionMessages(question).thenApply(messages ->
-            new AbstractMap.SimpleEntry<>(question, messages)))
+      .thenAccept(questions -> AsyncIterator.execute(questions, question ->
+          questionMessageDatabaseTable.findMessagesOfQuestion(question.id())
+            .thenApply(messages -> new AbstractMap.SimpleEntry<>(question, messages)))
         .thenAccept(entries -> futureResponse.complete(entries.stream()
           .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
     return futureResponse;
@@ -234,30 +247,11 @@ public final class QuestionInformationController extends TeamController {
       }
       sortedOut.add(question);
       if (currentTime >= question.expirationTime()) {
-        deleteQuestion(question);
+        questionModificationController.deleteQuestion(question);
       }
     }
     questions.removeAll(sortedOut);
     return questions;
-  }
-
-  private void deleteQuestion(Question question) {
-    questionDatabaseTable.deleteQuestion(question.requestMessage());
-    questionMessageDatabaseTable.deleteQuestionMessage(question.requestMessage());
-    for (var message : question.conversationMessages()) {
-      questionMessageDatabaseTable.deleteQuestionMessage(message);
-    }
-  }
-
-  private CompletableFuture<List<QuestionMessage>> findQuestionMessages(
-    Question question
-  ) {
-    var futureResponse = new CompletableFuture<List<QuestionMessage>>();
-    AsyncIterator.execute(Stream.concat(question.conversationMessages().stream(),
-          Stream.of(question.requestMessage())).collect(Collectors.toList()),
-        questionMessageDatabaseTable::findQuestionMessage)
-      .thenAccept(futureResponse::complete);
-    return futureResponse;
   }
 
   private String formatTime(long time) {
