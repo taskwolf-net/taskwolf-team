@@ -5,6 +5,7 @@ import com.dulno.core.mail.Mail;
 import com.dulno.core.question.Question;
 import com.dulno.core.question.QuestionDatabaseTable;
 import com.dulno.core.question.QuestionMessageDatabaseTable;
+import com.dulno.core.question.QuestionMessageSenderType;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
@@ -102,8 +103,9 @@ public final class QuestionModificationController extends TeamController {
   private void answerQuestion(
     TeamMember teamMember, Question question, String message, UUID messageId
   ) {
-    questionMessageDatabaseTable.insertQuestionMessage(messageId, "Dulno",
-      message, System.currentTimeMillis());
+    questionMessageDatabaseTable.insertQuestionMessage(messageId,
+      teamMember.id().toString(), QuestionMessageSenderType.TEAM, message,
+      System.currentTimeMillis());
     question.addConversationMessage(messageId);
     question.resetExpirationTime();
     questionDatabaseTable.updateQuestion(question);

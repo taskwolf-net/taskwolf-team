@@ -4,13 +4,11 @@ import com.dulno.core.access.DulnoRequestBody;
 import com.dulno.core.iterator.AsyncIterator;
 import com.dulno.core.mail.Mail;
 import com.dulno.core.mail.MailMessage;
-import com.dulno.core.question.Question;
-import com.dulno.core.question.QuestionDatabaseTable;
-import com.dulno.core.question.QuestionMessage;
-import com.dulno.core.question.QuestionMessageDatabaseTable;
+import com.dulno.core.question.*;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
+import com.dulno.team.member.TeamMember;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
@@ -62,7 +60,15 @@ public final class QuestionInformationController extends TeamController {
     if (!hasPermission) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    return findOpenQuestions().thenApply(this::assemblyQuestions);
+    return findOpenQuestions().thenCompose(this::assemblyQuestions);
+  }
+
+  private CompletableFuture<Map<String, Object>> assemblyQuestions(
+    Map<Question, List<QuestionMessage>> questions
+  ) {
+    return AsyncIterator.execute(Lists.newArrayList(questions.entrySet()),
+        entry -> questionInformation(entry.getKey(), entry.getValue()))
+      .thenApply(information -> Map.of("questions", information));
   }
 
   @RequestMapping(path = "/question/find/", method = RequestMethod.POST)
@@ -72,12 +78,9 @@ public final class QuestionInformationController extends TeamController {
   ) {
     var body = DulnoRequestBody.of(payload, response);
     var questionId = body.getUUID("question");
-    var futureResponse = new CompletableFuture<Map<String, Object>>();
-    memberHasPermission(findMemberId(request), "question.find")
-      .thenAccept(hasPermission -> questionDatabaseTable.questionExists(questionId)
-        .thenAccept(exists -> findQuestion(questionId, hasPermission, exists)
-          .thenAccept(futureResponse::complete)));
-    return futureResponse;
+    return memberHasPermission(findMemberId(request), "question.find")
+      .thenCompose(hasPermission -> questionDatabaseTable.questionExists(questionId)
+        .thenCompose(exists -> findQuestion(questionId, hasPermission, exists)));
   }
 
   private CompletableFuture<Map<String, Object>> findQuestion(
@@ -86,45 +89,55 @@ public final class QuestionInformationController extends TeamController {
     if (!hasPermission || !exists) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    var futureResponse = new CompletableFuture<Map<String, Object>>();
-    questionDatabaseTable.findQuestion(questionId).thenAccept(question ->
-      findQuestionMessages(question).thenAccept(messages ->
-        futureResponse.complete(assemblyQuestion(question, messages))));
-    return futureResponse;
+    return questionDatabaseTable.findQuestion(questionId)
+      .thenCompose(question -> findQuestionMessages(question)
+        .thenCompose(messages -> questionInformation(question, messages)));
   }
 
-  private Map<String, Object> assemblyQuestion(
+  private CompletableFuture<Map<String, Object>> questionInformation(
     Question question, List<QuestionMessage> messages
+  ) {
+    messages.sort(Comparator.comparing(QuestionMessage::time));
+    return AsyncIterator.execute(messages, this::messageInformation)
+      .thenApply(information -> assemblyQuestionInformation(question,
+        messages, information));
+  }
+
+  private Map<String, Object> assemblyQuestionInformation(
+    Question question, List<QuestionMessage> messages,
+    List<Map<String, Object>> messageInformation
   ) {
     var information = Maps.<String, Object>newHashMap();
     information.put("id", question.requestMessage());
     information.put("title", question.title());
     information.put("sender", question.sender());
-    messages.sort(Comparator.comparing(QuestionMessage::time));
     information.put("date", formatTime(messages.get(messages.size() - 1).time()));
-    var messagesInformation = Lists.<Map<String, Object>>newArrayList();
-    for (var message : messages) {
-      var messageInformation = Maps.<String, Object>newHashMap();
-      messageInformation.put("id", message.id());
-      messageInformation.put("sender", message.sender());
-      messageInformation.put("body", message.content());
-      messageInformation.put("teamWritten", message.sender()
-        .equalsIgnoreCase("Dulno"));
-      messageInformation.put("time", formatTime(message.time()));
-      messagesInformation.add(messageInformation);
-    }
-    information.put("messages", messagesInformation);
+    information.put("messages", messageInformation);
     return information;
   }
 
-  private Map<String, Object> assemblyQuestions(
-    Map<Question, List<QuestionMessage>> questions
+  private CompletableFuture<Map<String, Object>> messageInformation(
+    QuestionMessage message
   ) {
-    var information = Lists.<Map<String, Object>>newArrayList();
-    for (var entry : questions.entrySet()) {
-      information.add(assemblyQuestion(entry.getKey(), entry.getValue()));
-    }
-    return Map.of("questions", information);
+    var teamWritten = message.senderType().isTeam();
+    var futureSender = teamWritten ?
+      teamDatabaseTable().findTeamMember(UUID.fromString(message.sender()))
+        .thenApply(TeamMember::name) :
+      CompletableFuture.completedFuture(message.sender());
+    return futureSender.thenApply(sender ->
+      assemblyMessageInformation(message, sender, teamWritten));
+  }
+
+  private Map<String, Object> assemblyMessageInformation(
+    QuestionMessage message, String sender, boolean teamWritten
+  ) {
+    var information = Maps.<String, Object>newHashMap();
+    information.put("id", message.id());
+    information.put("sender", sender);
+    information.put("body", message.content());
+    information.put("teamWritten", teamWritten);
+    information.put("time", formatTime(message.time()));
+    return information;
   }
 
   public CompletableFuture<Map<Question, List<QuestionMessage>>> findOpenQuestions() {
@@ -164,8 +177,9 @@ public final class QuestionInformationController extends TeamController {
     var futureResponse = new CompletableFuture<UUID>();
     var sender = ((InternetAddress) message.sender()).getAddress();
     questionMessageDatabaseTable.generateAvailableMessageId().thenAccept(id ->
-      questionMessageDatabaseTable.insertQuestionMessage(QuestionMessage.create(
-        id, sender, message.body(), message.receiveDate().getTime()))
+      questionMessageDatabaseTable.insertQuestionMessage(
+        QuestionMessage.create(id, sender, QuestionMessageSenderType.USER,
+          message.body(), message.receiveDate().getTime()))
         .thenAccept(value -> futureResponse.complete(id)));
     return futureResponse;
   }
