@@ -151,6 +151,7 @@ public final class SaleInformationController extends TeamController {
     information.put("body", message.content());
     information.put("teamWritten", teamWritten);
     information.put("time", formatTime(message.time()));
+    information.put("rawTime", message.time());
     return information;
   }
 
