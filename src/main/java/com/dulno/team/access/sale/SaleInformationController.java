@@ -4,6 +4,8 @@ import com.dulno.core.access.DulnoRequestBody;
 import com.dulno.core.iterator.AsyncIterator;
 import com.dulno.core.mail.Mail;
 import com.dulno.core.mail.MailMessage;
+import com.dulno.core.question.Question;
+import com.dulno.core.question.QuestionMessage;
 import com.dulno.core.sale.*;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
@@ -32,17 +34,20 @@ public final class SaleInformationController extends TeamController {
   private final Mail saleMail;
   private final SaleDatabaseTable saleDatabaseTable;
   private final SaleMessageDatabaseTable saleMessageDatabaseTable;
+  private final SaleModificationController saleModificationController;
 
   private SaleInformationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, @Qualifier("saleMail") Mail saleMail,
     SaleDatabaseTable saleDatabaseTable,
-    SaleMessageDatabaseTable saleMessageDatabaseTable
+    SaleMessageDatabaseTable saleMessageDatabaseTable,
+    SaleModificationController saleModificationController
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.saleMail = saleMail;
     this.saleDatabaseTable = saleDatabaseTable;
     this.saleMessageDatabaseTable = saleMessageDatabaseTable;
+    this.saleModificationController = saleModificationController;
   }
 
   @RequestMapping(path = "/sales/find/", method = RequestMethod.GET)
@@ -88,18 +93,21 @@ public final class SaleInformationController extends TeamController {
     if (!hasPermission || !exists) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    return saleDatabaseTable.findSale(saleId)
-      .thenCompose(sale -> findSaleMessages(sale)
-        .thenCompose(messages -> saleInformation(sale, messages)));
+    return saleDatabaseTable.findSale(saleId).thenCompose(sale ->
+      saleMessageDatabaseTable.findMessagesOfSale(sale.id())
+        .thenCompose(messages ->  saleInformation(sale, messages)));
   }
 
   private CompletableFuture<Map<String, Object>> saleInformation(
     Sale sale, List<SaleMessage> messages
   ) {
-    messages.sort(Comparator.comparing(SaleMessage::time));
+    var sortedMessages = messages.stream()
+      .sorted(Comparator.comparing(SaleMessage::time)).toList();
     return AsyncIterator.execute(messages, this::messageInformation)
+      .thenApply(information -> information.stream()
+        .sorted(Comparator.comparing(entry -> (long) entry.get("rawTime"))).toList())
       .thenApply(information -> assemblySaleInformation(sale,
-        messages, information));
+        sortedMessages, information));
   }
 
   private Map<String, Object> assemblySaleInformation(
@@ -107,7 +115,7 @@ public final class SaleInformationController extends TeamController {
     List<Map<String, Object>> messageInformation
   ) {
     var information = Maps.<String, Object>newHashMap();
-    information.put("id", sale.requestMessage());
+    information.put("id", sale.id());
     information.put("title", sale.title());
     information.put("sender", sale.sender());
     information.put("firstName", sale.firstName());
@@ -168,45 +176,46 @@ public final class SaleInformationController extends TeamController {
     MailMessage incomingMessage, List<MailMessage> inbox,
     Runnable futureResponse
   ) {
-    var sender = ((InternetAddress) incomingMessage.sender()).getAddress();
-    saleDatabaseTable.findSalesBySender(sender).thenAccept(sales ->
-      saveSaleMail(incomingMessage, inbox, futureResponse, sales));
+    saleMessageDatabaseTable.saleMessageExists(incomingMessage.inReplyTo())
+      .thenCompose(exists -> findSale(incomingMessage.inReplyTo(), exists))
+      .thenAccept(sale -> saveSaleMail(incomingMessage, inbox, futureResponse,
+        sale));
+  }
+
+  private CompletableFuture<Sale> findSale(String inReplyTo, boolean exists) {
+    if (!exists) {
+      return CompletableFuture.completedFuture(null);
+    }
+    return saleMessageDatabaseTable.findSaleMessage(inReplyTo)
+      .thenCompose(message -> saleDatabaseTable.findSale(message.saleId()));
   }
 
   private void saveSaleMail(
     MailMessage incomingMessage, List<MailMessage> inbox,
-    Runnable futureResponse, List<Sale> sales
+    Runnable futureResponse, Sale sale
   ) {
-    var sale = sales.stream()
-      .filter(entry -> incomingMessage.title().replace("Re: ", "")
-        .contains(entry.title()))
-      .findFirst();
-    if (sale.isEmpty()) {
+    if (sale == null) {
       saveNextSale(inbox, futureResponse);
       return;
     }
-    saveSaleMailMessage(incomingMessage).thenAccept(incomingMessageId ->
-      saveSaleMail(incomingMessageId, sale.get(), inbox, futureResponse));
+    saveSaleMailMessage(sale.id(), incomingMessage)
+      .thenAccept(value -> saveSaleMail(sale, inbox, futureResponse));
   }
 
-  private CompletableFuture<UUID> saveSaleMailMessage(
-    MailMessage message
+  private CompletableFuture<Void> saveSaleMailMessage(
+    UUID saleId, MailMessage message
   ) {
-    var futureResponse = new CompletableFuture<UUID>();
     var sender = ((InternetAddress) message.sender()).getAddress();
-    saleMessageDatabaseTable.generateAvailableMessageId().thenAccept(id ->
-      saleMessageDatabaseTable.insertSaleMessage(
-          SaleMessage.create(id, sender, SaleMessageSenderType.USER,
-            message.body(), message.receiveDate().getTime()))
-        .thenAccept(value -> futureResponse.complete(id)));
-    return futureResponse;
+    return saleMessageDatabaseTable.generateAvailableMessageId()
+      .thenAccept(id -> saleMessageDatabaseTable.insertSaleMessage(
+        SaleMessage.create(id, message.messageId(), saleId, sender,
+          SaleMessageSenderType.USER, message.body(),
+          message.receiveDate().getTime())));
   }
 
   private void saveSaleMail(
-    UUID incomingMessageId, Sale parentMail, List<MailMessage> inbox,
-    Runnable futureResponse
+    Sale parentMail, List<MailMessage> inbox, Runnable futureResponse
   ) {
-    parentMail.addConversationMessage(incomingMessageId);
     parentMail.disableExpirationTime();
     saleDatabaseTable.updateSale(parentMail).thenAccept(value ->
       saveNextSale(inbox, futureResponse));
@@ -226,8 +235,9 @@ public final class SaleInformationController extends TeamController {
   private CompletableFuture<Map<Sale, List<SaleMessage>>> findAllSales() {
     var futureResponse = new CompletableFuture<Map<Sale, List<SaleMessage>>>();
     saleDatabaseTable.findAllSales().thenApply(this::sortOutExpiredSales)
-      .thenAccept(sales -> AsyncIterator.execute(sales, sale -> findSaleMessages(sale)
-          .thenApply(messages -> new AbstractMap.SimpleEntry<>(sale, messages)))
+      .thenAccept(sales -> AsyncIterator.execute(sales, sale ->
+          saleMessageDatabaseTable.findMessagesOfSale(sale.id())
+            .thenApply(messages -> new AbstractMap.SimpleEntry<>(sale, messages)))
         .thenAccept(entries -> futureResponse.complete(entries.stream()
           .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
     return futureResponse;
@@ -242,30 +252,11 @@ public final class SaleInformationController extends TeamController {
       }
       sortedOut.add(sale);
       if (currentTime >= sale.expirationTime()) {
-        deleteSale(sale);
+        saleModificationController.deleteSale(sale);
       }
     }
     sales.removeAll(sortedOut);
     return sales;
-  }
-
-  private void deleteSale(Sale sale) {
-    saleDatabaseTable.deleteSale(sale.requestMessage());
-    saleMessageDatabaseTable.deleteSaleMessage(sale.requestMessage());
-    for (var message : sale.conversationMessages()) {
-      saleMessageDatabaseTable.deleteSaleMessage(message);
-    }
-  }
-
-  private CompletableFuture<List<SaleMessage>> findSaleMessages(
-    Sale sale
-  ) {
-    var futureResponse = new CompletableFuture<List<SaleMessage>>();
-    AsyncIterator.execute(Stream.concat(sale.conversationMessages().stream(),
-          Stream.of(sale.requestMessage())).collect(Collectors.toList()),
-        saleMessageDatabaseTable::findSaleMessage)
-      .thenAccept(futureResponse::complete);
-    return futureResponse;
   }
 
   private String formatTime(long time) {

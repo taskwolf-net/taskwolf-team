@@ -2,6 +2,7 @@ package com.dulno.team.access.sale;
 
 import com.dulno.core.access.DulnoRequestBody;
 import com.dulno.core.mail.Mail;
+import com.dulno.core.question.QuestionMessageSenderType;
 import com.dulno.core.sale.Sale;
 import com.dulno.core.sale.SaleDatabaseTable;
 import com.dulno.core.sale.SaleMessageDatabaseTable;
@@ -64,12 +65,11 @@ public final class SaleModificationController extends TeamController {
     saleDatabaseTable.findSale(saleId).thenAccept(this::deleteSale);
   }
 
-  private void deleteSale(Sale sale) {
-    saleDatabaseTable.deleteSale(sale.requestMessage());
-    saleMessageDatabaseTable.deleteSaleMessage(sale.requestMessage());
-    for (var message : sale.conversationMessages()) {
-      saleMessageDatabaseTable.deleteSaleMessage(message);
-    }
+  public void deleteSale(Sale sale) {
+    saleDatabaseTable.deleteSale(sale.id());
+    saleMessageDatabaseTable.findMessagesOfSale(sale.id())
+      .thenAccept(messages -> messages.forEach(message ->
+        saleMessageDatabaseTable.deleteSaleMessage(message.id())));
   }
 
   @RequestMapping(path = "/sale/answer/", method = RequestMethod.POST)
@@ -101,14 +101,13 @@ public final class SaleModificationController extends TeamController {
   private void answerSale(
     TeamMember teamMember, Sale sale, String message, UUID messageId
   ) {
-    saleMessageDatabaseTable.insertSaleMessage(messageId,
-      teamMember.id().toString(), SaleMessageSenderType.TEAM, message,
-      System.currentTimeMillis());
-    sale.addConversationMessage(messageId);
     sale.resetExpirationTime();
     saleDatabaseTable.updateSale(sale);
     saleMail.send(sale.sender(), "Re: " + sale.title(), message,
-      "text/html; charset=utf-8");
+      "text/html; charset=utf-8")
+      .thenAccept(publicId -> saleMessageDatabaseTable.insertSaleMessage(
+        messageId, publicId, sale.id(), teamMember.id().toString(),
+        SaleMessageSenderType.TEAM, message, System.currentTimeMillis()));
     teamWorkDatabaseTable.hasRequestReplies(teamMember.id())
       .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
   }
