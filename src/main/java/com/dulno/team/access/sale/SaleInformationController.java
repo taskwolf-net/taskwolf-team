@@ -2,10 +2,9 @@ package com.dulno.team.access.sale;
 
 import com.dulno.core.access.DulnoRequestBody;
 import com.dulno.core.iterator.AsyncIterator;
-import com.dulno.core.sale.Sale;
-import com.dulno.core.sale.SaleDatabaseTable;
-import com.dulno.core.sale.SaleMessage;
-import com.dulno.core.sale.SaleMessageDatabaseTable;
+import com.dulno.core.mail.Mail;
+import com.dulno.core.mail.MailMessage;
+import com.dulno.core.sale.*;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
@@ -14,11 +13,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.mail.internet.InternetAddress;
 import java.security.Key;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -28,15 +29,18 @@ import java.util.stream.Stream;
 
 @RestController
 public final class SaleInformationController extends TeamController {
+  private final Mail saleMail;
   private final SaleDatabaseTable saleDatabaseTable;
   private final SaleMessageDatabaseTable saleMessageDatabaseTable;
 
   private SaleInformationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
-    GroupDatabaseTable groupDatabaseTable, SaleDatabaseTable saleDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable, @Qualifier("saleMail") Mail saleMail,
+    SaleDatabaseTable saleDatabaseTable,
     SaleMessageDatabaseTable saleMessageDatabaseTable
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
+    this.saleMail = saleMail;
     this.saleDatabaseTable = saleDatabaseTable;
     this.saleMessageDatabaseTable = saleMessageDatabaseTable;
   }
@@ -55,7 +59,7 @@ public final class SaleInformationController extends TeamController {
     if (!hasPermission) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    return findAllSupportSales().thenCompose(this::assemblySales);
+    return findOpenSales().thenCompose(this::assemblySales);
   }
 
   private CompletableFuture<Map<String, Object>> assemblySales(
@@ -142,7 +146,84 @@ public final class SaleInformationController extends TeamController {
     return information;
   }
 
-  private CompletableFuture<Map<Sale, List<SaleMessage>>> findAllSupportSales() {
+  public CompletableFuture<Map<Sale, List<SaleMessage>>> findOpenSales() {
+    var futureResponse = new CompletableFuture<Map<Sale, List<SaleMessage>>>();
+    saleMail.inboxAndFlush().thenAccept(inbox -> saveInbox(new ArrayList<>(inbox))
+      .thenAccept(value -> findAllSales().thenAccept(futureResponse::complete)));
+    return futureResponse;
+  }
+
+  private CompletableFuture<Void> saveInbox(List<MailMessage> inbox) {
+    if (inbox.isEmpty()) {
+      return CompletableFuture.completedFuture(null);
+    }
+    inbox.sort(Comparator.comparing(message -> message.receiveDate().getTime()));
+    var futureResponse = new CompletableFuture<Void>();
+    var firstElement = inbox.remove(0);
+    saveSaleMail(firstElement, inbox, () -> futureResponse.complete(null));
+    return futureResponse;
+  }
+
+  private void saveSaleMail(
+    MailMessage incomingMessage, List<MailMessage> inbox,
+    Runnable futureResponse
+  ) {
+    var sender = ((InternetAddress) incomingMessage.sender()).getAddress();
+    saleDatabaseTable.findSalesBySender(sender).thenAccept(sales ->
+      saveSaleMail(incomingMessage, inbox, futureResponse, sales));
+  }
+
+  private void saveSaleMail(
+    MailMessage incomingMessage, List<MailMessage> inbox,
+    Runnable futureResponse, List<Sale> sales
+  ) {
+    var sale = sales.stream()
+      .filter(entry -> incomingMessage.title().replace("Re: ", "")
+        .contains(entry.title()))
+      .findFirst();
+    if (sale.isEmpty()) {
+      saveNextSale(inbox, futureResponse);
+      return;
+    }
+    saveSaleMailMessage(incomingMessage).thenAccept(incomingMessageId ->
+      saveSaleMail(incomingMessageId, sale.get(), inbox, futureResponse));
+  }
+
+  private CompletableFuture<UUID> saveSaleMailMessage(
+    MailMessage message
+  ) {
+    var futureResponse = new CompletableFuture<UUID>();
+    var sender = ((InternetAddress) message.sender()).getAddress();
+    saleMessageDatabaseTable.generateAvailableMessageId().thenAccept(id ->
+      saleMessageDatabaseTable.insertSaleMessage(
+          SaleMessage.create(id, sender, SaleMessageSenderType.USER,
+            message.body(), message.receiveDate().getTime()))
+        .thenAccept(value -> futureResponse.complete(id)));
+    return futureResponse;
+  }
+
+  private void saveSaleMail(
+    UUID incomingMessageId, Sale parentMail, List<MailMessage> inbox,
+    Runnable futureResponse
+  ) {
+    parentMail.addConversationMessage(incomingMessageId);
+    parentMail.disableExpirationTime();
+    saleDatabaseTable.updateSale(parentMail).thenAccept(value ->
+      saveNextSale(inbox, futureResponse));
+  }
+
+  private void saveNextSale(
+    List<MailMessage> inbox, Runnable futureResponse
+  ) {
+    if (inbox.isEmpty()) {
+      futureResponse.run();
+      return;
+    }
+    var firstElement = inbox.remove(0);
+    saveSaleMail(firstElement, inbox, futureResponse);
+  }
+
+  private CompletableFuture<Map<Sale, List<SaleMessage>>> findAllSales() {
     var futureResponse = new CompletableFuture<Map<Sale, List<SaleMessage>>>();
     saleDatabaseTable.findAllSales().thenApply(this::sortOutExpiredSales)
       .thenAccept(sales -> AsyncIterator.execute(sales, sale -> findSaleMessages(sale)
