@@ -2,7 +2,6 @@ package com.dulno.team.access.sale;
 
 import com.dulno.core.access.DulnoRequestBody;
 import com.dulno.core.mail.Mail;
-import com.dulno.core.question.QuestionMessageSenderType;
 import com.dulno.core.sale.Sale;
 import com.dulno.core.sale.SaleDatabaseTable;
 import com.dulno.core.sale.SaleMessageDatabaseTable;
@@ -62,14 +61,7 @@ public final class SaleModificationController extends TeamController {
     if (!hasPermission || !exists) {
       return;
     }
-    saleDatabaseTable.findSale(saleId).thenAccept(this::deleteSale);
-  }
-
-  public void deleteSale(Sale sale) {
-    saleDatabaseTable.deleteSale(sale.id());
-    saleMessageDatabaseTable.findMessagesOfSale(sale.id())
-      .thenAccept(messages -> messages.forEach(message ->
-        saleMessageDatabaseTable.deleteSaleMessage(message.id())));
+    saleDatabaseTable.updateSaleStatus(saleId, Sale.Status.CLOSED);
   }
 
   @RequestMapping(path = "/sale/answer/", method = RequestMethod.POST)

@@ -4,8 +4,6 @@ import com.dulno.core.access.DulnoRequestBody;
 import com.dulno.core.iterator.AsyncIterator;
 import com.dulno.core.mail.Mail;
 import com.dulno.core.mail.MailMessage;
-import com.dulno.core.question.Question;
-import com.dulno.core.question.QuestionMessage;
 import com.dulno.core.sale.*;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
@@ -27,27 +25,23 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @RestController
 public final class SaleInformationController extends TeamController {
   private final Mail saleMail;
   private final SaleDatabaseTable saleDatabaseTable;
   private final SaleMessageDatabaseTable saleMessageDatabaseTable;
-  private final SaleModificationController saleModificationController;
 
   private SaleInformationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, @Qualifier("saleMail") Mail saleMail,
     SaleDatabaseTable saleDatabaseTable,
-    SaleMessageDatabaseTable saleMessageDatabaseTable,
-    SaleModificationController saleModificationController
+    SaleMessageDatabaseTable saleMessageDatabaseTable
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.saleMail = saleMail;
     this.saleDatabaseTable = saleDatabaseTable;
     this.saleMessageDatabaseTable = saleMessageDatabaseTable;
-    this.saleModificationController = saleModificationController;
   }
 
   @RequestMapping(path = "/sales/find/", method = RequestMethod.GET)
@@ -117,6 +111,7 @@ public final class SaleInformationController extends TeamController {
     var information = Maps.<String, Object>newHashMap();
     information.put("id", sale.id());
     information.put("title", sale.title());
+    information.put("status", sale.status());
     information.put("sender", sale.sender());
     information.put("firstName", sale.firstName());
     information.put("lastName", sale.lastName());
@@ -235,7 +230,7 @@ public final class SaleInformationController extends TeamController {
 
   private CompletableFuture<Map<Sale, List<SaleMessage>>> findAllSales() {
     var futureResponse = new CompletableFuture<Map<Sale, List<SaleMessage>>>();
-    saleDatabaseTable.findAllSales().thenApply(this::sortOutExpiredSales)
+    saleDatabaseTable.findOpenSales().thenApply(this::sortOutExpiredSales)
       .thenAccept(sales -> AsyncIterator.execute(sales, sale ->
           saleMessageDatabaseTable.findMessagesOfSale(sale.id())
             .thenApply(messages -> new AbstractMap.SimpleEntry<>(sale, messages)))
@@ -253,7 +248,7 @@ public final class SaleInformationController extends TeamController {
       }
       sortedOut.add(sale);
       if (currentTime >= sale.expirationTime()) {
-        saleModificationController.deleteSale(sale);
+        saleDatabaseTable.updateSaleStatus(sale.id(), Sale.Status.CLOSED);
       }
     }
     sales.removeAll(sortedOut);
