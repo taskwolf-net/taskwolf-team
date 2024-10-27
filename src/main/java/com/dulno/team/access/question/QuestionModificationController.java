@@ -63,14 +63,7 @@ public final class QuestionModificationController extends TeamController {
     if (!hasPermission || !exists) {
       return;
     }
-    questionDatabaseTable.findQuestion(questionId).thenAccept(this::deleteQuestion);
-  }
-
-  public void deleteQuestion(Question question) {
-    questionDatabaseTable.deleteQuestion(question.id());
-    questionMessageDatabaseTable.findMessagesOfQuestion(question.id())
-      .thenAccept(messages -> messages.forEach(message ->
-        questionMessageDatabaseTable.deleteQuestionMessage(message.id())));
+    questionDatabaseTable.updateQuestionStatus(questionId, Question.Status.CLOSED);
   }
 
   @RequestMapping(path = "/question/answer/", method = RequestMethod.POST)

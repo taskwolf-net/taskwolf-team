@@ -31,21 +31,18 @@ public final class QuestionInformationController extends TeamController {
   private final Mail supportMail;
   private final QuestionDatabaseTable questionDatabaseTable;
   private final QuestionMessageDatabaseTable questionMessageDatabaseTable;
-  private final QuestionModificationController questionModificationController;
 
   private QuestionInformationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     @Qualifier("supportMail") Mail supportMail,
     QuestionDatabaseTable questionDatabaseTable,
-    QuestionMessageDatabaseTable questionMessageDatabaseTable,
-    QuestionModificationController questionModificationController
+    QuestionMessageDatabaseTable questionMessageDatabaseTable
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.supportMail = supportMail;
     this.questionDatabaseTable = questionDatabaseTable;
     this.questionMessageDatabaseTable = questionMessageDatabaseTable;
-    this.questionModificationController = questionModificationController;
   }
 
   @RequestMapping(path = "/questions/find/", method = RequestMethod.GET)
@@ -115,6 +112,7 @@ public final class QuestionInformationController extends TeamController {
     var information = Maps.<String, Object>newHashMap();
     information.put("id", question.id());
     information.put("title", question.title());
+    information.put("status", question.status());
     information.put("sender", question.sender());
     information.put("date", formatTime(messages.get(messages.size() - 1).time()));
     information.put("messages", messageInformation);
@@ -200,7 +198,7 @@ public final class QuestionInformationController extends TeamController {
     questionDatabaseTable.generateAvailableQuestionId()
       .thenAccept(id -> questionDatabaseTable.insertQuestion(id,
           ((InternetAddress) incomingMessage.sender()).getAddress(),
-          incomingMessage.title(), -1)
+          incomingMessage.title(), Question.Status.OPEN.toString(), -1)
         .thenCompose(value -> saveSupportMailMessage(id, incomingMessage))
         .thenAccept(value -> saveNextSupportMail(inbox, futureResponse)));
   }
@@ -229,7 +227,7 @@ public final class QuestionInformationController extends TeamController {
 
   private CompletableFuture<Map<Question, List<QuestionMessage>>> findAllSupportQuestions() {
     var futureResponse = new CompletableFuture<Map<Question, List<QuestionMessage>>>();
-    questionDatabaseTable.findAllQuestions().thenApply(this::sortOutExpiredQuestions)
+    questionDatabaseTable.findOpenQuestions().thenApply(this::sortOutExpiredQuestions)
       .thenAccept(questions -> AsyncIterator.execute(questions, question ->
           questionMessageDatabaseTable.findMessagesOfQuestion(question.id())
             .thenApply(messages -> new AbstractMap.SimpleEntry<>(question, messages)))
@@ -247,7 +245,8 @@ public final class QuestionInformationController extends TeamController {
       }
       sortedOut.add(question);
       if (currentTime >= question.expirationTime()) {
-        questionModificationController.deleteQuestion(question);
+        questionDatabaseTable.updateQuestionStatus(question.id(),
+          Question.Status.CLOSED);
       }
     }
     questions.removeAll(sortedOut);
