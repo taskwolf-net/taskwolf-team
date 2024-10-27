@@ -45,19 +45,19 @@ public final class SaleModificationController extends TeamController {
     this.teamWorkDatabaseTable = teamWorkDatabaseTable;
   }
 
-  @RequestMapping(path = "/sale/delete/", method = RequestMethod.POST)
-  public void deleteSale(
+  @RequestMapping(path = "/sale/close/", method = RequestMethod.POST)
+  public void closeSale(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
   ) {
     var body = DulnoRequestBody.of(payload, response);
     var saleId = body.getUUID("sale");
-    memberHasPermission(findMemberId(request), "sale.delete")
+    memberHasPermission(findMemberId(request), "sale.close")
       .thenAccept(hasPermission -> saleDatabaseTable.saleExists(saleId)
-        .thenAccept(exists -> deleteSale(saleId, hasPermission, exists)));
+        .thenAccept(exists -> closeSale(saleId, hasPermission, exists)));
   }
 
-  private void deleteSale(UUID saleId, boolean hasPermission, boolean exists) {
+  private void closeSale(UUID saleId, boolean hasPermission, boolean exists) {
     if (!hasPermission || !exists) {
       return;
     }

@@ -45,19 +45,19 @@ public final class QuestionModificationController extends TeamController {
     this.teamWorkDatabaseTable = teamWorkDatabaseTable;
   }
 
-  @RequestMapping(path = "/question/delete/", method = RequestMethod.POST)
-  public void deleteQuestion(
+  @RequestMapping(path = "/question/close/", method = RequestMethod.POST)
+  public void closeQuestion(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
   ) {
     var body = DulnoRequestBody.of(payload, response);
     var questionId = body.getUUID("question");
-    memberHasPermission(findMemberId(request), "question.delete")
+    memberHasPermission(findMemberId(request), "question.close")
       .thenAccept(hasPermission -> questionDatabaseTable.questionExists(questionId)
-        .thenAccept(exists -> deleteQuestion(questionId, hasPermission, exists)));
+        .thenAccept(exists -> closeQuestion(questionId, hasPermission, exists)));
   }
 
-  private void deleteQuestion(
+  private void closeQuestion(
     UUID questionId, boolean hasPermission, boolean exists
   ) {
     if (!hasPermission || !exists) {
