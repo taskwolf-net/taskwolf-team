@@ -93,7 +93,7 @@ public final class UserController extends TeamController {
     return userDatabaseTable.findUser(userId)
       .thenCompose(user -> AsyncIterator.execute(user.organizations(),
           organizationDatabaseTable::findOrganization)
-        .thenCompose(organizations -> ticketDatabaseTable.findTicketsByCreator(userId)
+        .thenCompose(organizations -> ticketDatabaseTable.findAllTicketsOfCreator(userId)
           .thenApply(tickets -> assemblyUserInformation(user, organizations, tickets))));
   }
 
