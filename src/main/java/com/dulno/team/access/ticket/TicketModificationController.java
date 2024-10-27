@@ -146,31 +146,24 @@ public final class TicketModificationController extends TeamController {
     ticketDatabaseTable.removeTicketMessage(ticket.id(), messageId);
   }
 
-  @RequestMapping(path = "/ticket/delete/", method = RequestMethod.POST)
-  public void deleteTicket(
+  @RequestMapping(path = "/ticket/close/", method = RequestMethod.POST)
+  public void closeTicket(
     HttpServletRequest request, @RequestBody String payload,
     HttpServletResponse response
   ) {
     var body = DulnoRequestBody.of(payload, response);
     var ticketId = body.getUUID("ticket");
-    memberHasPermission(findMemberId(request), "ticket.delete")
+    memberHasPermission(findMemberId(request), "ticket.close")
       .thenAccept(hasPermission -> ticketDatabaseTable.ticketExists(ticketId)
-        .thenAccept(exists -> deleteTicket(ticketId, hasPermission, exists)));
+        .thenAccept(exists -> closeTicket(ticketId, hasPermission, exists)));
   }
 
-  private void deleteTicket(
+  private void closeTicket(
     UUID ticketId, boolean hasPermission, boolean exists
   ) {
     if (!hasPermission || !exists) {
       return;
     }
-    ticketDatabaseTable.findTicket(ticketId).thenAccept(this::deleteTicket);
-  }
-
-  private void deleteTicket(Ticket ticket) {
-    ticketDatabaseTable.deleteTicket(ticket.id());
-    for (var message : ticket.messages()) {
-      ticketMessageDatabaseTable.deleteTicketMessage(message);
-    }
+    ticketDatabaseTable.updateTicketStatus(ticketId, Ticket.Status.CLOSED);
   }
 }

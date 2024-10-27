@@ -59,7 +59,7 @@ public final class StatisticsController extends TeamController {
 
   private CompletableFuture<Integer> findOpenTickets() {
     var futureResponse = new CompletableFuture<Integer>();
-    ticketDatabaseTable.findAllTickets().thenApply(tickets -> tickets.stream()
+    ticketDatabaseTable.findOpenTickets().thenApply(tickets -> tickets.stream()
       .filter(ticket -> ticket.expirationTime() == -1).toList()).thenAccept(
         tickets -> futureResponse.complete(tickets.size()));
     return futureResponse;

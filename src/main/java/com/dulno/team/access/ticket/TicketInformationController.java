@@ -58,7 +58,7 @@ public final class TicketInformationController extends TeamController {
     if (!hasPermission) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    return ticketDatabaseTable.findAllTickets()
+    return ticketDatabaseTable.findOpenTickets()
       .thenApply(tickets -> sortOutExpiredTickets(new ArrayList<>(tickets)))
       .thenCompose(tickets -> AsyncIterator.execute(tickets, this::findTicket)
         .thenApply(information -> Map.of("tickets", information)));
@@ -73,18 +73,11 @@ public final class TicketInformationController extends TeamController {
       }
       sortedOut.add(ticket);
       if (currentTime >= ticket.expirationTime()) {
-        deleteTicket(ticket);
+        ticketDatabaseTable.updateTicketStatus(ticket.id(), Ticket.Status.CLOSED);
       }
     }
     tickets.removeAll(sortedOut);
     return tickets;
-  }
-
-  private void deleteTicket(Ticket ticket) {
-    ticketDatabaseTable.deleteTicket(ticket.id());
-    for (var message : ticket.messages()) {
-      ticketMessageDatabaseTable.deleteTicketMessage(message);
-    }
   }
 
   @RequestMapping(path = "/ticket/find/", method = RequestMethod.POST)
