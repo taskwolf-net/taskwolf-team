@@ -90,6 +90,7 @@ public final class TicketModificationController extends TeamController {
   ) {
     ticket.addMessage(messageId);
     ticket.resetExpirationTime();
+    ticket.updateLastMessageSeen(false);
     ticketDatabaseTable.updateTicket(ticket);
     ticketMessageDatabaseTable.insertTicketMessage(TicketMessage.create(messageId,
       ticket.id(), teamMember.id(), TicketMessageAuthorType.TEAM, message,
