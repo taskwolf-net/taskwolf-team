@@ -106,6 +106,7 @@ public final class UserController extends TeamController {
     information.put("email", user.email());
     information.put("name", user.name());
     information.put("language", user.language());
+    information.put("joinDate", user.joinDate());
     var organizationInformation = Lists.<Map<String, Object>>newArrayList();
     for (var organization : organizations) {
       organizationInformation.add(Map.of("id", organization.id(),
