@@ -29,9 +29,7 @@ import com.dulno.core.workflow.operation.OperationDatabaseTable;
 import com.dulno.core.workflow.throttle.WorkflowThrottleDatabaseTable;
 import com.dulno.team.distribution.TeamDistributionConfiguration;
 import com.dulno.team.group.GroupDatabaseTable;
-import com.dulno.team.member.TeamDatabaseTable;
-import com.dulno.team.member.TeamVerificationDatabaseTable;
-import com.dulno.team.member.TeamWorkDatabaseTable;
+import com.dulno.team.member.*;
 import com.dulno.team.member.mfa.TeamMultiFactorAuthDatabaseTable;
 import com.dulno.team.member.mfa.TeamMultiFactorAuthFactory;
 import com.dulno.team.offer.TeamOfferConfiguration;
@@ -60,6 +58,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final WhitelistConfiguration whitelistConfiguration;
   private final TeamDatabaseTable teamDatabaseTable;
   private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
+  private final TeamEmailChangeDatabaseTable teamEmailChangeDatabaseTable;
+  private final TeamPasswordResetDatabaseTable teamPasswordResetDatabaseTable;
   private final TeamWorkDatabaseTable teamWorkDatabaseTable;
   private final GroupDatabaseTable groupDatabaseTable;
   private final Translation translation;
@@ -67,6 +67,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final Mail verificationMail;
   private final Mail supportMail;
   private final Mail saleMail;
+  private final Mail changeMail;
   private final TicketDatabaseTable ticketDatabaseTable;
   private final TicketMessageDatabaseTable ticketMessageDatabaseTable;
   private final QuestionDatabaseTable questionDatabaseTable;
@@ -100,11 +101,14 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     WhitelistConfiguration whitelistConfiguration,
     TeamDatabaseTable teamDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable,
+    TeamEmailChangeDatabaseTable teamEmailChangeDatabaseTable,
+    TeamPasswordResetDatabaseTable teamPasswordResetDatabaseTable,
     TeamWorkDatabaseTable teamWorkDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, Translation translation,
     MailFactory mailFactory, @Named("verificationMail") Mail verificationMail,
     @Named("supportMail") Mail supportMail,
     @Named("saleMail") Mail saleMail,
+    @Named("changeMail") Mail changeMail,
     TicketDatabaseTable ticketDatabaseTable,
     TicketMessageDatabaseTable ticketMessageDatabaseTable,
     QuestionDatabaseTable questionDatabaseTable,
@@ -137,6 +141,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.whitelistConfiguration = whitelistConfiguration;
     this.teamDatabaseTable = teamDatabaseTable;
     this.teamVerificationDatabaseTable = teamVerificationDatabaseTable;
+    this.teamEmailChangeDatabaseTable = teamEmailChangeDatabaseTable;
+    this.teamPasswordResetDatabaseTable = teamPasswordResetDatabaseTable;
     this.teamWorkDatabaseTable = teamWorkDatabaseTable;
     this.groupDatabaseTable = groupDatabaseTable;
     this.translation = translation;
@@ -144,6 +150,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.verificationMail = verificationMail;
     this.supportMail = supportMail;
     this.saleMail = saleMail;
+    this.changeMail = changeMail;
     this.ticketDatabaseTable = ticketDatabaseTable;
     this.ticketMessageDatabaseTable = ticketMessageDatabaseTable;
     this.questionDatabaseTable = questionDatabaseTable;
@@ -185,6 +192,10 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("teamDatabaseTable", teamDatabaseTable);
     beanFactory.registerSingleton("teamVerificationDatabaseTable",
       teamVerificationDatabaseTable);
+    beanFactory.registerSingleton("teamEmailChangeDatabaseTable",
+      teamEmailChangeDatabaseTable);
+    beanFactory.registerSingleton("teamPasswordResetDatabaseTable",
+      teamPasswordResetDatabaseTable);
     beanFactory.registerSingleton("teamWorkDatabaseTable", teamWorkDatabaseTable);
     beanFactory.registerSingleton("groupDatabaseTable", groupDatabaseTable);
     beanFactory.registerSingleton("translation", translation);
@@ -192,6 +203,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("verificationMail", verificationMail);
     beanFactory.registerSingleton("supportMail", supportMail);
     beanFactory.registerSingleton("saleMail", saleMail);
+    beanFactory.registerSingleton("changeMail", changeMail);
     beanFactory.registerSingleton("ticketDatabaseTable", ticketDatabaseTable);
     beanFactory.registerSingleton("ticketMessageDatabaseTable",
       ticketMessageDatabaseTable);

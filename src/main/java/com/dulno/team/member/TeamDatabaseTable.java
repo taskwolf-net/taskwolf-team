@@ -58,6 +58,16 @@ public final class TeamDatabaseTable extends DatabaseTable {
     updateTeamMember(teamMember);
   }
 
+  public void changeTeamMemberEmail(UUID memberId, String email) {
+    findTeamMember(memberId).thenAccept(member ->
+      changeTeamMemberEmail(member, email));
+  }
+
+  public void changeTeamMemberEmail(TeamMember teamMember, String email) {
+    teamMember.changeEmail(email);
+    updateTeamMember(teamMember);
+  }
+
   public void changeTeamMemberPassword(UUID memberId, String passwordHash) {
     findTeamMember(memberId).thenAccept(member ->
       changeTeamMemberPassword(member, passwordHash));

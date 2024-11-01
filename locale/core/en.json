@@ -1,4 +1,10 @@
 {
+  "password.reset.email.title": "Password reset",
+  "password.reset.email.body": "Hey %s,\n\nthere was a request to change your password!\n\nIf you did not make this request then please ignore this email.\n\nOtherwise, please click this link to change your password:\n\n%s",
+
+  "email.change.email.title": "Email change",
+  "email.change.email.body": "Hey,\n\nwe have received a request to replace the email of one of our accounts with this email.\n\nIf you are not a Dulno customer or have not requested the replacement, please ignore this email.\n\nHowever, if this is a genuine request, please click on the link below to complete the change:\n\n%s",
+
   "offer.email.title": "Offer",
   "offer.email.body": "Hey %s,\n\nwe are pleased to inform you that we have put together a customized Dulno package for you.\n\nThis package is personalized to your needs.\n\nClick on the link below to view and accept or decline the offer.\n\nhttps://dulno.com/offer/%s/\n\nWe hope we have been able to meet your requirements.\nHere's to good cooperation!",
 

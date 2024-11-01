@@ -36,6 +36,10 @@ public final class TeamMember {
     name = newName;
   }
 
+  public void changeEmail(String newEmail) {
+    email = newEmail;
+  }
+
   public void changePassword(String newPasswordHash) {
     passwordHash = newPasswordHash;
   }

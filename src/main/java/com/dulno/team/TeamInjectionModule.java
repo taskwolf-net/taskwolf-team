@@ -123,4 +123,15 @@ public final class TeamInjectionModule extends AbstractModule {
       mailConfiguration.imapMailHost(), mailConfiguration.imapMailPort(),
       mailConfiguration.mailUser(), mailConfiguration.mailPassword());
   }
+
+  @Provides
+  @Singleton
+  @Named("changeMail")
+  Mail provideChangeMail(MailFactory mailFactory) throws Exception {
+    var mailConfiguration = MailConfiguration.createAndLoad("change");
+    return mailFactory.create(mailConfiguration.mail(),
+      mailConfiguration.smtpMailHost(), mailConfiguration.smtpMailPort(),
+      mailConfiguration.imapMailHost(), mailConfiguration.imapMailPort(),
+      mailConfiguration.mailUser(), mailConfiguration.mailPassword());
+  }
 }

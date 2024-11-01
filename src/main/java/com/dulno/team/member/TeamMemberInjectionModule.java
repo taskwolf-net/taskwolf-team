@@ -36,6 +36,28 @@ public final class TeamMemberInjectionModule extends AbstractModule {
 
   @Provides
   @Singleton
+  TeamEmailChangeDatabaseTable provideTeamEmailChangeDatabaseTable(
+    DatabaseConnection databaseConnection, DatabaseKeyspace databaseKeyspace
+  ) {
+    var teamEmailChangeDatabaseTable = TeamEmailChangeDatabaseTable.create(
+      databaseConnection, databaseKeyspace);
+    teamEmailChangeDatabaseTable.createIfNotExists();
+    return teamEmailChangeDatabaseTable;
+  }
+
+  @Provides
+  @Singleton
+  TeamPasswordResetDatabaseTable provideTeamPasswordResetDatabaseTable(
+    DatabaseConnection databaseConnection, DatabaseKeyspace databaseKeyspace
+  ) {
+    var teamPasswordResetDatabaseTable = TeamPasswordResetDatabaseTable.create(
+      databaseConnection, databaseKeyspace);
+    teamPasswordResetDatabaseTable.createIfNotExists();
+    return teamPasswordResetDatabaseTable;
+  }
+
+  @Provides
+  @Singleton
   TeamWorkDatabaseTable provideTeamWorkDatabaseTable(
     DatabaseConnection databaseConnection, DatabaseKeyspace databaseKeyspace
   ) {
