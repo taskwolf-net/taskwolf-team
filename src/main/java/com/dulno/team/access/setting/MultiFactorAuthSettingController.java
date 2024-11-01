@@ -1,0 +1,144 @@
+package com.dulno.team.access.setting;
+
+import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.team.access.TeamController;
+import com.dulno.team.group.GroupDatabaseTable;
+import com.dulno.team.member.TeamDatabaseTable;
+import com.dulno.team.member.TeamMember;
+import com.dulno.team.member.mfa.TeamMultiFactorAuthDatabaseTable;
+import com.dulno.team.member.mfa.TeamMultiFactorAuthFactory;
+import com.dulno.team.member.mfa.TeamMultiFactorAuthUser;
+import com.google.common.collect.Maps;
+import com.google.common.hash.Hashing;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.tomcat.util.codec.binary.Base64;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+
+@RestController
+public final class MultiFactorAuthSettingController extends TeamController {
+  private final TeamMultiFactorAuthDatabaseTable multiFactorAuthDatabaseTable;
+  private final TeamMultiFactorAuthFactory multiFactorAuthFactory;
+
+  private MultiFactorAuthSettingController(
+    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable,
+    TeamMultiFactorAuthDatabaseTable multiFactorAuthDatabaseTable,
+    TeamMultiFactorAuthFactory multiFactorAuthFactory
+  ) {
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
+    this.multiFactorAuthDatabaseTable = multiFactorAuthDatabaseTable;
+    this.multiFactorAuthFactory = multiFactorAuthFactory;
+  }
+
+  @RequestMapping(path = "/settings/2fa/", method = RequestMethod.GET)
+  public CompletableFuture<Map<String, Object>> multiFactorAuth(
+    HttpServletRequest request
+  ) {
+    return multiFactorAuthDatabaseTable.authExists(findMemberId(request))
+      .thenApply(exists -> Map.of("enabled", exists));
+  }
+
+  @RequestMapping(path = "/settings/2fa/switch/", method = RequestMethod.POST)
+  public CompletableFuture<Map<String, Object>> switchMultiFactorAuth(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = DulnoRequestBody.of(payload, response);
+    return findMember(request).thenCompose(member -> switchMultiFactorAuth(member,
+      body.getString("password")));
+  }
+
+  private CompletableFuture<Map<String, Object>> switchMultiFactorAuth(
+    TeamMember member, String password
+  ) {
+    if (!member.passwordHash().equals(hashPassword(password))) {
+      return CompletableFuture.completedFuture(Map.of("success", false));
+    }
+    return multiFactorAuthDatabaseTable.authExists(member.id())
+      .thenCompose(exists -> switchMultiFactorAuth(member.id(), exists));
+  }
+
+  private CompletableFuture<Map<String, Object>> switchMultiFactorAuth(
+    UUID memberId, boolean multiFactorAuthEnabled
+  ) {
+    if (multiFactorAuthEnabled) {
+      multiFactorAuthDatabaseTable.deleteAuth(memberId);
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    var auth = multiFactorAuthFactory.createAuth(memberId);
+    return auth.setup().thenCompose(value -> auth.generateQRCode()
+      .thenApply(Base64::encodeBase64String)
+      .thenCompose(qrCodeEncoded -> multiFactorAuthDatabaseTable.findAuth(memberId)
+        .thenApply(authUser -> Map.of("qrCode", qrCodeEncoded, "secret",
+          authUser.secret(), "recoveryCodes", authUser.recoveryCodes()))));
+  }
+
+  private String hashPassword(String password) {
+    return Hashing.sha256().hashString(password, StandardCharsets.UTF_8)
+      .toString();
+  }
+
+  @RequestMapping(path = "/settings/2fa/confirm/", method = RequestMethod.POST)
+  public CompletableFuture<Map<String, Object>> confirmMultiFactorAuth(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = DulnoRequestBody.of(payload, response);
+    var memberId = findMemberId(request);
+    return multiFactorAuthDatabaseTable.authExists(memberId)
+      .thenCompose(exists -> confirmMultiFactorAuth(memberId,
+        body.getString("code"), exists));
+  }
+
+  private CompletableFuture<Map<String, Object>> confirmMultiFactorAuth(
+    UUID memberId, String code, boolean multiFactorEnabled
+  ) {
+    if (!multiFactorEnabled) {
+      return CompletableFuture.completedFuture(Map.of("success", false));
+    }
+    return multiFactorAuthDatabaseTable.findAuth(memberId)
+      .thenCompose(auth -> confirmMultiFactorAuth(memberId, code, auth));
+  }
+
+  private CompletableFuture<Map<String, Object>> confirmMultiFactorAuth(
+    UUID memberId, String code, TeamMultiFactorAuthUser auth
+  ) {
+    if (auth.confirmed()) {
+      return CompletableFuture.completedFuture(Map.of("success", false));
+    }
+    return multiFactorAuthFactory.createAuth(memberId).verifyCode(code)
+      .thenCompose(verified -> !verified ?
+        CompletableFuture.completedFuture(Map.of("success", false)) :
+        multiFactorAuthDatabaseTable.confirmAuth(memberId)
+          .thenApply(value -> Map.of("success", true)));
+  }
+
+  @RequestMapping(path = "/settings/2fa/isConfirmed/", method = RequestMethod.GET)
+  public CompletableFuture<Map<String, Object>> isMultiFactorAuthConfirmed(
+    HttpServletRequest request
+  ) {
+    var memberId = findMemberId(request);
+    return multiFactorAuthDatabaseTable.authExists(memberId)
+      .thenCompose(exists -> isMultiFactorAuthConfirmed(memberId, exists));
+  }
+
+  private CompletableFuture<Map<String, Object>> isMultiFactorAuthConfirmed(
+    UUID memberId, boolean multiFactorEnabled
+  ) {
+    if (!multiFactorEnabled) {
+      return CompletableFuture.completedFuture(Map.of("success", false));
+    }
+    return multiFactorAuthDatabaseTable.findAuth(memberId)
+      .thenApply(auth -> Map.of("success", true, "confirmed", auth.confirmed()));
+  }
+}

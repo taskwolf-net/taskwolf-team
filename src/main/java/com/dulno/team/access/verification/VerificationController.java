@@ -1,12 +1,16 @@
 package com.dulno.team.access.verification;
 
 import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.user.User;
+import com.dulno.core.user.mfa.MultiFactorAuthFactory;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.dulno.team.member.TeamMember;
 import com.dulno.team.member.TeamVerificationDatabaseTable;
+import com.dulno.team.member.mfa.TeamMultiFactorAuthFactory;
 import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 import io.jsonwebtoken.Jwts;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,14 +28,17 @@ public final class VerificationController {
   private final Key secretKey;
   private final TeamDatabaseTable teamDatabaseTable;
   private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
+  private final TeamMultiFactorAuthFactory multiFactorAuthFactory;
 
   private VerificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
-    TeamVerificationDatabaseTable teamVerificationDatabaseTable
+    TeamVerificationDatabaseTable teamVerificationDatabaseTable,
+    TeamMultiFactorAuthFactory multiFactorAuthFactory
   ) {
     this.secretKey = secretKey;
     this.teamDatabaseTable = teamDatabaseTable;
     this.teamVerificationDatabaseTable = teamVerificationDatabaseTable;
+    this.multiFactorAuthFactory = multiFactorAuthFactory;
   }
 
   @RequestMapping(path = "/verification/complete/", method = RequestMethod.POST)
@@ -79,26 +86,59 @@ public final class VerificationController {
     @RequestBody String payload, HttpServletResponse response
   ) {
     var body = DulnoRequestBody.of(payload, response);
+    var loginFuture = login(body.getString("email"), body.getString("password"),
+      body.getString("multiFactorCode"));
+    loginFuture.thenAccept(result -> applyLoginResponseStatus(response, result));
+    return loginFuture;
+  }
+
+  private void applyLoginResponseStatus(
+    HttpServletResponse response, Map<String, Object> result
+  ) {
+    if ((boolean) result.get("success")) {
+      response.setStatus(HttpServletResponse.SC_OK);
+      return;
+    }
+    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+  }
+
+  private CompletableFuture<Map<String, Object>> login(
+    String email, String password, String multiFactorCode
+  ) {
     var verification = Verification.create(teamDatabaseTable, secretKey,
-      body.getString("email"), hashPassword(body.getString("password")));
+      email.replace(" ", ""), hashPassword(password));
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     verification.isAuthenticated().thenAccept(isAuthenticated ->
-      checkAuthorization(response, verification, futureResponse, isAuthenticated));
+      checkAuthorization(verification, multiFactorCode, futureResponse,
+        isAuthenticated));
     return futureResponse;
   }
 
   private void checkAuthorization(
-    HttpServletResponse servletResponse, Verification verification,
+    Verification verification, String multiFactorCode,
     CompletableFuture<Map<String, Object>> futureResponse, boolean isAuthenticated
   ) {
     if (!isAuthenticated) {
-      servletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-      futureResponse.complete(Maps.newHashMap());
+      futureResponse.complete(Map.of("success", false, "error", 1000));
       return;
     }
-    teamDatabaseTable.findTeamMember(verification.email())
-      .thenAccept(member -> futureResponse.complete(Map.of("apiKey",
-        verification.generateApiKey(member.id()))));
+    teamDatabaseTable.findTeamMember(verification.email()).thenAccept(member ->
+      multiFactorAuthFactory.createAuth(member.id()).verifyCode(multiFactorCode)
+        .thenAccept(verified -> checkMultiFactorAuth(member, verification,
+          futureResponse, verified)));
+  }
+
+  private void checkMultiFactorAuth(
+    TeamMember member, Verification verification,
+    CompletableFuture<Map<String, Object>> futureResponse,
+    boolean multiFactorVerified
+  ) {
+    if (!multiFactorVerified) {
+      futureResponse.complete(Map.of("success", false, "error", 1001));
+      return;
+    }
+    futureResponse.complete(Map.of("success", true,
+      "apiKey", verification.generateApiKey(member.id())));
   }
 
   @RequestMapping(path = "/verification/isValid/", method = RequestMethod.POST)

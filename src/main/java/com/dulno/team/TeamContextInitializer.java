@@ -32,6 +32,8 @@ import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.dulno.team.member.TeamVerificationDatabaseTable;
 import com.dulno.team.member.TeamWorkDatabaseTable;
+import com.dulno.team.member.mfa.TeamMultiFactorAuthDatabaseTable;
+import com.dulno.team.member.mfa.TeamMultiFactorAuthFactory;
 import com.dulno.team.offer.TeamOfferConfiguration;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -82,6 +84,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final UserTargetDatabaseTable userTargetDatabaseTable;
   private final OperationDatabaseTable operationDatabaseTable;
   private final WorkflowThrottleDatabaseTable workflowThrottleDatabaseTable;
+  private final TeamMultiFactorAuthDatabaseTable teamMultiFactorAuthDatabaseTable;
+  private final TeamMultiFactorAuthFactory teamMultiFactorAuthFactory;
 
   @Inject
   private TeamContextInitializer(
@@ -115,7 +119,9 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     TeamDistributionConfiguration teamDistributionConfiguration,
     UserTargetDatabaseTable userTargetDatabaseTable,
     OperationDatabaseTable operationDatabaseTable,
-    WorkflowThrottleDatabaseTable workflowThrottleDatabaseTable
+    WorkflowThrottleDatabaseTable workflowThrottleDatabaseTable,
+    TeamMultiFactorAuthDatabaseTable teamMultiFactorAuthDatabaseTable,
+    TeamMultiFactorAuthFactory teamMultiFactorAuthFactory
   ) {
     this.log = log;
     this.key = key;
@@ -155,6 +161,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.userTargetDatabaseTable = userTargetDatabaseTable;
     this.operationDatabaseTable = operationDatabaseTable;
     this.workflowThrottleDatabaseTable = workflowThrottleDatabaseTable;
+    this.teamMultiFactorAuthDatabaseTable = teamMultiFactorAuthDatabaseTable;
+    this.teamMultiFactorAuthFactory = teamMultiFactorAuthFactory;
   }
 
   @Override
@@ -209,5 +217,9 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
       operationDatabaseTable);
     beanFactory.registerSingleton("workflowThrottleDatabaseTable",
       workflowThrottleDatabaseTable);
+    beanFactory.registerSingleton("teamMultiFactorAuthDatabaseTable",
+      teamMultiFactorAuthDatabaseTable);
+    beanFactory.registerSingleton("teamMultiFactorAuthFactory",
+      teamMultiFactorAuthFactory);
   }
 }

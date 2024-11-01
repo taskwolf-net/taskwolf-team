@@ -2,6 +2,8 @@ package com.dulno.team.member;
 
 import com.dulno.core.database.DatabaseConnection;
 import com.dulno.core.database.DatabaseKeyspace;
+import com.dulno.core.user.mfa.MultiFactorAuthDatabaseTable;
+import com.dulno.team.member.mfa.TeamMultiFactorAuthDatabaseTable;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
@@ -41,5 +43,16 @@ public final class TeamMemberInjectionModule extends AbstractModule {
       databaseKeyspace);
     teamWorkDatabaseTable.createIfNotExists();
     return teamWorkDatabaseTable;
+  }
+
+  @Provides
+  @Singleton
+  TeamMultiFactorAuthDatabaseTable provideTeamMultiFactorAuthDatabaseTable(
+    DatabaseConnection connection, DatabaseKeyspace keyspace
+  ) {
+    var teamMultiFactorAuthDatabaseTable = TeamMultiFactorAuthDatabaseTable.create(
+      connection, keyspace);
+    teamMultiFactorAuthDatabaseTable.createIfNotExists();
+    return teamMultiFactorAuthDatabaseTable;
   }
 }
