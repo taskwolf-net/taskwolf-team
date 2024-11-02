@@ -44,6 +44,12 @@ public final class SaleInformationController extends TeamController {
     this.saleMessageDatabaseTable = saleMessageDatabaseTable;
   }
 
+  @RequestMapping(path = "/sales/pending/", method = RequestMethod.GET)
+  public CompletableFuture<Map<String, Object>> countPendingTickets() {
+    return saleDatabaseTable.countPendingSales().thenApply(sales ->
+      Map.of("sales", sales));
+  }
+
   @RequestMapping(path = "/sales/find/", method = RequestMethod.GET)
   public CompletableFuture<Map<String, Object>> findSales(
     HttpServletRequest request

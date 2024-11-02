@@ -44,6 +44,12 @@ public final class TicketInformationController extends TeamController {
     this.userDatabaseTable = userDatabaseTable;
   }
 
+  @RequestMapping(path = "/tickets/pending/", method = RequestMethod.GET)
+  public CompletableFuture<Map<String, Object>> countPendingTickets() {
+    return ticketDatabaseTable.countPendingTickets().thenApply(tickets ->
+      Map.of("tickets", tickets));
+  }
+
   @RequestMapping(path = "/tickets/find/", method = RequestMethod.GET)
   public CompletableFuture<Map<String, Object>> findTickets(
     HttpServletRequest request

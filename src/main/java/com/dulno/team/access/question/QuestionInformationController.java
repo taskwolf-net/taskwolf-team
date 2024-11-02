@@ -45,6 +45,12 @@ public final class QuestionInformationController extends TeamController {
     this.questionMessageDatabaseTable = questionMessageDatabaseTable;
   }
 
+  @RequestMapping(path = "/questions/pending/", method = RequestMethod.GET)
+  public CompletableFuture<Map<String, Object>> countPendingTickets() {
+    return questionDatabaseTable.countPendingQuestions().thenApply(questions ->
+      Map.of("questions", questions));
+  }
+
   @RequestMapping(path = "/questions/find/", method = RequestMethod.GET)
   public CompletableFuture<Map<String, Object>> findQuestions(
     HttpServletRequest request
