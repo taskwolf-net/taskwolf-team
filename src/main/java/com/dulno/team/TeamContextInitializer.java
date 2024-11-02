@@ -16,6 +16,7 @@ import com.dulno.core.question.QuestionDatabaseTable;
 import com.dulno.core.question.QuestionMessageDatabaseTable;
 import com.dulno.core.sale.SaleDatabaseTable;
 import com.dulno.core.sale.SaleMessageDatabaseTable;
+import com.dulno.core.session.SessionDatabaseTable;
 import com.dulno.core.stripe.StripeDatabaseTable;
 import com.dulno.core.stripe.TerminationDatabaseTable;
 import com.dulno.core.template.TemplateDatabaseTable;
@@ -52,6 +53,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final UserActivityDatabaseTable activityDatabaseTable;
   private final OrganizationDatabaseTable organizationDatabaseTable;
   private final OutgoingMailDatabaseTable outgoingMailDatabaseTable;
+  private final SessionDatabaseTable sessionDatabaseTable;
   private final com.dulno.core.organization.team.TeamDatabaseTable organizationTeamDatabaseTable;
   private final BundleDatabaseTable bundleDatabaseTable;
   private final BundlePresetRepository bundlePresetRepository;
@@ -96,6 +98,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     OrganizationDatabaseTable organizationDatabaseTable,
     com.dulno.core.organization.team.TeamDatabaseTable organizationTeamDatabaseTable,
     OutgoingMailDatabaseTable outgoingMailDatabaseTable,
+    SessionDatabaseTable sessionDatabaseTable,
     BundleDatabaseTable bundleDatabaseTable,
     BundlePresetRepository bundlePresetRepository,
     WhitelistConfiguration whitelistConfiguration,
@@ -136,6 +139,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.organizationDatabaseTable = organizationDatabaseTable;
     this.organizationTeamDatabaseTable = organizationTeamDatabaseTable;
     this.outgoingMailDatabaseTable = outgoingMailDatabaseTable;
+    this.sessionDatabaseTable = sessionDatabaseTable;
     this.bundleDatabaseTable = bundleDatabaseTable;
     this.bundlePresetRepository = bundlePresetRepository;
     this.whitelistConfiguration = whitelistConfiguration;
@@ -185,7 +189,9 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
       organizationDatabaseTable);
     beanFactory.registerSingleton("organizationTeamDatabaseTable",
       organizationTeamDatabaseTable);
-    beanFactory.registerSingleton("outgoingMailDatabaseTable", outgoingMailDatabaseTable);
+    beanFactory.registerSingleton("outgoingMailDatabaseTable",
+      outgoingMailDatabaseTable);
+    beanFactory.registerSingleton("sessionDatabaseTable", sessionDatabaseTable);
     beanFactory.registerSingleton("bundleDatabaseTable", bundleDatabaseTable);
     beanFactory.registerSingleton("bundlePresetRepository", bundlePresetRepository);
     beanFactory.registerSingleton(" whitelistConfiguration", whitelistConfiguration);

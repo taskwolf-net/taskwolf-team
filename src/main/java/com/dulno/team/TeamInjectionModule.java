@@ -16,6 +16,7 @@ import com.dulno.core.offer.OfferInjectionModule;
 import com.dulno.core.organization.OrganizationInjectionModule;
 import com.dulno.core.question.QuestionInjectionModule;
 import com.dulno.core.sale.SaleInjectionModule;
+import com.dulno.core.session.SessionInjectionModule;
 import com.dulno.core.stripe.StripeInjectionModule;
 import com.dulno.core.template.TemplateInjectionModule;
 import com.dulno.core.ticket.TicketInjectionModule;
@@ -45,6 +46,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(IntroInjectionModule.create());
     install(DatabaseInjectionModule.create());
     install(UserInjectionModule.create());
+    install(SessionInjectionModule.create());
     install(OrganizationInjectionModule.create());
     install(MailInjectionModule.create());
     install(BundleInjectionModule.create());
