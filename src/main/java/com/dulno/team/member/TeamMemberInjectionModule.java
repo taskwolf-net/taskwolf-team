@@ -2,7 +2,6 @@ package com.dulno.team.member;
 
 import com.dulno.core.database.DatabaseConnection;
 import com.dulno.core.database.DatabaseKeyspace;
-import com.dulno.core.user.mfa.MultiFactorAuthDatabaseTable;
 import com.dulno.team.member.mfa.TeamMultiFactorAuthDatabaseTable;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
