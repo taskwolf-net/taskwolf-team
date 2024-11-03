@@ -152,11 +152,17 @@ public final class GroupController extends TeamController {
   public CompletableFuture<Map<String, Object>> findGroups(
     HttpServletRequest request
   ) {
-    var futureResponse = new CompletableFuture<Map<String, Object>>();
-    groupDatabaseTable().findAllGroups().thenAccept(groups ->
-      futureResponse.complete(Map.of("groups", groups.stream()
-        .map(this::assemblyGroupInformation).toList())));
-    return futureResponse;
+    return memberHasPermission(findMemberId(request), "groups.find")
+      .thenCompose(this::findGroups);
+  }
+
+  private CompletableFuture<Map<String, Object>> findGroups(boolean hasPermission) {
+    if (!hasPermission) {
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    return groupDatabaseTable().findAllGroups()
+      .thenApply(groups -> Map.of("groups", groups.stream()
+        .map(this::assemblyGroupInformation).toList()));
   }
 
   private Map<String, Object> assemblyGroupInformation(Group group) {

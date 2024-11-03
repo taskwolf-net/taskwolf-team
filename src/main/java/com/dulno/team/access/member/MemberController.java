@@ -188,12 +188,22 @@ public final class MemberController extends TeamController {
   }
 
   @RequestMapping(path = "/members/", method = RequestMethod.GET)
-  public CompletableFuture<Map<String, Object>> findTeamMembers() {
-    var futureResponse = new CompletableFuture<Map<String, Object>>();
-    teamDatabaseTable().findAllTeamMembers()
-      .thenAccept(teamMembers -> futureResponse.complete(Map.of("members",
-        findTeamMembersInformation(teamMembers))));
-    return futureResponse;
+  public CompletableFuture<Map<String, Object>> findTeamMembers(
+    HttpServletRequest request
+  ) {
+    return memberHasPermission(findMemberId(request), "members.find")
+      .thenCompose(this::findTeamMembers);
+  }
+
+  private CompletableFuture<Map<String, Object>> findTeamMembers(
+    boolean hasPermission
+  ) {
+    if (!hasPermission) {
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    return teamDatabaseTable().findAllTeamMembers()
+      .thenApply(teamMembers -> Map.of("members",
+        findTeamMembersInformation(teamMembers)));
   }
 
   private List<Map<String, Object>> findTeamMembersInformation(
