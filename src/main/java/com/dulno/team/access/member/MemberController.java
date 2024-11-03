@@ -4,9 +4,8 @@ import com.dulno.core.access.DulnoRequestBody;
 import com.dulno.core.mail.Mail;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
-import com.dulno.team.member.TeamDatabaseTable;
-import com.dulno.team.member.TeamMember;
-import com.dulno.team.member.TeamVerificationDatabaseTable;
+import com.dulno.team.member.*;
+import com.dulno.team.member.mfa.TeamMultiFactorAuthDatabaseTable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,16 +25,25 @@ import java.util.concurrent.CompletableFuture;
 @RestController
 public final class MemberController extends TeamController {
   private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
+  private final TeamPasswordResetDatabaseTable teamPasswordResetDatabaseTable;
+  private final TeamEmailChangeDatabaseTable teamEmailChangeDatabaseTable;
+  private final TeamMultiFactorAuthDatabaseTable teamMultiFactorAuthDatabaseTable;
   private final Mail verificationMail;
 
   private MemberController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable,
+    TeamPasswordResetDatabaseTable teamPasswordResetDatabaseTable,
+    TeamEmailChangeDatabaseTable teamEmailChangeDatabaseTable,
+    TeamMultiFactorAuthDatabaseTable teamMultiFactorAuthDatabaseTable,
     @Qualifier("verificationMail") Mail verificationMail
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.teamVerificationDatabaseTable = teamVerificationDatabaseTable;
+    this.teamPasswordResetDatabaseTable = teamPasswordResetDatabaseTable;
+    this.teamEmailChangeDatabaseTable = teamEmailChangeDatabaseTable;
+    this.teamMultiFactorAuthDatabaseTable = teamMultiFactorAuthDatabaseTable;
     this.verificationMail = verificationMail;
   }
 
@@ -106,6 +114,9 @@ public final class MemberController extends TeamController {
       return;
     }
     teamDatabaseTable().deleteTeamMember(memberId);
+    teamPasswordResetDatabaseTable.deleteResetToken(memberId);
+    teamEmailChangeDatabaseTable.deleteChange(memberId);
+    teamMultiFactorAuthDatabaseTable.deleteAuth(memberId);
   }
 
   @RequestMapping(path = "/member/group/change/", method = RequestMethod.POST)
