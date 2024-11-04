@@ -67,6 +67,7 @@ public final class UserSessionController extends TeamController {
     information.put("country", session.country());
     information.put("city", session.city());
     information.put("openTime", session.openTime());
+    information.put("lastRefresh", session.lastRefresh());
     information.put("status", session.status());
     return information;
   }
