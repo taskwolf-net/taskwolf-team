@@ -32,6 +32,11 @@ public final class ProfileSettingController extends TeamController {
       Map.of("username", member.name()));
   }
 
+  @RequestMapping(path = "/settings/profile/id/", method = RequestMethod.GET)
+  public Map<String, Object> id(HttpServletRequest request) {
+    return Map.of("id", findMemberId(request));
+  }
+
   @RequestMapping(path = "/settings/profile/username/change/", method = RequestMethod.POST)
   public void changeUsername(
     HttpServletRequest request, @RequestBody String payload,
