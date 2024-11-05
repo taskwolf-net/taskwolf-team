@@ -19,6 +19,7 @@ public final class TeamMemberInjectionModule extends AbstractModule {
       databaseKeyspace);
     teamDatabaseTable.createIfNotExists();
     teamDatabaseTable.createIndexIfNotExists("email");
+    teamDatabaseTable.createIndexIfNotExists("group");
     return teamDatabaseTable;
   }
 

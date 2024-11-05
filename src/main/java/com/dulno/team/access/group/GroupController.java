@@ -82,6 +82,9 @@ public final class GroupController extends TeamController {
       return;
     }
     groupDatabaseTable().renameGroup(group, newName);
+    teamDatabaseTable().findTeamMembersOfGroup(group)
+      .thenAccept(members -> members.forEach(member ->
+        teamDatabaseTable().changeTeamMemberGroup(member, newName)));
   }
 
   @RequestMapping(path = "/group/priority/change/", method = RequestMethod.POST)

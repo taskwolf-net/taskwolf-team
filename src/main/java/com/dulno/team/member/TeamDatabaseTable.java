@@ -154,6 +154,11 @@ public final class TeamDatabaseTable extends DatabaseTable {
       .thenApply(TeamMember::of);
   }
 
+  public CompletableFuture<List<TeamMember>> findTeamMembersOfGroup(String group) {
+    return selectRows(DatabaseCondition.of("group", group)).thenApply(rows ->
+      rows.stream().map(TeamMember::of).collect(Collectors.toList()));
+  }
+
   public CompletableFuture<List<TeamMember>> findAllTeamMembers() {
     return selectAllRows().thenApply(rows ->
       rows.stream().map(TeamMember::of).collect(Collectors.toList()));
