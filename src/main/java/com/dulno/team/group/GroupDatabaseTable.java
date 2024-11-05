@@ -17,6 +17,7 @@ public final class GroupDatabaseTable extends DatabaseTable {
     columns.add(DatabaseColumn.create("name", DatabaseDataType.TEXT,
       DatabaseColumn.Type.PRIMARY_KEY));
     columns.add(DatabaseColumn.create("priority", DatabaseDataType.INT));
+    columns.add(DatabaseColumn.create("color", DatabaseDataType.TEXT));
     columns.add(DatabaseListColumn.create("permissions", DatabaseDataType.TEXT));
     return new GroupDatabaseTable(connection, keyspace, TABLE_NAME, columns);
   }
@@ -29,11 +30,13 @@ public final class GroupDatabaseTable extends DatabaseTable {
   }
 
   public void insertGroup(Group group) {
-    insertGroup(group.name(), group.priority(), group.permissions());
+    insertGroup(group.name(), group.priority(), group.color(), group.permissions());
   }
 
-  public void insertGroup(String name, int priority, List<String> permissions) {
-    insert(DatabaseRow.of(name, priority, permissions));
+  public void insertGroup(
+    String name, int priority, String color, List<String> permissions
+  ) {
+    insert(DatabaseRow.of(name, priority, color, permissions));
   }
 
   public void addGroupPermission(String name, String permission) {
@@ -66,6 +69,16 @@ public final class GroupDatabaseTable extends DatabaseTable {
     updateGroup(group);
   }
 
+  public void changeGroupColor(String name, String color) {
+    findGroup(name).thenAccept(group ->
+      changeGroupColor(group, color));
+  }
+
+  private void changeGroupColor(Group group, String color) {
+    group.changeColor(color);
+    updateGroup(group);
+  }
+
   public void renameGroup(String name, String newName) {
     findGroup(name).thenAccept(group -> renameGroup(group, newName));
   }
@@ -78,7 +91,7 @@ public final class GroupDatabaseTable extends DatabaseTable {
 
   private void updateGroup(Group group) {
     update(group.name(), DatabaseRow.of(group.name(),
-      group.priority(), group.permissions()));
+      group.priority(), group.color(), group.permissions()));
   }
 
   public void deleteGroup(String name) {

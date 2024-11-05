@@ -12,13 +12,15 @@ import java.util.List;
 public final class Group {
   public static Group of(DatabaseRow row) {
     return create(row.findCell(0).stringValue(), row.findCell(1).integerValue(),
-      row.findCell(2).listValue());
+      row.findCell(2).stringValue(), row.findCell(3).listValue());
   }
 
   @Getter
   private String name;
   @Getter
   private int priority;
+  @Getter
+  private String color;
   private final List<String> permissions;
 
   public void rename(String newName) {
@@ -27,6 +29,10 @@ public final class Group {
 
   public void changePriority(int newPriority) {
     priority = newPriority;
+  }
+
+  public void changeColor(String newColor) {
+    color = newColor;
   }
 
   public void addPermission(String permission) {

@@ -48,7 +48,7 @@ public final class GroupCommand extends Command {
       return false;
     }
     groupDatabaseTable.insertGroup(Group.create(arguments[1],
-      Integer.parseInt(arguments[2]), Lists.newArrayList()));
+      Integer.parseInt(arguments[2]), "#ffffff", Lists.newArrayList()));
     log().info("Group has been added!");
     return true;
   }

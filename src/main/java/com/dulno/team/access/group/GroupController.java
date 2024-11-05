@@ -35,14 +35,17 @@ public final class GroupController extends TeamController {
     var body = DulnoRequestBody.of(payload, response);
     var priority = Integer.parseInt(body.getString("priority"));
     memberHasPermission(findMemberId(request), "group.add").thenAccept(
-      hasPermission -> addGroup(body.getString("name"), priority, hasPermission));
+      hasPermission -> addGroup(body.getString("name"), priority,
+        body.getString("color"), hasPermission));
   }
 
-  private void addGroup(String group, int priority, boolean hasPermission) {
+  private void addGroup(
+    String group, int priority, String color, boolean hasPermission
+  ) {
     if (!hasPermission) {
       return;
     }
-    groupDatabaseTable().insertGroup(Group.create(group, priority,
+    groupDatabaseTable().insertGroup(Group.create(group, priority, color,
       Lists.newArrayList()));
   }
 
@@ -102,6 +105,28 @@ public final class GroupController extends TeamController {
       return;
     }
     groupDatabaseTable().changeGroupPriority(group, priority);
+  }
+
+  @RequestMapping(path = "/group/color/change/", method = RequestMethod.POST)
+  public void changeGroupColor(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = DulnoRequestBody.of(payload, response);
+    var group = body.getString("name");
+    memberHasPermission(findMemberId(request), "group.color.change")
+      .thenAccept(hasPermission -> groupDatabaseTable().groupExists(group)
+        .thenAccept(groupExists -> changeGroupColor(group,
+          body.getString("color"), hasPermission, groupExists)));
+  }
+
+  private void changeGroupColor(
+    String group, String color, boolean hasPermission, boolean groupExists
+  ) {
+    if (!hasPermission || !groupExists) {
+      return;
+    }
+    groupDatabaseTable().changeGroupColor(group, color);
   }
 
   @RequestMapping(path = "/group/permission/add/", method = RequestMethod.POST)
@@ -165,10 +190,20 @@ public final class GroupController extends TeamController {
         .map(this::assemblyGroupInformation).toList()));
   }
 
+  @RequestMapping(path = "/group/", method = RequestMethod.GET)
+  public CompletableFuture<Map<String, Object>> findMemberGroup(
+    HttpServletRequest request
+  ) {
+    return findMember(request)
+      .thenCompose(member -> groupDatabaseTable().findGroup(member.group()))
+      .thenApply(this::assemblyGroupInformation);
+  }
+
   private Map<String, Object> assemblyGroupInformation(Group group) {
     var information = Maps.<String, Object>newHashMap();
     information.put("name", group.name());
     information.put("priority", group.priority());
+    information.put("color", group.color());
     information.put("permissions", group.permissions());
     return information;
   }

@@ -157,6 +157,7 @@ The Groups section contains permissions required for listing, adding, removing, 
 | `group.remove`            | Allows removing a group.                   |
 | `group.rename`            | Allows renaming a group.                   |
 | `group.priority.change`   | Allows changing the priority of a group.   |
+| `group.color.change`      | Allows changing the color of a group.      |
 | `group.permission.add`    | Allows adding a permission to a group.     |
 | `group.permission.remove` | Allows removing a permission from a group. |
 
