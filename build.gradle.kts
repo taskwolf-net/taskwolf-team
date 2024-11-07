@@ -52,6 +52,8 @@ dependencies {
   implementation("com.stripe:stripe-java:26.1.0")
 
   implementation("dev.samstevens.totp:totp:1.7.1")
+
+  implementation("io.kubernetes:client-java:21.0.1")
 }
 
 tasks.test {

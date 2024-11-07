@@ -33,6 +33,9 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.util.Config;
 import lombok.RequiredArgsConstructor;
 
 import javax.crypto.spec.SecretKeySpec;
@@ -135,5 +138,13 @@ public final class TeamInjectionModule extends AbstractModule {
       mailConfiguration.smtpMailHost(), mailConfiguration.smtpMailPort(),
       mailConfiguration.imapMailHost(), mailConfiguration.imapMailPort(),
       mailConfiguration.mailUser(), mailConfiguration.mailPassword());
+  }
+
+  @Provides
+  @Singleton
+  CoreV1Api provideKubernetesApi() throws Exception {
+    var client = Config.defaultClient();
+    Configuration.setDefaultApiClient(client);
+    return new CoreV1Api();
   }
 }

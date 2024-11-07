@@ -5,6 +5,7 @@ import com.dulno.core.command.CommandTask;
 import com.dulno.core.command.implementation.ClearCommand;
 import com.dulno.core.intro.Intro;
 import com.dulno.core.log.Log;
+import com.dulno.team.access.cluster.ClusterContextInitializer;
 import com.dulno.team.access.entity.EntityContextInitializer;
 import com.dulno.team.access.mail.MailContextInitializer;
 import com.dulno.team.access.maintenance.MaintenanceContextInitializer;
@@ -21,7 +22,6 @@ import com.dulno.team.command.TeamCommand;
 import com.dulno.team.configuration.TeamConfiguration;
 import com.dulno.team.maintenance.TeamMaintenanceSchedule;
 import com.google.inject.Guice;
-import com.google.inject.Inject;
 import com.google.inject.Injector;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -70,5 +70,6 @@ public class TeamApplication {
     application.addInitializers(injector.getInstance(MailContextInitializer.class));
     application.addInitializers(injector.getInstance(TemplateContextInitializer.class));
     application.addInitializers(injector.getInstance(SettingContextInitializer.class));
+    application.addInitializers(injector.getInstance(ClusterContextInitializer.class));
   }
 }
