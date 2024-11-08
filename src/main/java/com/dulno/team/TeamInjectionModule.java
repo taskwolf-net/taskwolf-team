@@ -26,6 +26,7 @@ import com.dulno.core.workflow.WorkflowInjectionModule;
 import com.dulno.team.configuration.TeamConfiguration;
 import com.dulno.team.distribution.TeamDistributionConfiguration;
 import com.dulno.team.group.GroupInjectionModule;
+import com.dulno.team.hetzner.HetznerInjectionModule;
 import com.dulno.team.member.TeamMemberInjectionModule;
 import com.dulno.team.offer.TeamOfferInjectionModule;
 import com.google.inject.AbstractModule;
@@ -69,6 +70,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(TeamMemberInjectionModule.create());
     install(GroupInjectionModule.create());
     install(MaintenanceInjectionModule.create());
+    install(HetznerInjectionModule.create());
   }
 
   @Provides
