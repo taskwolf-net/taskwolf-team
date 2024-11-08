@@ -16,6 +16,12 @@ public final class HetznerRequest {
   private final HttpClient httpClient;
 
   public CompletableFuture<HttpResponse<String>> send(
+    String url, String method
+  ) {
+    return send(url, method, "");
+  }
+
+  public CompletableFuture<HttpResponse<String>> send(
     String url, String method, Map<String, Object> body
   ) {
     return send(url, method, new JSONObject(body).toString());
