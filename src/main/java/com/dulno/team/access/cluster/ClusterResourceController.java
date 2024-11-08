@@ -22,14 +22,14 @@ import java.util.concurrent.CompletableFuture;
 
 @RestController
 public final class ClusterResourceController extends TeamController {
-  private final CoreV1Api kubernetesApi;
+  private final CoreV1Api kubernetesCoreApi;
 
   private ClusterResourceController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
-    GroupDatabaseTable groupDatabaseTable, CoreV1Api kubernetesApi
+    GroupDatabaseTable groupDatabaseTable, CoreV1Api kubernetesCoreApi
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
-    this.kubernetesApi = kubernetesApi;
+    this.kubernetesCoreApi = kubernetesCoreApi;
   }
 
   @RequestMapping(path = "/cluster/resources/", method = RequestMethod.GET)
@@ -48,7 +48,7 @@ public final class ClusterResourceController extends TeamController {
     }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     try {
-      kubernetesApi.listNode().executeAsync(new ApiCallback<>() {
+      kubernetesCoreApi.listNode().executeAsync(new ApiCallback<>() {
         @Override
         public void onFailure(
           ApiException exception, int statusCode, Map<String,

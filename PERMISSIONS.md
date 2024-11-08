@@ -15,8 +15,9 @@ This documentation outlines the various permissions required across different ar
 8. [Offers](#offers)
 9. [Templates](#templates)
 10. [Maintenance](#maintenance)
-11. [Groups](#groups)
-12. [Members](#members)
+11. [Cluster](#cluster)
+12. [Groups](#groups)
+13. [Members](#members)
 
 ---
 
@@ -144,9 +145,20 @@ The Maintenance section contains permissions required for listing, creating, fin
 | `maintenance.finish` | Allows finishing a maintenance.                    |
 | `maintenance.delete` | Allows deleting a maintenance.                     |
 
+## 11. Cluster
+
+The Cluster section contains permissions required for monitoring and editing the state of the cluster.
+
+| Permission          | Description                                       |
+|---------------------|---------------------------------------------------|
+| `cluster.resources` | Allows viewing the used resources of the cluster. |
+| `cluster.units`     | Allows listing all units of the cluster.          |
+| `cluster.unit`      | Allows viewing an individual cluster unit.        |
+| `cluster.pod`       | Allows viewing an individual cluster pod.         |
+
 ---
 
-## 11. Groups
+## 12. Groups
 
 The Groups section contains permissions required for listing, adding, removing, renaming and editing groups.
 
@@ -163,7 +175,7 @@ The Groups section contains permissions required for listing, adding, removing, 
 
 ---
 
-## 12. Members
+## 13. Members
 
 The Members section contains permissions required for listing, adding, removing and editing groups.
 

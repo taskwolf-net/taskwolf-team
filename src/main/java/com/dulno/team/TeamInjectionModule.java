@@ -34,6 +34,7 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.util.Config;
 import lombok.RequiredArgsConstructor;
@@ -142,9 +143,17 @@ public final class TeamInjectionModule extends AbstractModule {
 
   @Provides
   @Singleton
-  CoreV1Api provideKubernetesApi() throws Exception {
+  CoreV1Api provideKubernetesCoreApi() throws Exception {
     var client = Config.defaultClient();
     Configuration.setDefaultApiClient(client);
     return new CoreV1Api();
+  }
+
+  @Provides
+  @Singleton
+  AppsV1Api provideKubernetesAppsApi() throws Exception {
+    var client = Config.defaultClient();
+    Configuration.setDefaultApiClient(client);
+    return new AppsV1Api();
   }
 }
