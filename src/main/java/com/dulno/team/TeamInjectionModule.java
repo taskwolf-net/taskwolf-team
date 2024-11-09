@@ -29,11 +29,13 @@ import com.dulno.team.group.GroupInjectionModule;
 import com.dulno.team.hetzner.HetznerInjectionModule;
 import com.dulno.team.member.TeamMemberInjectionModule;
 import com.dulno.team.offer.TeamOfferInjectionModule;
+import com.dulno.team.prometheus.PrometheusInjectionModule;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
@@ -71,6 +73,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(GroupInjectionModule.create());
     install(MaintenanceInjectionModule.create());
     install(HetznerInjectionModule.create());
+    install(PrometheusInjectionModule.create());
   }
 
   @Provides
@@ -145,17 +148,21 @@ public final class TeamInjectionModule extends AbstractModule {
 
   @Provides
   @Singleton
-  CoreV1Api provideKubernetesCoreApi() throws Exception {
+  ApiClient provideKubernetesApiClient() throws Exception {
     var client = Config.defaultClient();
     Configuration.setDefaultApiClient(client);
+    return client;
+  }
+
+  @Provides
+  @Singleton
+  CoreV1Api provideKubernetesCoreApi(ApiClient client) {
     return new CoreV1Api();
   }
 
   @Provides
   @Singleton
-  AppsV1Api provideKubernetesAppsApi() throws Exception {
-    var client = Config.defaultClient();
-    Configuration.setDefaultApiClient(client);
+  AppsV1Api provideKubernetesAppsApi(ApiClient client) {
     return new AppsV1Api();
   }
 }
