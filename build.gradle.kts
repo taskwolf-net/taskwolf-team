@@ -53,7 +53,7 @@ dependencies {
 
   implementation("dev.samstevens.totp:totp:1.7.1")
 
-  implementation("io.kubernetes:client-java:21.0.1")
+  implementation("io.kubernetes:client-java:21.0.2")
 }
 
 tasks.test {
