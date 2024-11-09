@@ -3,14 +3,17 @@ package com.dulno.team.access.cluster;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
+import com.dulno.team.prometheus.PrometheusConfiguration;
+import com.dulno.team.prometheus.PrometheusMetrics;
+import com.dulno.team.prometheus.PrometheusMetricsFactory;
+import com.dulno.team.prometheus.PrometheusRequestFactory;
 import com.google.common.collect.Maps;
-import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.ApiCallback;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.models.V1NodeList;
-import io.kubernetes.client.openapi.models.V1NodeStatus;
+import io.kubernetes.client.openapi.models.V1PodList;
 import jakarta.servlet.http.HttpServletRequest;
+import org.apache.commons.compress.utils.Lists;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,13 +26,22 @@ import java.util.concurrent.CompletableFuture;
 @RestController
 public final class ClusterResourceController extends TeamController {
   private final CoreV1Api kubernetesCoreApi;
+  private final PrometheusConfiguration prometheusConfiguration;
+  private final PrometheusRequestFactory prometheusRequestFactory;
+  private final PrometheusMetricsFactory prometheusMetricsFactory;
 
   private ClusterResourceController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
-    GroupDatabaseTable groupDatabaseTable, CoreV1Api kubernetesCoreApi
+    GroupDatabaseTable groupDatabaseTable, CoreV1Api kubernetesCoreApi,
+    PrometheusConfiguration prometheusConfiguration,
+    PrometheusRequestFactory prometheusRequestFactory,
+    PrometheusMetricsFactory prometheusMetricsFactory
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.kubernetesCoreApi = kubernetesCoreApi;
+    this.prometheusConfiguration = prometheusConfiguration;
+    this.prometheusRequestFactory = prometheusRequestFactory;
+    this.prometheusMetricsFactory = prometheusMetricsFactory;
   }
 
   @RequestMapping(path = "/cluster/resources/", method = RequestMethod.GET)
@@ -46,73 +58,89 @@ public final class ClusterResourceController extends TeamController {
     if (!hasPermission) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    var futureResponse = new CompletableFuture<Map<String, Object>>();
+    //TODO
+    return null;
+    /*return fetchExporterPods()
+      .thenCompose(pods -> fetchMetrics()
+        .thenApply(metrics -> findClusterResources(nodes, metrics)));*/
+  }
+
+  private CompletableFuture<V1PodList> fetchExporterPods() {
+    var futureResponse = new CompletableFuture<V1PodList>();
     try {
-      kubernetesCoreApi.listNode().executeAsync(new ApiCallback<>() {
-        @Override
-        public void onFailure(
-          ApiException exception, int statusCode, Map<String,
-          List<String>> responseHeaders
-        ) {
-          exception.printStackTrace();
-        }
+      kubernetesCoreApi
+        .listNamespacedPod(prometheusConfiguration.kubernetesNamespace())
+        .executeAsync(new ApiCallback<>() {
+          @Override
+          public void onFailure(
+            ApiException exception, int statusCode, Map<String,
+            List<String>> responseHeaders
+          ) {
+            exception.printStackTrace();
+          }
 
-        @Override
-        public void onSuccess(
-          V1NodeList result, int statusCode,
-          Map<String, List<String>> responseHeaders
-        ) {
-          futureResponse.complete(findClusterResources(result));
-        }
+          @Override
+          public void onSuccess(
+            V1PodList result, int statusCode,
+            Map<String, List<String>> responseHeaders
+          ) {
+            futureResponse.complete(result);
+          }
 
-        @Override
-        public void onUploadProgress(
-          long bytesWritten, long contentLength, boolean done
-        ) {
-        }
+          @Override
+          public void onUploadProgress(
+            long bytesWritten, long contentLength, boolean done
+          ) {
+          }
 
-        @Override
-        public void onDownloadProgress(
-          long bytesRead, long contentLength, boolean done
-        ) {
-        }
-      });
+          @Override
+          public void onDownloadProgress(
+            long bytesRead, long contentLength, boolean done
+          ) {
+          }
+        });
     } catch (Exception exception) {
       exception.printStackTrace();
+      futureResponse.complete(null);
     }
     return futureResponse;
   }
 
-  private Map<String, Object> findClusterResources(V1NodeList nodes) {
-    for (var node : nodes.getItems()) {
-      String nodeName = node.getMetadata().getName();
-      V1NodeStatus status = node.getStatus();
+  private Map<String, Object> findClusterResources(
+    V1PodList exporters, List<PrometheusMetrics> metrics
+  ) {
+    var resourceInformation = Lists.<Map<String, Object>>newArrayList();
+    //TODO
+    /*for (var node : nodes.getItems()) {
+      var nodeName = node.getMetadata().getName();
+      var status = node.getStatus();
+      var cpuCapacity = status.getCapacity().get("cpu").getNumber().doubleValue();
+      var memoryCapacity = status.getCapacity().get("memory").getNumber()
+        .doubleValue();
+      var nodeMetrics = metricsList.getItems().stream()
+        .filter(metrics -> metrics.getMetadata().getName().equals(nodeName))
+        .findFirst().get();
+      var usage = nodeMetrics.getUsage();
+      var cpuUsage = usage.get("cpu").getNumber().doubleValue();
+      var memoryUsage = usage.get("memory").getNumber().doubleValue();
+      resourceInformation.add(assemblyNodeResourceInformation(nodeName,
+        cpuCapacity, cpuUsage, memoryCapacity, memoryUsage));
+    }*/
+    return Map.of("resources", resourceInformation);
+  }
 
-      // Get CPU capacity and usage
-      Quantity cpuCapacity = status.getCapacity().get("cpu");
-      Quantity cpuAllocatable = status.getAllocatable().get("cpu");
-
-      // Get Memory capacity and usage
-      Quantity memoryCapacity = status.getCapacity().get("memory");
-      Quantity memoryAllocatable = status.getAllocatable().get("memory");
-
-      // Disk storage (if available)
-      Quantity ephemeralStorageCapacity = status.getCapacity().get("ephemeral-storage");
-      Quantity ephemeralStorageAllocatable = status.getAllocatable().get("ephemeral-storage");
-
-      System.out.println("Node: " + nodeName);
-      System.out.println("CPU Capacity: " + cpuCapacity.getNumber());
-      System.out.println("CPU Allocatable: " + cpuAllocatable.getNumber());
-      System.out.println("Memory Capacity: " + memoryCapacity.getNumber() + " bytes");
-      System.out.println("Memory Allocatable: " + memoryAllocatable.getNumber() + " bytes");
-      if (ephemeralStorageCapacity != null) {
-        System.out.println("Ephemeral Storage Capacity: " + ephemeralStorageCapacity.getNumber() + " bytes");
-      }
-      if (ephemeralStorageAllocatable != null) {
-        System.out.println("Ephemeral Storage Allocatable: " + ephemeralStorageAllocatable.getNumber() + " bytes");
-      }
-      System.out.println("---------------------------");
-    }
-    return Maps.newHashMap();
+  private Map<String, Object> assemblyNodeResourceInformation(
+    String nodeName, double cpuCapacity, double cpuUsage, double memoryCapacity,
+    double memoryUsage
+  ) {
+    var nodeInformation = Maps.<String, Object>newHashMap();
+    nodeInformation.put("nodeName", nodeName);
+    nodeInformation.put("cpuCapacity", cpuCapacity);
+    nodeInformation.put("cpuUsage", cpuUsage);
+    nodeInformation.put("cpuRatio", cpuUsage / cpuCapacity);
+    nodeInformation.put("memoryCapacity", memoryCapacity);
+    nodeInformation.put("memoryUsage", memoryUsage);
+    nodeInformation.put("memoryRatio", memoryUsage / memoryCapacity);
+    return nodeInformation;
   }
 }
