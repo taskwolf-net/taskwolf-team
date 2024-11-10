@@ -1,5 +1,6 @@
 package com.dulno.team.access.cluster;
 
+import com.dulno.core.iterator.AsyncIterator;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
@@ -58,11 +59,10 @@ public final class ClusterResourceController extends TeamController {
     if (!hasPermission) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    //TODO
-    return null;
-    /*return fetchExporterPods()
-      .thenCompose(pods -> fetchMetrics()
-        .thenApply(metrics -> findClusterResources(nodes, metrics)));*/
+    //TODO: Fetch cpu metrics
+    return fetchExporterPods()
+      .thenCompose(exporters -> fetchMetrics(exporters)
+        .thenApply(metrics -> findClusterResources(exporters, metrics)));
   }
 
   private CompletableFuture<V1PodList> fetchExporterPods() {
@@ -106,41 +106,27 @@ public final class ClusterResourceController extends TeamController {
     return futureResponse;
   }
 
+  private CompletableFuture<List<PrometheusMetrics>> fetchMetrics(
+    V1PodList exporters
+  ) {
+    return AsyncIterator.execute(exporters.getItems(),
+      exporter -> prometheusRequestFactory.create(exporter.getStatus().getPodIP(),
+          prometheusConfiguration.exporterPort()).send("/metrics", "GET")
+        .thenApply(response -> prometheusMetricsFactory.create(
+          exporter.getSpec().getNodeName(), response.body())));
+  }
+
   private Map<String, Object> findClusterResources(
     V1PodList exporters, List<PrometheusMetrics> metrics
   ) {
     var resourceInformation = Lists.<Map<String, Object>>newArrayList();
-    //TODO
-    /*for (var node : nodes.getItems()) {
-      var nodeName = node.getMetadata().getName();
-      var status = node.getStatus();
-      var cpuCapacity = status.getCapacity().get("cpu").getNumber().doubleValue();
-      var memoryCapacity = status.getCapacity().get("memory").getNumber()
-        .doubleValue();
-      var nodeMetrics = metricsList.getItems().stream()
-        .filter(metrics -> metrics.getMetadata().getName().equals(nodeName))
-        .findFirst().get();
-      var usage = nodeMetrics.getUsage();
-      var cpuUsage = usage.get("cpu").getNumber().doubleValue();
-      var memoryUsage = usage.get("memory").getNumber().doubleValue();
-      resourceInformation.add(assemblyNodeResourceInformation(nodeName,
-        cpuCapacity, cpuUsage, memoryCapacity, memoryUsage));
-    }*/
+    for (var exporter : exporters.getItems()) {
+      var nodeName = exporter.getMetadata().getName();
+      var nodeMetrics = metrics.stream()
+        .filter(entry -> entry.node().equals(nodeName)).findFirst().get();
+      resourceInformation.add(nodeMetrics.assemblyInformation());
+    }
+    //TODO: Add information like average, max, min, ...
     return Map.of("resources", resourceInformation);
-  }
-
-  private Map<String, Object> assemblyNodeResourceInformation(
-    String nodeName, double cpuCapacity, double cpuUsage, double memoryCapacity,
-    double memoryUsage
-  ) {
-    var nodeInformation = Maps.<String, Object>newHashMap();
-    nodeInformation.put("nodeName", nodeName);
-    nodeInformation.put("cpuCapacity", cpuCapacity);
-    nodeInformation.put("cpuUsage", cpuUsage);
-    nodeInformation.put("cpuRatio", cpuUsage / cpuCapacity);
-    nodeInformation.put("memoryCapacity", memoryCapacity);
-    nodeInformation.put("memoryUsage", memoryUsage);
-    nodeInformation.put("memoryRatio", memoryUsage / memoryCapacity);
-    return nodeInformation;
   }
 }
