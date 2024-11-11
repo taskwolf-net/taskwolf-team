@@ -9,6 +9,8 @@ import com.dulno.team.member.TeamDatabaseTable;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.compress.utils.Lists;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -50,10 +52,17 @@ public final class ClusterServerController extends TeamController {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
     return hetznerRequestFactory.create().send("/servers", "GET")
-      .thenApply(response -> new JSONObject(response.body()).getJSONArray("servers"))
-      .thenApply(array -> array.toList().stream().map(entry -> (JSONObject) entry)
-        .map(HetznerServer::of).map(HetznerServer::assemblyInformation).toList())
-      .thenApply(information -> Map.of("servers", information));
+      .thenApply(response -> assemblyClusterInformation(
+        new JSONObject(response.body()).getJSONArray("servers")));
+  }
+
+  private Map<String, Object> assemblyClusterInformation(JSONArray servers) {
+    var information = Lists.<Map<String, Object>>newArrayList();
+    for (var i = 0; i < servers.length(); i++) {
+      var entry = servers.getJSONObject(i);
+      information.add(HetznerServer.of(entry).assemblyInformation());
+    }
+    return Map.of("servers", information);
   }
 
   @RequestMapping(path = "/cluster/server/", method = RequestMethod.POST)
