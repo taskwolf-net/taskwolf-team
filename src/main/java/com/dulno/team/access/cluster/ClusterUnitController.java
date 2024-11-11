@@ -118,19 +118,20 @@ public final class ClusterUnitController extends TeamController {
     String unitName, String unitType
   ) {
     return switch (unitType.toUpperCase()) {
-      case "DEPLOYMENT" -> deploymentInformation(unitName);
+      case "REPLICASET" -> replicaSetInformation(unitName);
       case "STATEFULSET" -> statefulSetInformation(unitName);
       case "DAEMONSET" -> daemonSetInformation(unitName);
+      case "JOB" -> jobInformation(unitName);
       default -> CompletableFuture.completedFuture(Maps.newHashMap());
     };
   }
 
-  private CompletableFuture<Map<String, Object>> deploymentInformation(
+  private CompletableFuture<Map<String, Object>> replicaSetInformation(
     String unitName
   ) {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     try {
-      kubernetesAppsApi.readNamespacedDeployment(unitName, CLUSTER_POD_NAMESPACE)
+      kubernetesAppsApi.readNamespacedReplicaSet(unitName, CLUSTER_POD_NAMESPACE)
         .executeAsync(new ApiCallback<>() {
           @Override
           public void onFailure(
@@ -142,10 +143,10 @@ public final class ClusterUnitController extends TeamController {
 
           @Override
           public void onSuccess(
-            V1Deployment result, int statusCode,
+            V1ReplicaSet result, int statusCode,
             Map<String, List<String>> responseHeaders
           ) {
-            futureResponse.complete(Map.of("name", result.getMetadata().getName(),
+            futureResponse.complete(Map.of("name", unitName, "type", "REPLICASET",
               "desiredReplicas", result.getSpec().getReplicas(),
               "availableReplicas", result.getStatus().getReadyReplicas()));
           }
@@ -189,7 +190,7 @@ public final class ClusterUnitController extends TeamController {
             V1StatefulSet result, int statusCode,
             Map<String, List<String>> responseHeaders
           ) {
-            futureResponse.complete(Map.of("name", result.getMetadata().getName(),
+            futureResponse.complete(Map.of("name", unitName, "type", "STATEFULSET",
               "desiredReplicas", result.getSpec().getReplicas(),
               "availableReplicas", result.getStatus().getReadyReplicas()));
           }
@@ -233,7 +234,7 @@ public final class ClusterUnitController extends TeamController {
             V1DaemonSet result, int statusCode,
             Map<String, List<String>> responseHeaders
           ) {
-            futureResponse.complete(Map.of("name", result.getMetadata().getName(),
+            futureResponse.complete(Map.of("name", unitName, "type", "DAEMONSET",
               "desiredReplicas", result.getStatus().getDesiredNumberScheduled(),
               "availableReplicas", result.getStatus().getNumberReady()));
           }
@@ -255,6 +256,13 @@ public final class ClusterUnitController extends TeamController {
       futureResponse.complete(Maps.newHashMap());
     }
     return futureResponse;
+  }
+
+  private CompletableFuture<Map<String, Object>> jobInformation(
+    String unitName
+  ) {
+    return CompletableFuture.completedFuture(Map.of("name", unitName,
+      "type", "JOB"));
   }
 
   @RequestMapping(path = "/cluster/unit/", method = RequestMethod.POST)
