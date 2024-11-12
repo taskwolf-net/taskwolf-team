@@ -91,14 +91,14 @@ public final class ClusterServerController extends TeamController {
   }
 
   private Map<String, Object> assemblyClusterServerInformation(
-    HetznerServer server, double cpuMetrics, double diskMetrics,
-    double networkMetrics
+    HetznerServer server, Map<String, Object> cpuMetrics,
+    Map<String, Object> diskMetrics, Map<String, Object> networkMetrics
   ) {
     var information = Maps.<String, Object>newHashMap();
     information.putAll(server.assemblyInformation());
-    information.put("cpu", cpuMetrics);
-    information.put("disk", diskMetrics);
-    information.put("network", networkMetrics);
+    information.putAll(cpuMetrics);
+    information.putAll(diskMetrics);
+    information.putAll(networkMetrics);
     return information;
   }
 
@@ -108,14 +108,42 @@ public final class ClusterServerController extends TeamController {
         .getJSONObject("server")));
   }
 
-  private CompletableFuture<Double> fetchServerMetrics(int serverId, String type) {
+  private CompletableFuture<Map<String, Object>> fetchServerMetrics(
+    int serverId, String type
+  ) {
     var format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'");
     format.setTimeZone(TimeZone.getTimeZone("UTC"));
     var time = format.format(new Date());
     return hetznerRequestFactory.create().send("/servers/" + serverId +
         "/metrics?type=" + type + "&start=" + time + "&end=" + time, "GET")
-      .thenApply(response -> new JSONObject(response.body()).getJSONObject("metrics")
-        .getJSONObject("time_series").getJSONObject("name_of_timeseries")
-        .getJSONArray("values").getJSONArray(0).getDouble(0));
+      .thenApply(response ->selectServerMetrics(type, new JSONObject(response.body())
+        .getJSONObject("metrics").getJSONObject("time_series")));
+  }
+
+  private Map<String, Object> selectServerMetrics(String type, JSONObject data) {
+    var information = Maps.<String, Object>newHashMap();
+    if (type.equalsIgnoreCase("cpu")) {
+      information.put("cpu", readServerMetric(data, "cpu"));
+    } else if (type.equalsIgnoreCase("disk")) {
+      information.put("diskReadIops", readServerMetric(data, "disk.0.iops.read"));
+      information.put("diskWriteIops", readServerMetric(data, "disk.0.iops.write"));
+      information.put("diskReadBandwidth",
+        readServerMetric(data, "disk.0.bandwidth.read"));
+      information.put("diskWriteBandwidth",
+        readServerMetric(data, "disk.0.bandwidth.write"));
+    } else if (type.equalsIgnoreCase("network")) {
+      information.put("networkInPps", readServerMetric(data, "network.0.pps.in"));
+      information.put("networkOutPps", readServerMetric(data, "network.0.pps.out"));
+      information.put("networkInBandwidth",
+        readServerMetric(data, "network.0.bandwidth.in"));
+      information.put("networkOutBandwidth",
+        readServerMetric(data, "network.0.bandwidth.out"));
+    }
+    return information;
+  }
+
+  private double readServerMetric(JSONObject data, String metric) {
+    return data.getJSONObject(metric).getJSONArray("values").getJSONArray(0)
+      .getDouble(1);
   }
 }
