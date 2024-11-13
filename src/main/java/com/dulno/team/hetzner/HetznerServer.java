@@ -16,7 +16,7 @@ public final class HetznerServer {
     var publicNetwork = json.getJSONObject("public_net");
     var serverType = json.getJSONObject("server_type");
     var location = json.getJSONObject("datacenter").getJSONObject("location");
-    return create(json.getInt("id"),
+    return create(json.getInt("id"), json.getString("name"),
       publicNetwork.getJSONObject("ipv4").getString("ip"),
       publicNetwork.getJSONObject("ipv6").getString("ip"),
       serverType.getString("description"), location.getString("city"),
@@ -27,6 +27,7 @@ public final class HetznerServer {
   }
 
   private final int id;
+  private final String name;
   private final String ipv4;
   private final String ipv6;
   private final String type;
@@ -42,6 +43,7 @@ public final class HetznerServer {
   public Map<String, Object> assemblyInformation() {
     var information = Maps.<String, Object>newHashMap();
     information.put("id", id);
+    information.put("name", name);
     information.put("ipv4", ipv4);
     information.put("ipv6", ipv6);
     information.put("type", type);
