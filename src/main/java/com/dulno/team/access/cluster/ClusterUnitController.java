@@ -472,4 +472,60 @@ public final class ClusterUnitController extends TeamController {
     information.put("image", container.getImage());
     return information;
   }
+
+  @RequestMapping(path = "/cluster/pod/delete/", method = RequestMethod.POST)
+  public void deleteClusterPod(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = DulnoRequestBody.of(payload, response);
+    memberHasPermission(findMemberId(request), "cluster.pod.delete")
+      .thenAccept(hasPermission -> deleteClusterPod(body.getString("podName"),
+        hasPermission));
+  }
+
+  private void deleteClusterPod(
+    String podName, boolean hasPermission
+  ) {
+    if (!hasPermission) {
+      return;
+    }
+    deleteClusterPod(podName);
+  }
+
+  private void deleteClusterPod(String podName) {
+    try {
+      kubernetesCoreApi.deleteNamespacedPod(podName, CLUSTER_POD_NAMESPACE)
+        .executeAsync(new ApiCallback<>() {
+          @Override
+          public void onFailure(
+            ApiException exception, int statusCode, Map<String,
+            List<String>> responseHeaders
+          ) {
+            exception.printStackTrace();
+          }
+
+          @Override
+          public void onSuccess(
+            V1Pod result, int statusCode,
+            Map<String, List<String>> responseHeaders
+          ) {
+          }
+
+          @Override
+          public void onUploadProgress(
+            long bytesWritten, long contentLength, boolean done
+          ) {
+          }
+
+          @Override
+          public void onDownloadProgress(
+            long bytesRead, long contentLength, boolean done
+          ) {
+          }
+        });
+    } catch (Exception exception) {
+      exception.printStackTrace();
+    }
+  }
 }
