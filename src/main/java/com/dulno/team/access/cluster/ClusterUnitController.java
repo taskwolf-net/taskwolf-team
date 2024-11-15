@@ -310,8 +310,8 @@ public final class ClusterUnitController extends TeamController {
           ) {
             futureResponse.complete(result.getItems().stream()
               .filter(pod -> pod.getMetadata().getOwnerReferences().stream()
-                .anyMatch(owner -> owner.getName().equals(unitName) &&
-                  owner.getKind().equals(unitType)))
+                .anyMatch(owner -> owner.getName().equalsIgnoreCase(unitName) &&
+                  owner.getKind().equalsIgnoreCase(unitType)))
               .toList());
           }
 
