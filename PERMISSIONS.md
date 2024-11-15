@@ -149,15 +149,16 @@ The Maintenance section contains permissions required for listing, creating, fin
 
 The Cluster section contains permissions required for monitoring and editing the state of the cluster.
 
-| Permission           | Description                                       |
-|----------------------|---------------------------------------------------|
-| `cluster.resources`  | Allows viewing the used resources of the cluster. |
-| `cluster.servers`    | Allows listing all servers of the cluster.        |
-| `cluster.server`     | Allows viewing an individual cluster server.      |
-| `cluster.units`      | Allows listing all units of the cluster.          |
-| `cluster.unit`       | Allows viewing an individual cluster unit.        |
-| `cluster.pod`        | Allows viewing an individual cluster pod.         |
-| `cluster.pod.delete` | Allows deleting an individual cluster pod.        |
+| Permission             | Description                                       |
+|------------------------|---------------------------------------------------|
+| `cluster.resources`    | Allows viewing the used resources of the cluster. |
+| `cluster.servers`      | Allows listing all servers of the cluster.        |
+| `cluster.server`       | Allows viewing an individual cluster server.      |
+| `cluster.units`        | Allows listing all units of the cluster.          |
+| `cluster.unit`         | Allows viewing an individual cluster unit.        |
+| `cluster.unit.restart` | Allows restarting an individual cluster unit.     |
+| `cluster.pod`          | Allows viewing an individual cluster pod.         |
+| `cluster.pod.delete`   | Allows deleting an individual cluster pod.        |
 
 ---
 

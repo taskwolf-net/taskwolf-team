@@ -355,6 +355,26 @@ public final class ClusterUnitController extends TeamController {
     return information;
   }
 
+  @RequestMapping(path = "/cluster/unit/restart/", method = RequestMethod.POST)
+  public void restartClusterUnit(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = DulnoRequestBody.of(payload, response);
+    memberHasPermission(findMemberId(request), "cluster.unit.restart")
+      .thenAccept(hasPermission -> restartClusterUnit(body.getString("unitName"),
+        body.getString("unitType"), hasPermission));
+  }
+
+  private void restartClusterUnit(
+    String unitName, String unitType, boolean hasPermission
+  ) {
+    if (!hasPermission) {
+      return;
+    }
+    //TODO: IMPLEMENT UNIT RESTART
+  }
+
   @RequestMapping(path = "/cluster/pod/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> findClusterPod(
     HttpServletRequest request, @RequestBody String payload,
