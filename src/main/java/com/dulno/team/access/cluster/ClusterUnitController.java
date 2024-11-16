@@ -5,10 +5,12 @@ import com.dulno.core.iterator.AsyncIterator;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
+import com.google.common.base.CharMatcher;
 import com.google.common.collect.Maps;
 import io.kubernetes.client.openapi.ApiCallback;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.BatchV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,25 +22,24 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Key;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
 public final class ClusterUnitController extends TeamController {
   private final CoreV1Api kubernetesCoreApi;
   private final AppsV1Api kubernetesAppsApi;
+  private final BatchV1Api kubernetesBatchApi;
 
   private ClusterUnitController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, CoreV1Api kubernetesCoreApi,
-    AppsV1Api kubernetesAppsApi
+    AppsV1Api kubernetesAppsApi, BatchV1Api kubernetesBatchApi
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.kubernetesCoreApi = kubernetesCoreApi;
     this.kubernetesAppsApi = kubernetesAppsApi;
+    this.kubernetesBatchApi = kubernetesBatchApi;
   }
 
   @RequestMapping(path = "/cluster/units/", method = RequestMethod.GET)
@@ -150,8 +151,10 @@ public final class ClusterUnitController extends TeamController {
             Map<String, List<String>> responseHeaders
           ) {
             futureResponse.complete(Map.of("name", unitName, "type", "DEPLOYMENT",
-              "desiredReplicas", result.getSpec().getReplicas(),
-              "availableReplicas", result.getStatus().getReadyReplicas()));
+              "desiredReplicas", result.getSpec().getReplicas() != null ?
+                result.getSpec().getReplicas() : 0,
+              "availableReplicas",result.getStatus().getReadyReplicas() != null ?
+                result.getStatus().getReadyReplicas() : 0));
           }
 
           @Override
@@ -194,8 +197,10 @@ public final class ClusterUnitController extends TeamController {
             Map<String, List<String>> responseHeaders
           ) {
             futureResponse.complete(Map.of("name", unitName, "type", "STATEFULSET",
-              "desiredReplicas", result.getSpec().getReplicas(),
-              "availableReplicas", result.getStatus().getReadyReplicas()));
+              "desiredReplicas", result.getSpec().getReplicas() != null ?
+                result.getSpec().getReplicas() : 0,
+              "availableReplicas",result.getStatus().getReadyReplicas() != null ?
+                result.getStatus().getReadyReplicas() : 0));
           }
 
           @Override
@@ -264,6 +269,9 @@ public final class ClusterUnitController extends TeamController {
   private CompletableFuture<Map<String, Object>> jobInformation(
     String unitName
   ) {
+    if (CharMatcher.is('-').countIn(unitName) == 3) {
+      unitName = unitName.substring(0, unitName.lastIndexOf('-'));
+    }
     return CompletableFuture.completedFuture(Map.of("name", unitName,
       "type", "JOB"));
   }
@@ -313,7 +321,8 @@ public final class ClusterUnitController extends TeamController {
           ) {
             futureResponse.complete(result.getItems().stream()
               .filter(pod -> pod.getMetadata().getOwnerReferences().stream()
-                .anyMatch(owner -> owner.getName().contains(unitName)))
+                .anyMatch(owner -> owner.getName().contains(unitName) &&
+                  checkUnitOwnerMatch(owner, unitType)))
               .toList());
           }
 
@@ -334,6 +343,19 @@ public final class ClusterUnitController extends TeamController {
       futureResponse.complete(Lists.newArrayList());
     }
     return futureResponse;
+  }
+
+  private boolean checkUnitOwnerMatch(V1OwnerReference owner, String unitType) {
+    if (unitType.equalsIgnoreCase(owner.getKind())) {
+      return true;
+    }
+    if (unitType.equalsIgnoreCase("DEPLOYMENT") &&
+      owner.getKind().equalsIgnoreCase("REPLICASET")
+    ) {
+      return true;
+    }
+    return unitType.equalsIgnoreCase("REPLICASET") &&
+      owner.getKind().equalsIgnoreCase("DEPLOYMENT");
   }
 
   private Map<String, Object> detailedUnitInformation(
@@ -380,6 +402,7 @@ public final class ClusterUnitController extends TeamController {
         case "DEPLOYMENT" -> restartDeployment(unitName);
         case "STATEFULSET" -> restartStatefulSet(unitName);
         case "DAEMONSET" -> restartDaemonSet(unitName);
+        case "JOB" -> restartJob(unitName);
       }
     } catch (Exception exception) {
       exception.printStackTrace();
@@ -420,6 +443,50 @@ public final class ClusterUnitController extends TeamController {
     daemonSet.getSpec().getTemplate().getMetadata().setAnnotations(annotations);
     kubernetesAppsApi.replaceNamespacedDaemonSet(unitName,
       CLUSTER_POD_NAMESPACE, daemonSet).execute();
+  }
+
+  private void restartJob(String unitName) throws Exception {
+    deleteCurrentJobs(unitName);
+    var cronJob = kubernetesBatchApi.readNamespacedCronJob(unitName,
+      CLUSTER_POD_NAMESPACE).execute();
+    var job = new V1Job()
+      .apiVersion("batch/v1")
+      .kind("Job")
+      .metadata(new V1ObjectMeta()
+        .name(unitName + "-" + UUID.randomUUID().toString().substring(0, 8))
+        .namespace(CLUSTER_POD_NAMESPACE)
+        .putLabelsItem("cronjob-name", unitName))
+      .spec(cronJob.getSpec().getJobTemplate().getSpec());
+    var ownerReference = new V1OwnerReference()
+      .apiVersion("batch/v1")
+      .kind("CronJob")
+      .name(cronJob.getMetadata().getName())
+      .uid(cronJob.getMetadata().getUid())
+      .controller(false)
+      .blockOwnerDeletion(false);
+    job.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
+    kubernetesBatchApi.createNamespacedJob(CLUSTER_POD_NAMESPACE, job).execute();
+  }
+
+  private void deleteCurrentJobs(String unitName) throws Exception {
+    var jobList = kubernetesBatchApi.listNamespacedJob(CLUSTER_POD_NAMESPACE)
+      .execute();
+    for (var job : jobList.getItems()) {
+      if (job.getMetadata().getName().contains(unitName)) {
+        var jobName = job.getMetadata().getName();
+        var podList = kubernetesCoreApi.listNamespacedPod(CLUSTER_POD_NAMESPACE)
+          .execute();
+        for (var pod : podList.getItems()) {
+          var labels = pod.getMetadata().getLabels();
+          if (labels.containsKey("job-name") && labels.get("job-name").equals(jobName)) {
+            kubernetesCoreApi.deleteNamespacedPod(pod.getMetadata().getName(),
+              CLUSTER_POD_NAMESPACE).execute();
+          }
+        }
+        kubernetesBatchApi.deleteNamespacedJob(jobName, CLUSTER_POD_NAMESPACE)
+          .execute();
+      }
+    }
   }
 
   @RequestMapping(path = "/cluster/pod/", method = RequestMethod.POST)
@@ -557,6 +624,11 @@ public final class ClusterUnitController extends TeamController {
     if (!hasPermission) {
       return;
     }
-    kubernetesCoreApi.deleteNamespacedPod(podName, CLUSTER_POD_NAMESPACE);
+    try {
+      kubernetesCoreApi.deleteNamespacedPod(podName, CLUSTER_POD_NAMESPACE)
+        .execute();
+    } catch (Exception exception) {
+      exception.printStackTrace();
+    }
   }
 }

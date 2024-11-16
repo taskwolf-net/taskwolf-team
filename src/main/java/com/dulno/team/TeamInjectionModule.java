@@ -38,6 +38,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.BatchV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.util.Config;
 import lombok.RequiredArgsConstructor;
@@ -164,5 +165,11 @@ public final class TeamInjectionModule extends AbstractModule {
   @Singleton
   AppsV1Api provideKubernetesAppsApi(ApiClient client) {
     return new AppsV1Api();
+  }
+
+  @Provides
+  @Singleton
+  BatchV1Api provideKubernetesBatchApi(ApiClient client) {
+    return new BatchV1Api();
   }
 }

@@ -7,6 +7,7 @@ import com.dulno.team.prometheus.PrometheusRequestFactory;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.BatchV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 public class ClusterContextInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
   private final CoreV1Api kubernetesCoreApi;
   private final AppsV1Api kubernetesAppsApi;
+  private final BatchV1Api kubernetesBatchApi;
   private final PrometheusConfiguration prometheusConfiguration;
   private final PrometheusRequestFactory prometheusRequestFactory;
   private final PrometheusMetricsFactory prometheusMetricsFactory;
@@ -28,6 +30,7 @@ public class ClusterContextInitializer implements ApplicationContextInitializer<
     var beanFactory = applicationContext.getBeanFactory();
     beanFactory.registerSingleton("kubernetesCoreApi", kubernetesCoreApi);
     beanFactory.registerSingleton("kubernetesAppsApi", kubernetesAppsApi);
+    beanFactory.registerSingleton("kubernetesBatchApi", kubernetesBatchApi);
     beanFactory.registerSingleton("prometheusConfiguration",
       prometheusConfiguration);
     beanFactory.registerSingleton("prometheusRequestFactory",
