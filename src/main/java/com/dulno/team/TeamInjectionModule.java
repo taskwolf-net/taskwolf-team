@@ -4,6 +4,7 @@ import com.dulno.core.access.AccessInjectionModule;
 import com.dulno.core.bundle.BundleInjectionModule;
 import com.dulno.core.command.CommandInjectionModule;
 import com.dulno.core.database.DatabaseInjectionModule;
+import com.dulno.core.error.ErrorInjectionModule;
 import com.dulno.core.intro.IntroInjectionModule;
 import com.dulno.core.locale.LocaleInjectionModule;
 import com.dulno.core.log.Log;
@@ -73,6 +74,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(TeamMemberInjectionModule.create());
     install(GroupInjectionModule.create());
     install(MaintenanceInjectionModule.create());
+    install(ErrorInjectionModule.create());
     install(HetznerInjectionModule.create());
     install(PrometheusInjectionModule.create());
   }

@@ -57,7 +57,6 @@ public final class TeamMultiFactorAuth {
     try {
       return generator.generate(data);
     } catch (Exception exception) {
-      exception.printStackTrace();
       return new byte[0];
     }
   }

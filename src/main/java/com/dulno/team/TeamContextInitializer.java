@@ -3,6 +3,7 @@ package com.dulno.team;
 import com.dulno.core.database.DatabaseConnection;
 import com.dulno.core.database.DatabaseKeyspace;
 import com.dulno.core.locale.Translation;
+import com.dulno.core.error.ErrorRepository;
 import com.dulno.core.log.Log;
 import com.dulno.core.mail.Mail;
 import com.dulno.core.whitelist.WhitelistConfiguration;
@@ -26,6 +27,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final TeamDatabaseTable teamDatabaseTable;
   private final GroupDatabaseTable groupDatabaseTable;
   private final Translation translation;
+  private final ErrorRepository errorRepository;
   private final Mail verificationMail;
   private final Mail supportMail;
   private final Mail saleMail;
@@ -37,7 +39,8 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     DatabaseKeyspace databaseKeyspace,
     WhitelistConfiguration whitelistConfiguration,
     TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
-    Translation translation, @Named("verificationMail") Mail verificationMail,
+    Translation translation, ErrorRepository errorRepository,
+    @Named("verificationMail") Mail verificationMail,
     @Named("supportMail") Mail supportMail, @Named("saleMail") Mail saleMail,
     @Named("changeMail") Mail changeMail
   ) {
@@ -49,6 +52,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.teamDatabaseTable = teamDatabaseTable;
     this.groupDatabaseTable = groupDatabaseTable;
     this.translation = translation;
+    this.errorRepository = errorRepository;
     this.verificationMail = verificationMail;
     this.supportMail = supportMail;
     this.saleMail = saleMail;
@@ -67,6 +71,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("teamDatabaseTable", teamDatabaseTable);
     beanFactory.registerSingleton("groupDatabaseTable", groupDatabaseTable);
     beanFactory.registerSingleton("translation", translation);
+    beanFactory.registerSingleton("errorRepository", errorRepository);
     beanFactory.registerSingleton("verificationMail", verificationMail);
     beanFactory.registerSingleton("supportMail", supportMail);
     beanFactory.registerSingleton("saleMail", saleMail);

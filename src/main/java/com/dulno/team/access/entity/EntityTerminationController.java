@@ -3,6 +3,7 @@ package com.dulno.team.access.entity;
 import com.dulno.core.access.DulnoRequestBody;
 import com.dulno.core.bundle.Bundle;
 import com.dulno.core.bundle.BundleDatabaseTable;
+import com.dulno.core.error.ErrorRepository;
 import com.dulno.core.stripe.StripeAccount;
 import com.dulno.core.stripe.StripeDatabaseTable;
 import com.dulno.core.stripe.TerminationDatabaseTable;
@@ -30,19 +31,22 @@ public final class EntityTerminationController extends TeamController {
   private final TerminationDatabaseTable terminationDatabaseTable;
   private final StripeDatabaseTable stripeDatabaseTable;
   private final StripeClient stripeClient;
+  private final ErrorRepository errorRepository;
 
   private EntityTerminationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     BundleDatabaseTable bundleDatabaseTable,
     TerminationDatabaseTable terminationDatabaseTable,
-    StripeDatabaseTable stripeDatabaseTable, StripeClient stripeClient
+    StripeDatabaseTable stripeDatabaseTable, StripeClient stripeClient,
+    ErrorRepository errorRepository
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.bundleDatabaseTable = bundleDatabaseTable;
     this.terminationDatabaseTable = terminationDatabaseTable;
     this.stripeDatabaseTable = stripeDatabaseTable;
     this.stripeClient = stripeClient;
+    this.errorRepository = errorRepository;
   }
 
   @RequestMapping(path = "/entity/termination/status/", method = RequestMethod.POST)
@@ -94,7 +98,7 @@ public final class EntityTerminationController extends TeamController {
       return terminationDatabaseTable.terminationExists(targetId)
         .thenApply(exists -> findEntityTerminationStatus(bundle, exists));
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
   }
@@ -167,7 +171,7 @@ public final class EntityTerminationController extends TeamController {
       stripeDatabaseTable.updateStripeAccount(account.accountId(),
         account.targetId(), account.userId(), "");
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
     }
   }
 }

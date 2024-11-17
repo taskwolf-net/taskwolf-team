@@ -3,6 +3,8 @@ package com.dulno.team;
 import com.dulno.core.command.CommandRegistry;
 import com.dulno.core.command.CommandTask;
 import com.dulno.core.command.implementation.ClearCommand;
+import com.dulno.core.database.DatabaseConnection;
+import com.dulno.core.error.ErrorRepository;
 import com.dulno.core.intro.Intro;
 import com.dulno.core.log.Log;
 import com.dulno.team.access.cluster.ClusterContextInitializer;
@@ -32,12 +34,17 @@ import java.util.Collections;
 public class TeamApplication {
   public static void main(String[] args) {
     var injector = Guice.createInjector(TeamInjectionModule.create());
+    var errorRepository = injector.getInstance(ErrorRepository.class);
+    Thread.setDefaultUncaughtExceptionHandler((thread, throwable) ->
+      errorRepository.processError(throwable));
+    injector.getInstance(DatabaseConnection.class).errorRepository(errorRepository);
     injector.getInstance(Intro.class).print();
     var log = injector.getInstance(Log.class);
     log.info("Initializing Dulno - Team");
     var commandRegistry = CommandRegistry.create();
     registerCommands(commandRegistry, injector);
-    new Thread(() -> CommandTask.create(log, commandRegistry).start()).start();
+    new Thread(() -> CommandTask.create(log, errorRepository, commandRegistry)
+      .start()).start();
     var application = new SpringApplication(TeamApplication.class);
     application.setDefaultProperties(Collections.singletonMap("server.port",
       injector.getInstance(TeamConfiguration.class).restPort()));

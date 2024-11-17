@@ -1,6 +1,7 @@
 package com.dulno.team.access.entity;
 
 import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.error.ErrorRepository;
 import com.dulno.core.stripe.StripeDatabaseTable;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
@@ -29,16 +30,17 @@ import java.util.concurrent.CompletableFuture;
 public final class EntityPaymentController extends TeamController {
   private final StripeDatabaseTable stripeDatabaseTable;
   private final StripeClient stripeClient;
+  private final ErrorRepository errorRepository;
 
   private EntityPaymentController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
-    GroupDatabaseTable groupDatabaseTable,
-    StripeDatabaseTable stripeDatabaseTable,
-    StripeClient stripeClient
+    GroupDatabaseTable groupDatabaseTable, StripeDatabaseTable stripeDatabaseTable,
+    StripeClient stripeClient, ErrorRepository errorRepository
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.stripeDatabaseTable = stripeDatabaseTable;
     this.stripeClient = stripeClient;
+    this.errorRepository = errorRepository;
   }
 
   @RequestMapping(path = "/entity/payments/find/", method = RequestMethod.POST)
@@ -80,7 +82,7 @@ public final class EntityPaymentController extends TeamController {
       }
       return Map.of("payments", information);
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
       return Maps.newHashMap();
     }
   }

@@ -1,6 +1,7 @@
 package com.dulno.team.access.mail;
 
 import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.error.ErrorRepository;
 import com.dulno.core.mail.*;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
@@ -19,15 +20,18 @@ import java.util.UUID;
 public final class MailModificationController extends TeamController {
   private final OutgoingMailDatabaseTable mailDatabaseTable;
   private final MailFactory mailFactory;
+  private final ErrorRepository errorRepository;
 
   private MailModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
-    OutgoingMailDatabaseTable mailDatabaseTable, MailFactory mailFactory
+    OutgoingMailDatabaseTable mailDatabaseTable, MailFactory mailFactory,
+    ErrorRepository errorRepository
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.mailDatabaseTable = mailDatabaseTable;
     this.mailFactory = mailFactory;
+    this.errorRepository = errorRepository;
   }
 
   @RequestMapping(path = "/mail/resend/", method = RequestMethod.POST)
@@ -56,7 +60,7 @@ public final class MailModificationController extends TeamController {
       var mail = createMail(outgoingMail.sender());
       mail.resendEmail(outgoingMail);
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
     }
   }
 

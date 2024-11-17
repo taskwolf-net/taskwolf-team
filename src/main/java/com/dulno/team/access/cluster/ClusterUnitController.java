@@ -5,6 +5,7 @@ import com.dulno.core.iterator.AsyncIterator;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
+import com.dulno.core.error.ErrorRepository;
 import com.google.common.base.CharMatcher;
 import com.google.common.collect.Maps;
 import io.kubernetes.client.openapi.ApiCallback;
@@ -27,16 +28,19 @@ import java.util.concurrent.CompletableFuture;
 
 @RestController
 public final class ClusterUnitController extends TeamController {
+  private final ErrorRepository errorRepository;
   private final CoreV1Api kubernetesCoreApi;
   private final AppsV1Api kubernetesAppsApi;
   private final BatchV1Api kubernetesBatchApi;
 
   private ClusterUnitController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
-    GroupDatabaseTable groupDatabaseTable, CoreV1Api kubernetesCoreApi,
-    AppsV1Api kubernetesAppsApi, BatchV1Api kubernetesBatchApi
+    GroupDatabaseTable groupDatabaseTable, ErrorRepository errorRepository,
+    CoreV1Api kubernetesCoreApi, AppsV1Api kubernetesAppsApi,
+    BatchV1Api kubernetesBatchApi
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
+    this.errorRepository = errorRepository;
     this.kubernetesCoreApi = kubernetesCoreApi;
     this.kubernetesAppsApi = kubernetesAppsApi;
     this.kubernetesBatchApi = kubernetesBatchApi;
@@ -67,7 +71,7 @@ public final class ClusterUnitController extends TeamController {
             ApiException exception, int statusCode, Map<String,
             List<String>> responseHeaders
           ) {
-            exception.printStackTrace();
+            errorRepository.processError(exception);
           }
 
           @Override
@@ -91,7 +95,7 @@ public final class ClusterUnitController extends TeamController {
           }
         });
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
       futureResponse.complete(Maps.newHashMap());
     }
     return futureResponse;
@@ -142,7 +146,7 @@ public final class ClusterUnitController extends TeamController {
             ApiException exception, int statusCode, Map<String,
             List<String>> responseHeaders
           ) {
-            exception.printStackTrace();
+            errorRepository.processError(exception);
           }
 
           @Override
@@ -170,7 +174,7 @@ public final class ClusterUnitController extends TeamController {
           }
         });
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
       futureResponse.complete(Maps.newHashMap());
     }
     return futureResponse;
@@ -188,7 +192,7 @@ public final class ClusterUnitController extends TeamController {
             ApiException exception, int statusCode, Map<String,
             List<String>> responseHeaders
           ) {
-            exception.printStackTrace();
+            errorRepository.processError(exception);
           }
 
           @Override
@@ -216,7 +220,7 @@ public final class ClusterUnitController extends TeamController {
           }
         });
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
       futureResponse.complete(Maps.newHashMap());
     }
     return futureResponse;
@@ -234,7 +238,7 @@ public final class ClusterUnitController extends TeamController {
             ApiException exception, int statusCode, Map<String,
             List<String>> responseHeaders
           ) {
-            exception.printStackTrace();
+            errorRepository.processError(exception);
           }
 
           @Override
@@ -260,7 +264,7 @@ public final class ClusterUnitController extends TeamController {
           }
         });
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
       futureResponse.complete(Maps.newHashMap());
     }
     return futureResponse;
@@ -311,7 +315,7 @@ public final class ClusterUnitController extends TeamController {
             ApiException exception, int statusCode, Map<String,
             List<String>> responseHeaders
           ) {
-            exception.printStackTrace();
+            errorRepository.processError(exception);
           }
 
           @Override
@@ -339,7 +343,7 @@ public final class ClusterUnitController extends TeamController {
           }
         });
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
       futureResponse.complete(Lists.newArrayList());
     }
     return futureResponse;
@@ -405,7 +409,7 @@ public final class ClusterUnitController extends TeamController {
         case "JOB" -> restartJob(unitName);
       }
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
     }
   }
 
@@ -521,7 +525,7 @@ public final class ClusterUnitController extends TeamController {
             ApiException exception, int statusCode, Map<String,
             List<String>> responseHeaders
           ) {
-            exception.printStackTrace();
+            errorRepository.processError(exception);
           }
 
           @Override
@@ -545,7 +549,7 @@ public final class ClusterUnitController extends TeamController {
           }
         });
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
       futureResponse.complete(null);
     }
     return futureResponse;
@@ -561,7 +565,7 @@ public final class ClusterUnitController extends TeamController {
             ApiException exception, int statusCode, Map<String,
             List<String>> responseHeaders
           ) {
-            exception.printStackTrace();
+            errorRepository.processError(exception);
           }
 
           @Override
@@ -585,7 +589,7 @@ public final class ClusterUnitController extends TeamController {
           }
         });
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
       futureResponse.complete("");
     }
     return futureResponse;
@@ -628,7 +632,7 @@ public final class ClusterUnitController extends TeamController {
       kubernetesCoreApi.deleteNamespacedPod(podName, CLUSTER_POD_NAMESPACE)
         .execute();
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
     }
   }
 }

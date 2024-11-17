@@ -2,6 +2,7 @@ package com.dulno.team.access.offer;
 
 import com.dulno.core.access.DulnoRequestBody;
 import com.dulno.core.bundle.*;
+import com.dulno.core.error.ErrorRepository;
 import com.dulno.core.locale.Translation;
 import com.dulno.core.mail.Mail;
 import com.dulno.core.offer.Offer;
@@ -42,6 +43,7 @@ public final class OfferModificationController extends TeamController {
   private final OrganizationDatabaseTable organizationDatabaseTable;
   private final Mail saleMail;
   private final Translation translation;
+  private final ErrorRepository errorRepository;
 
   private OfferModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
@@ -51,7 +53,8 @@ public final class OfferModificationController extends TeamController {
     TeamOfferConfiguration teamOfferConfiguration, StripeClient stripeClient,
     UserDatabaseTable userDatabaseTable,
     OrganizationDatabaseTable organizationDatabaseTable,
-    @Qualifier("saleMail") Mail saleMail, Translation translation
+    @Qualifier("saleMail") Mail saleMail, Translation translation,
+    ErrorRepository errorRepository
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.offerDatabaseTable = offerDatabaseTable;
@@ -62,6 +65,7 @@ public final class OfferModificationController extends TeamController {
     this.organizationDatabaseTable = organizationDatabaseTable;
     this.saleMail = saleMail;
     this.translation = translation;
+    this.errorRepository = errorRepository;
   }
 
   @RequestMapping(path = "/offer/price/suggestion/", method = RequestMethod.POST)
@@ -188,7 +192,7 @@ public final class OfferModificationController extends TeamController {
       var stripePrice = stripeClient.prices().create(parameters);
       return stripePrice.getId();
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
       return null;
     }
   }
@@ -293,7 +297,7 @@ public final class OfferModificationController extends TeamController {
       stripeClient.prices().update(offer.priceId(),
         PriceUpdateParams.builder().setActive(false).build());
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
     }
   }
 }

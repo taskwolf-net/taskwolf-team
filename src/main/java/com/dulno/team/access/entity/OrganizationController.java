@@ -1,6 +1,7 @@
 package com.dulno.team.access.entity;
 
 import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.error.ErrorRepository;
 import com.dulno.core.iterator.AsyncIterator;
 import com.dulno.core.locale.Translation;
 import com.dulno.core.organization.Organization;
@@ -42,6 +43,7 @@ public final class OrganizationController extends TeamController {
   private final Translation translation;
   private final TeamDistributionConfiguration teamDistributionConfiguration;
   private final UserTargetDatabaseTable targetDatabaseTable;
+  private final ErrorRepository errorRepository;
   private final HttpClient httpClient = HttpClient.newHttpClient();
 
   private OrganizationController(
@@ -51,7 +53,7 @@ public final class OrganizationController extends TeamController {
     com.dulno.core.organization.team.TeamDatabaseTable organizationTeamDatabaseTable,
     UserDatabaseTable userDatabaseTable, Translation translation,
     TeamDistributionConfiguration teamDistributionConfiguration,
-    UserTargetDatabaseTable targetDatabaseTable
+    UserTargetDatabaseTable targetDatabaseTable, ErrorRepository errorRepository
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.organizationDatabaseTable = organizationDatabaseTable;
@@ -60,6 +62,7 @@ public final class OrganizationController extends TeamController {
     this.translation = translation;
     this.teamDistributionConfiguration = teamDistributionConfiguration;
     this.targetDatabaseTable = targetDatabaseTable;
+    this.errorRepository = errorRepository;
   }
 
   @RequestMapping(path = "/organization/find/", method = RequestMethod.POST)
@@ -167,7 +170,7 @@ public final class OrganizationController extends TeamController {
       httpClient.send(requestBuilder.build(),
         HttpResponse.BodyHandlers.ofString());
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
     }
   }
 }

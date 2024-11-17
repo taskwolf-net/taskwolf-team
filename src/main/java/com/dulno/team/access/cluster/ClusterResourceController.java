@@ -1,5 +1,6 @@
 package com.dulno.team.access.cluster;
 
+import com.dulno.core.error.ErrorRepository;
 import com.dulno.core.iterator.AsyncIterator;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
@@ -26,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 
 @RestController
 public final class ClusterResourceController extends TeamController {
+  private final ErrorRepository errorRepository;
   private final CoreV1Api kubernetesCoreApi;
   private final PrometheusConfiguration prometheusConfiguration;
   private final PrometheusRequestFactory prometheusRequestFactory;
@@ -33,12 +35,13 @@ public final class ClusterResourceController extends TeamController {
 
   private ClusterResourceController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
-    GroupDatabaseTable groupDatabaseTable, CoreV1Api kubernetesCoreApi,
-    PrometheusConfiguration prometheusConfiguration,
+    GroupDatabaseTable groupDatabaseTable, ErrorRepository errorRepository,
+    CoreV1Api kubernetesCoreApi, PrometheusConfiguration prometheusConfiguration,
     PrometheusRequestFactory prometheusRequestFactory,
     PrometheusMetricsFactory prometheusMetricsFactory
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
+    this.errorRepository = errorRepository;
     this.kubernetesCoreApi = kubernetesCoreApi;
     this.prometheusConfiguration = prometheusConfiguration;
     this.prometheusRequestFactory = prometheusRequestFactory;
@@ -76,7 +79,7 @@ public final class ClusterResourceController extends TeamController {
             ApiException exception, int statusCode, Map<String,
             List<String>> responseHeaders
           ) {
-            exception.printStackTrace();
+            errorRepository.processError(exception);
           }
 
           @Override
@@ -100,7 +103,7 @@ public final class ClusterResourceController extends TeamController {
           }
         });
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
       futureResponse.complete(null);
     }
     return futureResponse;
