@@ -45,6 +45,7 @@ public class WhitelistFilter extends OncePerRequestFilter {
   protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
     var controllers = Lists.<String>newArrayList();
     controllers.add("/" + CURRENT_API_VERSION + "/");
+    controllers.add("/" + CURRENT_API_VERSION + "/cluster/error/report/");
     return controllers.contains(request.getRequestURI());
   }
 }

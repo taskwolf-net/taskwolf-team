@@ -5,6 +5,7 @@ import com.dulno.core.error.DulnoError;
 import com.dulno.core.error.DulnoErrorState;
 import com.dulno.core.error.ErrorDatabaseTable;
 import com.dulno.team.access.TeamController;
+import com.dulno.team.error.TeamErrorConfiguration;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.google.common.collect.Maps;
@@ -15,7 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.security.MessageDigest;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -23,13 +26,16 @@ import java.util.concurrent.CompletableFuture;
 @RestController
 public final class ClusterErrorController extends TeamController {
   private final ErrorDatabaseTable errorDatabaseTable;
+  private final TeamErrorConfiguration teamErrorConfiguration;
 
   private ClusterErrorController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
-    GroupDatabaseTable groupDatabaseTable, ErrorDatabaseTable errorDatabaseTable
+    GroupDatabaseTable groupDatabaseTable, ErrorDatabaseTable errorDatabaseTable,
+    TeamErrorConfiguration teamErrorConfiguration
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.errorDatabaseTable = errorDatabaseTable;
+    this.teamErrorConfiguration = teamErrorConfiguration;
   }
 
   @RequestMapping(path = "/cluster/errors/", method = RequestMethod.GET)
@@ -64,6 +70,27 @@ public final class ClusterErrorController extends TeamController {
     information.put("time", error.time());
     information.put("state", error.state());
     return information;
+  }
+
+  @RequestMapping(path = "/cluster/error/report/", method = RequestMethod.POST)
+  public void reportClusterError(
+    @RequestBody String payload, HttpServletResponse response
+  ) {
+    var body = DulnoRequestBody.of(payload, response);
+    if (!isReportKeyCorrect(body.getString("reportKey"))) {
+      return;
+    }
+    errorDatabaseTable.generateAvailableErrorId()
+      .thenAccept(id -> errorDatabaseTable.insertError(DulnoError.create(id,
+        body.getString("title"), body.getString("trace"), body.getString("origin"),
+        body.getString("pod"), body.getString("podControllerName"),
+        body.getString("podControllerType"), body.getString("node"),
+        System.currentTimeMillis(), DulnoErrorState.UNSOLVED)));
+  }
+
+  private boolean isReportKeyCorrect(String reportKey) {
+    return MessageDigest.isEqual(reportKey.getBytes(StandardCharsets.UTF_8),
+      teamErrorConfiguration.reportKey().getBytes(StandardCharsets.UTF_8));
   }
 
   @RequestMapping(path = "/cluster/error/fixed/", method = RequestMethod.POST)

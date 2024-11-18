@@ -1,6 +1,7 @@
 package com.dulno.team.access.cluster;
 
 import com.dulno.core.error.ErrorDatabaseTable;
+import com.dulno.team.error.TeamErrorConfiguration;
 import com.dulno.team.hetzner.HetznerRequestFactory;
 import com.dulno.team.prometheus.PrometheusConfiguration;
 import com.dulno.team.prometheus.PrometheusMetricsFactory;
@@ -26,6 +27,7 @@ public class ClusterContextInitializer implements ApplicationContextInitializer<
   private final PrometheusMetricsFactory prometheusMetricsFactory;
   private final HetznerRequestFactory hetznerRequestFactory;
   private final ErrorDatabaseTable errorDatabaseTable;
+  private final TeamErrorConfiguration teamErrorConfiguration;
 
   @Override
   public void initialize(ConfigurableApplicationContext applicationContext) {
@@ -41,5 +43,6 @@ public class ClusterContextInitializer implements ApplicationContextInitializer<
       prometheusMetricsFactory);
     beanFactory.registerSingleton("hetznerRequestFactory", hetznerRequestFactory);
     beanFactory.registerSingleton("errorDatabaseTable", errorDatabaseTable);
+    beanFactory.registerSingleton("teamErrorConfiguration", teamErrorConfiguration);
   }
 }

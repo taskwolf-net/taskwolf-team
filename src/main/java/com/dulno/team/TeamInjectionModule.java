@@ -26,6 +26,7 @@ import com.dulno.core.whitelist.WhitelistInjectionModule;
 import com.dulno.core.workflow.WorkflowInjectionModule;
 import com.dulno.team.configuration.TeamConfiguration;
 import com.dulno.team.distribution.TeamDistributionConfiguration;
+import com.dulno.team.error.TeamErrorInjectionModule;
 import com.dulno.team.group.GroupInjectionModule;
 import com.dulno.team.hetzner.HetznerInjectionModule;
 import com.dulno.team.member.TeamMemberInjectionModule;
@@ -75,6 +76,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(GroupInjectionModule.create());
     install(MaintenanceInjectionModule.create());
     install(ErrorInjectionModule.create());
+    install(TeamErrorInjectionModule.create());
     install(HetznerInjectionModule.create());
     install(PrometheusInjectionModule.create());
   }
