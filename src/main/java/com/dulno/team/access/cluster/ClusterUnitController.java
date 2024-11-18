@@ -511,7 +511,7 @@ public final class ClusterUnitController extends TeamController {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
     return fetchClusterPod(podName)
-      .thenCompose(pod -> fetchClusterPodLog(podName)
+      .thenCompose(pod -> fetchClusterPodLog(pod)
         .thenApply(log -> detailedPodInformation(pod, log)));
   }
 
@@ -525,7 +525,7 @@ public final class ClusterUnitController extends TeamController {
             ApiException exception, int statusCode, Map<String,
             List<String>> responseHeaders
           ) {
-            errorRepository.processError(exception);
+            futureResponse.complete(null);
           }
 
           @Override
@@ -555,17 +555,20 @@ public final class ClusterUnitController extends TeamController {
     return futureResponse;
   }
 
-  private CompletableFuture<String> fetchClusterPodLog(String podName) {
+  private CompletableFuture<String> fetchClusterPodLog(V1Pod pod) {
+    if (pod == null) {
+      return CompletableFuture.completedFuture("");
+    }
     var futureResponse = new CompletableFuture<String>();
     try {
-      kubernetesCoreApi.readNamespacedPodLog(podName, CLUSTER_POD_NAMESPACE)
-        .executeAsync(new ApiCallback<>() {
+      kubernetesCoreApi.readNamespacedPodLog(pod.getMetadata().getName(),
+        CLUSTER_POD_NAMESPACE).executeAsync(new ApiCallback<>() {
           @Override
           public void onFailure(
             ApiException exception, int statusCode, Map<String,
             List<String>> responseHeaders
           ) {
-            errorRepository.processError(exception);
+            futureResponse.complete("");
           }
 
           @Override
@@ -596,7 +599,11 @@ public final class ClusterUnitController extends TeamController {
   }
 
   private Map<String, Object> detailedPodInformation(V1Pod pod, String log) {
+    if (pod == null) {
+      return Map.of("found", false);
+    }
     var information = Maps.<String, Object>newHashMap();
+    information.put("found", true);
     information.putAll(superficialPodInformation(pod));
     information.put("containers", pod.getSpec().getContainers().stream()
       .map(this::containerInformation).toList());
