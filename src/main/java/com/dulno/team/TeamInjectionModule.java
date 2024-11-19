@@ -38,6 +38,7 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.kubernetes.client.Copy;
 import io.kubernetes.client.Exec;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.Configuration;
@@ -184,5 +185,11 @@ public final class TeamInjectionModule extends AbstractModule {
   @Singleton
   Exec provideKubernetesExecutionApi(ApiClient client) {
     return new Exec();
+  }
+
+  @Provides
+  @Singleton
+  Copy provideKubernetesCopyApi(ApiClient client) {
+    return new Copy();
   }
 }

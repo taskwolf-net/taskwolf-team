@@ -9,6 +9,7 @@ import com.dulno.team.telegraf.TelegrafMetricsFactory;
 import com.dulno.team.telegraf.TelegrafRequestFactory;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.kubernetes.client.Copy;
 import io.kubernetes.client.Exec;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.BatchV1Api;
@@ -25,6 +26,7 @@ public class ClusterContextInitializer implements ApplicationContextInitializer<
   private final AppsV1Api kubernetesAppsApi;
   private final BatchV1Api kubernetesBatchApi;
   private final Exec kubernetesExecutionApi;
+  private final Copy kubernetesCopyApi;
   private final ClusterConfiguration clusterConfiguration;
   private final TelegrafConfiguration telegrafConfiguration;
   private final TelegrafRequestFactory telegrafRequestFactory;
@@ -40,6 +42,7 @@ public class ClusterContextInitializer implements ApplicationContextInitializer<
     beanFactory.registerSingleton("kubernetesAppsApi", kubernetesAppsApi);
     beanFactory.registerSingleton("kubernetesBatchApi", kubernetesBatchApi);
     beanFactory.registerSingleton("kubernetesExecutionApi", kubernetesExecutionApi);
+    beanFactory.registerSingleton("kubernetesCopyApi", kubernetesCopyApi);
     beanFactory.registerSingleton("clusterConfiguration", clusterConfiguration);
     beanFactory.registerSingleton("telegrafConfiguration",
       telegrafConfiguration);

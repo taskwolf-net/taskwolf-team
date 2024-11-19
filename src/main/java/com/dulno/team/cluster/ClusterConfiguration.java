@@ -18,6 +18,8 @@ public final class ClusterConfiguration extends Configuration {
 
   private String namespace;
   private String databaseController;
+  private String databasePath;
+  private String backupEncryptionKey;
 
   private ClusterConfiguration(String path) {
     super(path);
@@ -27,5 +29,6 @@ public final class ClusterConfiguration extends Configuration {
   protected void deserialize(JSONObject json) {
     namespace = json.getString("namespace");
     databaseController = json.getString("databaseController");
+    databasePath = json.getString("databasePath");
   }
 }

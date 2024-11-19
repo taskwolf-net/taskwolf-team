@@ -160,6 +160,8 @@ The Cluster section contains permissions required for monitoring and editing the
 | `cluster.unit.scale`       | Allows scaling an individual cluster unit.        |
 | `cluster.pod`              | Allows viewing an individual cluster pod.         |
 | `cluster.pod.delete`       | Allows deleting an individual cluster pod.        |
+| `cluster.backups`          | Allows listing all backups of the cluster.        |
+| `cluster.backup.download`  | Allows downloading an individual cluster backup.  |
 | `cluster.errors`           | Allows listing all errors of the cluster.         |
 | `cluster.error.fixed`      | Allows fixing an individual cluster error.        |
 | `cluster.errors.fixed.all` | Allows fixing all errors of the cluster.          |
