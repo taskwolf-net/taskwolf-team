@@ -37,9 +37,11 @@ public final class ServiceController extends TeamController {
     var requestBuilder = HttpRequest.newBuilder()
       .uri(URI.create(body.getString("url")))
       .GET();
+    var sendTime = System.currentTimeMillis();
     var futureResponse = httpClient.sendAsync(requestBuilder.build(),
       HttpResponse.BodyHandlers.ofString());
     return futureResponse.thenApply(result -> Map.of("available",
-      result.statusCode() >= 200 && result.statusCode() < 400));
+      result.statusCode() >= 200 && result.statusCode() < 400, "delay",
+      System.currentTimeMillis() - sendTime));
   }
 }
