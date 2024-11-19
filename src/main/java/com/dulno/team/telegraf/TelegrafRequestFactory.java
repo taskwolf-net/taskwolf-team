@@ -1,4 +1,4 @@
-package com.dulno.team.prometheus;
+package com.dulno.team.telegraf;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -9,10 +9,10 @@ import java.net.http.HttpClient;
 
 @Singleton
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE, onConstructor = @__({@Inject}))
-public final class PrometheusRequestFactory {
+public final class TelegrafRequestFactory {
   private final HttpClient httpClient = HttpClient.newHttpClient();
 
-  public PrometheusRequest create(String exporterHost, int exporterPort) {
-    return PrometheusRequest.create(httpClient, exporterHost, exporterPort);
+  public TelegrafRequest create(String exporterHost, int exporterPort) {
+    return TelegrafRequest.create(httpClient, exporterHost, exporterPort);
   }
 }

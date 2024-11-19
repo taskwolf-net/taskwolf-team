@@ -3,9 +3,9 @@ package com.dulno.team.access.cluster;
 import com.dulno.core.error.ErrorDatabaseTable;
 import com.dulno.team.error.TeamErrorConfiguration;
 import com.dulno.team.hetzner.HetznerRequestFactory;
-import com.dulno.team.prometheus.PrometheusConfiguration;
-import com.dulno.team.prometheus.PrometheusMetricsFactory;
-import com.dulno.team.prometheus.PrometheusRequestFactory;
+import com.dulno.team.telegraf.TelegrafConfiguration;
+import com.dulno.team.telegraf.TelegrafMetricsFactory;
+import com.dulno.team.telegraf.TelegrafRequestFactory;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
@@ -22,9 +22,9 @@ public class ClusterContextInitializer implements ApplicationContextInitializer<
   private final CoreV1Api kubernetesCoreApi;
   private final AppsV1Api kubernetesAppsApi;
   private final BatchV1Api kubernetesBatchApi;
-  private final PrometheusConfiguration prometheusConfiguration;
-  private final PrometheusRequestFactory prometheusRequestFactory;
-  private final PrometheusMetricsFactory prometheusMetricsFactory;
+  private final TelegrafConfiguration telegrafConfiguration;
+  private final TelegrafRequestFactory telegrafRequestFactory;
+  private final TelegrafMetricsFactory telegrafMetricsFactory;
   private final HetznerRequestFactory hetznerRequestFactory;
   private final ErrorDatabaseTable errorDatabaseTable;
   private final TeamErrorConfiguration teamErrorConfiguration;
@@ -35,12 +35,12 @@ public class ClusterContextInitializer implements ApplicationContextInitializer<
     beanFactory.registerSingleton("kubernetesCoreApi", kubernetesCoreApi);
     beanFactory.registerSingleton("kubernetesAppsApi", kubernetesAppsApi);
     beanFactory.registerSingleton("kubernetesBatchApi", kubernetesBatchApi);
-    beanFactory.registerSingleton("prometheusConfiguration",
-      prometheusConfiguration);
-    beanFactory.registerSingleton("prometheusRequestFactory",
-      prometheusRequestFactory);
-    beanFactory.registerSingleton("prometheusMetricsFactory",
-      prometheusMetricsFactory);
+    beanFactory.registerSingleton("telegrafConfiguration",
+      telegrafConfiguration);
+    beanFactory.registerSingleton("telegrafRequestFactory",
+      telegrafRequestFactory);
+    beanFactory.registerSingleton("telegrafMetricsFactory",
+      telegrafMetricsFactory);
     beanFactory.registerSingleton("hetznerRequestFactory", hetznerRequestFactory);
     beanFactory.registerSingleton("errorDatabaseTable", errorDatabaseTable);
     beanFactory.registerSingleton("teamErrorConfiguration", teamErrorConfiguration);

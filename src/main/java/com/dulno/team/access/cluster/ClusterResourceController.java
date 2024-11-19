@@ -5,14 +5,15 @@ import com.dulno.core.iterator.AsyncIterator;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
-import com.dulno.team.prometheus.PrometheusConfiguration;
-import com.dulno.team.prometheus.PrometheusMetrics;
-import com.dulno.team.prometheus.PrometheusMetricsFactory;
-import com.dulno.team.prometheus.PrometheusRequestFactory;
+import com.dulno.team.telegraf.TelegrafConfiguration;
+import com.dulno.team.telegraf.TelegrafMetrics;
+import com.dulno.team.telegraf.TelegrafMetricsFactory;
+import com.dulno.team.telegraf.TelegrafRequestFactory;
 import com.google.common.collect.Maps;
 import io.kubernetes.client.openapi.ApiCallback;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1NodeList;
 import io.kubernetes.client.openapi.models.V1PodList;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.compress.utils.Lists;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Key;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -29,23 +31,23 @@ import java.util.concurrent.CompletableFuture;
 public final class ClusterResourceController extends TeamController {
   private final ErrorRepository errorRepository;
   private final CoreV1Api kubernetesCoreApi;
-  private final PrometheusConfiguration prometheusConfiguration;
-  private final PrometheusRequestFactory prometheusRequestFactory;
-  private final PrometheusMetricsFactory prometheusMetricsFactory;
+  private final TelegrafConfiguration telegrafConfiguration;
+  private final TelegrafRequestFactory telegrafRequestFactory;
+  private final TelegrafMetricsFactory telegrafMetricsFactory;
 
   private ClusterResourceController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, ErrorRepository errorRepository,
-    CoreV1Api kubernetesCoreApi, PrometheusConfiguration prometheusConfiguration,
-    PrometheusRequestFactory prometheusRequestFactory,
-    PrometheusMetricsFactory prometheusMetricsFactory
+    CoreV1Api kubernetesCoreApi, TelegrafConfiguration telegrafConfiguration,
+    TelegrafRequestFactory telegrafRequestFactory,
+    TelegrafMetricsFactory telegrafMetricsFactory
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.errorRepository = errorRepository;
     this.kubernetesCoreApi = kubernetesCoreApi;
-    this.prometheusConfiguration = prometheusConfiguration;
-    this.prometheusRequestFactory = prometheusRequestFactory;
-    this.prometheusMetricsFactory = prometheusMetricsFactory;
+    this.telegrafConfiguration = telegrafConfiguration;
+    this.telegrafRequestFactory = telegrafRequestFactory;
+    this.telegrafMetricsFactory = telegrafMetricsFactory;
   }
 
   @RequestMapping(path = "/cluster/resources/", method = RequestMethod.GET)
@@ -62,17 +64,17 @@ public final class ClusterResourceController extends TeamController {
     if (!hasPermission) {
       return CompletableFuture.completedFuture(Maps.newHashMap());
     }
-    //TODO: Fetch cpu metrics
-    return fetchExporterPods()
-      .thenCompose(exporters -> fetchMetrics(exporters)
-        .thenApply(metrics -> findClusterResources(exporters, metrics)));
+    return fetchTelegrafPods()
+      .thenCompose(telegrafPods -> fetchNodes()
+        .thenCompose(nodes -> fetchMetrics(telegrafPods)
+          .thenApply(metrics -> findClusterResources(telegrafPods, nodes, metrics))));
   }
 
-  private CompletableFuture<V1PodList> fetchExporterPods() {
+  private CompletableFuture<V1PodList> fetchTelegrafPods() {
     var futureResponse = new CompletableFuture<V1PodList>();
     try {
       kubernetesCoreApi
-        .listNamespacedPod(prometheusConfiguration.kubernetesNamespace())
+        .listNamespacedPod(telegrafConfiguration.kubernetesNamespace())
         .executeAsync(new ApiCallback<>() {
           @Override
           public void onFailure(
@@ -109,27 +111,112 @@ public final class ClusterResourceController extends TeamController {
     return futureResponse;
   }
 
-  private CompletableFuture<List<PrometheusMetrics>> fetchMetrics(
-    V1PodList exporters
+  private CompletableFuture<V1NodeList> fetchNodes() {
+    var futureResponse = new CompletableFuture<V1NodeList>();
+    try {
+      kubernetesCoreApi.listNode().executeAsync(new ApiCallback<>() {
+          @Override
+          public void onFailure(
+            ApiException exception, int statusCode, Map<String,
+            List<String>> responseHeaders
+          ) {
+            errorRepository.processError(exception);
+          }
+
+          @Override
+          public void onSuccess(
+            V1NodeList result, int statusCode,
+            Map<String, List<String>> responseHeaders
+          ) {
+            futureResponse.complete(result);
+          }
+
+          @Override
+          public void onUploadProgress(
+            long bytesWritten, long contentLength, boolean done
+          ) {
+          }
+
+          @Override
+          public void onDownloadProgress(
+            long bytesRead, long contentLength, boolean done
+          ) {
+          }
+        });
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+      futureResponse.complete(null);
+    }
+    return futureResponse;
+  }
+
+  private CompletableFuture<List<TelegrafMetrics>> fetchMetrics(
+    V1PodList telegrafPods
   ) {
-    return AsyncIterator.execute(exporters.getItems(),
-      exporter -> prometheusRequestFactory.create(exporter.getStatus().getPodIP(),
-          prometheusConfiguration.exporterPort()).send("/metrics", "GET")
-        .thenApply(response -> prometheusMetricsFactory.create(
-          exporter.getSpec().getNodeName(), response.body())));
+    return AsyncIterator.execute(telegrafPods.getItems(),
+      telegrafPod -> telegrafRequestFactory.create(telegrafPod.getStatus().getPodIP(),
+          telegrafConfiguration.telegrafPort()).send("/metrics", "GET")
+        .thenApply(response -> telegrafMetricsFactory.create(
+          telegrafPod.getSpec().getNodeName(), response.body())));
   }
 
   private Map<String, Object> findClusterResources(
-    V1PodList exporters, List<PrometheusMetrics> metrics
+    V1PodList telegrafPods, V1NodeList nodes, List<TelegrafMetrics> metrics
   ) {
-    var resourceInformation = Lists.<Map<String, Object>>newArrayList();
-    for (var exporter : exporters.getItems()) {
-      var nodeName = exporter.getMetadata().getName();
+    var controllerMetrics = Lists.<TelegrafMetrics>newArrayList();
+    var workerMetrics = Lists.<TelegrafMetrics>newArrayList();
+    for (var telegrafPod : telegrafPods.getItems()) {
+      var nodeName = telegrafPod.getSpec().getNodeName();
+      var isController = isNodeController(nodes, nodeName);
       var nodeMetrics = metrics.stream()
         .filter(entry -> entry.node().equals(nodeName)).findFirst().get();
-      resourceInformation.add(nodeMetrics.assemblyInformation());
+      if (isController) {
+        controllerMetrics.add(nodeMetrics);
+      } else {
+        workerMetrics.add(nodeMetrics);
+      }
     }
-    //TODO: Add information like average, max, min, ...
-    return Map.of("resources", resourceInformation);
+    return Map.of("controller", extractResourceFeatures(controllerMetrics),
+      "worker", extractResourceFeatures(workerMetrics));
+  }
+
+  private Map<String, Object> extractResourceFeatures(List<TelegrafMetrics> metrics) {
+    if (metrics.isEmpty()) {
+      return Maps.newHashMap();
+    }
+    Collections.sort(metrics);
+    var result = Maps.<String, Object>newHashMap();
+    result.putAll(extractResourceAverage(metrics));
+    result.put("maximum", metrics.get(metrics.size() - 1).assemblyInformation());
+    result.put("minimum", metrics.get(0).assemblyInformation());
+    return result;
+  }
+
+  private Map<String, Object> extractResourceAverage(
+    List<TelegrafMetrics> metrics
+  ) {
+    var information = metrics.stream().map(TelegrafMetrics::assemblyInformation)
+      .toList();
+    var properties = information.get(0).keySet();
+    properties.remove("node");
+    var average = information.get(0);
+    for (var i = 1; i < information.size(); i++) {
+      var entry = information.get(i);
+      for (var property : properties) {
+        average.put(property, (double) average.get(property) +
+          (double)entry.get(property));
+      }
+    }
+    for (var property : properties) {
+      average.put(property, ((double) average.get(property)) / information.size());
+    }
+    return Map.of("average", average);
+  }
+
+  private boolean isNodeController(V1NodeList nodes, String nodeName) {
+    var node = nodes.getItems().stream().filter(entry ->
+      entry.getMetadata().getName().equals(nodeName)).findFirst().get();
+    return node.getMetadata().getLabels().entrySet().stream()
+      .anyMatch(label -> "node-role.kubernetes.io/master".equals(label.getKey()));
   }
 }

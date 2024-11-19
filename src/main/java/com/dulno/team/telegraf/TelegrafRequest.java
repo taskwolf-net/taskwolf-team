@@ -1,4 +1,4 @@
-package com.dulno.team.prometheus;
+package com.dulno.team.telegraf;
 
 import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
@@ -11,10 +11,10 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @RequiredArgsConstructor(staticName = "create")
-public final class PrometheusRequest {
+public final class TelegrafRequest {
   private final HttpClient httpClient;
-  private final String exporterHost;
-  private final int exporterPort;
+  private final String telegrafHost;
+  private final int telegrafPort;
 
   public CompletableFuture<HttpResponse<String>> send(
     String url, String method
@@ -32,7 +32,7 @@ public final class PrometheusRequest {
     String url, String method, String body
   ) {
     var requestBuilder = HttpRequest.newBuilder()
-      .uri(URI.create("http://" + exporterHost + ":" + exporterPort + url))
+      .uri(URI.create("http://" + telegrafHost + ":" + telegrafPort + url))
       .method(method, HttpRequest.BodyPublishers.ofString(body));
     var httpRequest = requestBuilder.build();
     return httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString());

@@ -1,20 +1,25 @@
-package com.dulno.team.prometheus;
+package com.dulno.team.telegraf;
 
 import lombok.RequiredArgsConstructor;
 
 import java.util.function.Function;
 
 @RequiredArgsConstructor(staticName = "create")
-public class PrometheusMetricBody {
+public class TelegrafMetricBody {
+  private final String cluster;
   private final String raw;
 
-  public double extractFilesystemMetric(String metricName, String filesystem) {
+  public double extractMetric(
+    String metricName, String secondaryFilterKey, String secondaryFilterValue
+  ) {
     return extractMetric(line -> line.startsWith(metricName) &&
-      line.contains("mountpoint=\"" + filesystem + "\""));
+      line.contains("cluster=\"" + cluster + "\"") &&
+      line.contains(secondaryFilterKey + "=\"" + secondaryFilterValue + "\""));
   }
 
   public double extractMetric(String metricName) {
-    return extractMetric(line -> line.startsWith(metricName));
+    return extractMetric(line -> line.startsWith(metricName) &&
+      line.contains("cluster=\"" + cluster + "\""));
   }
 
   public double extractMetric(Function<String, Boolean> finder) {
