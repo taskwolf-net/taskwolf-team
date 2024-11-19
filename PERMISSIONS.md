@@ -157,6 +157,7 @@ The Cluster section contains permissions required for monitoring and editing the
 | `cluster.units`            | Allows listing all units of the cluster.          |
 | `cluster.unit`             | Allows viewing an individual cluster unit.        |
 | `cluster.unit.restart`     | Allows restarting an individual cluster unit.     |
+| `cluster.unit.scale`       | Allows scaling an individual cluster unit.        |
 | `cluster.pod`              | Allows viewing an individual cluster pod.         |
 | `cluster.pod.delete`       | Allows deleting an individual cluster pod.        |
 | `cluster.errors`           | Allows listing all errors of the cluster.         |

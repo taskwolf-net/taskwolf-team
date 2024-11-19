@@ -377,8 +377,10 @@ public final class ClusterUnitController extends TeamController {
     information.put("name", pod.getMetadata().getName());
     information.put("node", pod.getSpec().getNodeName());
     information.put("phase", pod.getStatus().getPhase());
-    information.put("startTime", pod.getStatus().getStartTime().toEpochSecond()
-      * 1000);
+    if (pod.getStatus().getStartTime() != null) {
+      information.put("startTime", pod.getStatus().getStartTime().toEpochSecond()
+        * 1000);
+    }
     information.put("ipAddress", pod.getStatus().getPodIP());
     return information;
   }
@@ -490,6 +492,40 @@ public final class ClusterUnitController extends TeamController {
         kubernetesBatchApi.deleteNamespacedJob(jobName, CLUSTER_POD_NAMESPACE)
           .execute();
       }
+    }
+  }
+
+  @RequestMapping(path = "/cluster/unit/scale/", method = RequestMethod.POST)
+  public void scaleClusterUnit(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = DulnoRequestBody.of(payload, response);
+    memberHasPermission(findMemberId(request), "cluster.unit.scale")
+      .thenAcceptAsync(hasPermission -> scaleClusterUnit(
+        body.getString("unitName"), body.getString("unitType"),
+        body.getInt("replicas"), hasPermission));
+  }
+
+  private void scaleClusterUnit(
+    String unitName, String unitType, int replicas, boolean hasPermission
+  ) {
+    if (!hasPermission || !unitType.equalsIgnoreCase("DEPLOYMENT")) {
+      return;
+    }
+    try {
+      var scale = new V1Scale();
+      var metadata = new V1ObjectMeta();
+      metadata.setName(unitName);
+      metadata.setNamespace(CLUSTER_POD_NAMESPACE);
+      scale.setMetadata(metadata);
+      var spec = new V1ScaleSpec();
+      spec.setReplicas(replicas);
+      scale.setSpec(spec);
+      kubernetesAppsApi.replaceNamespacedDeploymentScale(unitName,
+        CLUSTER_POD_NAMESPACE, scale).execute();
+    } catch (Exception exception) {
+      exception.printStackTrace();
     }
   }
 
