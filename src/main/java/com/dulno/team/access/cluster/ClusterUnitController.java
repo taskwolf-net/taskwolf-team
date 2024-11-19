@@ -531,7 +531,7 @@ public final class ClusterUnitController extends TeamController {
       kubernetesAppsApi.replaceNamespacedDeploymentScale(unitName,
         clusterConfiguration.namespace(), scale).execute();
     } catch (Exception exception) {
-      exception.printStackTrace();
+      errorRepository.processError(exception);
     }
   }
 
