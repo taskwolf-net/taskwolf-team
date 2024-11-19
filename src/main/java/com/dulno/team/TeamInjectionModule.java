@@ -24,6 +24,7 @@ import com.dulno.core.ticket.TicketInjectionModule;
 import com.dulno.core.user.UserInjectionModule;
 import com.dulno.core.whitelist.WhitelistInjectionModule;
 import com.dulno.core.workflow.WorkflowInjectionModule;
+import com.dulno.team.cluster.ClusterInjectionModule;
 import com.dulno.team.configuration.TeamConfiguration;
 import com.dulno.team.distribution.TeamDistributionConfiguration;
 import com.dulno.team.error.TeamErrorInjectionModule;
@@ -37,6 +38,7 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.kubernetes.client.Exec;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
@@ -75,6 +77,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(TeamMemberInjectionModule.create());
     install(GroupInjectionModule.create());
     install(MaintenanceInjectionModule.create());
+    install(ClusterInjectionModule.create());
     install(ErrorInjectionModule.create());
     install(TeamErrorInjectionModule.create());
     install(HetznerInjectionModule.create());
@@ -175,5 +178,11 @@ public final class TeamInjectionModule extends AbstractModule {
   @Singleton
   BatchV1Api provideKubernetesBatchApi(ApiClient client) {
     return new BatchV1Api();
+  }
+
+  @Provides
+  @Singleton
+  Exec provideKubernetesExecutionApi(ApiClient client) {
+    return new Exec();
   }
 }

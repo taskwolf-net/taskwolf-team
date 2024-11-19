@@ -3,6 +3,7 @@ package com.dulno.team.access.cluster;
 import com.dulno.core.access.DulnoRequestBody;
 import com.dulno.core.iterator.AsyncIterator;
 import com.dulno.team.access.TeamController;
+import com.dulno.team.cluster.ClusterConfiguration;
 import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.dulno.core.error.ErrorRepository;
@@ -32,18 +33,20 @@ public final class ClusterUnitController extends TeamController {
   private final CoreV1Api kubernetesCoreApi;
   private final AppsV1Api kubernetesAppsApi;
   private final BatchV1Api kubernetesBatchApi;
+  private final ClusterConfiguration clusterConfiguration;
 
   private ClusterUnitController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, ErrorRepository errorRepository,
     CoreV1Api kubernetesCoreApi, AppsV1Api kubernetesAppsApi,
-    BatchV1Api kubernetesBatchApi
+    BatchV1Api kubernetesBatchApi, ClusterConfiguration clusterConfiguration
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.errorRepository = errorRepository;
     this.kubernetesCoreApi = kubernetesCoreApi;
     this.kubernetesAppsApi = kubernetesAppsApi;
     this.kubernetesBatchApi = kubernetesBatchApi;
+    this.clusterConfiguration = clusterConfiguration;
   }
 
   @RequestMapping(path = "/cluster/units/", method = RequestMethod.GET)
@@ -54,8 +57,6 @@ public final class ClusterUnitController extends TeamController {
       .thenCompose(this::findClusterUnits);
   }
 
-  private static final String CLUSTER_POD_NAMESPACE = "default";
-
   private CompletableFuture<Map<String, Object>> findClusterUnits(
     boolean hasPermission
   ) {
@@ -64,7 +65,7 @@ public final class ClusterUnitController extends TeamController {
     }
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     try {
-      kubernetesCoreApi.listNamespacedPod(CLUSTER_POD_NAMESPACE)
+      kubernetesCoreApi.listNamespacedPod(clusterConfiguration.namespace())
         .executeAsync(new ApiCallback<>() {
           @Override
           public void onFailure(
@@ -139,7 +140,8 @@ public final class ClusterUnitController extends TeamController {
   ) {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     try {
-      kubernetesAppsApi.readNamespacedDeployment(unitName, CLUSTER_POD_NAMESPACE)
+      kubernetesAppsApi
+        .readNamespacedDeployment(unitName, clusterConfiguration.namespace())
         .executeAsync(new ApiCallback<>() {
           @Override
           public void onFailure(
@@ -185,7 +187,8 @@ public final class ClusterUnitController extends TeamController {
   ) {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     try {
-      kubernetesAppsApi.readNamespacedStatefulSet(unitName, CLUSTER_POD_NAMESPACE)
+      kubernetesAppsApi
+        .readNamespacedStatefulSet(unitName, clusterConfiguration.namespace())
         .executeAsync(new ApiCallback<>() {
           @Override
           public void onFailure(
@@ -231,7 +234,8 @@ public final class ClusterUnitController extends TeamController {
   ) {
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     try {
-      kubernetesAppsApi.readNamespacedDaemonSet(unitName, CLUSTER_POD_NAMESPACE)
+      kubernetesAppsApi
+        .readNamespacedDaemonSet(unitName, clusterConfiguration.namespace())
         .executeAsync(new ApiCallback<>() {
           @Override
           public void onFailure(
@@ -308,7 +312,7 @@ public final class ClusterUnitController extends TeamController {
   ) {
     var futureResponse = new CompletableFuture<List<V1Pod>>();
     try {
-      kubernetesCoreApi.listNamespacedPod(CLUSTER_POD_NAMESPACE)
+      kubernetesCoreApi.listNamespacedPod(clusterConfiguration.namespace())
         .executeAsync(new ApiCallback<>() {
           @Override
           public void onFailure(
@@ -417,50 +421,50 @@ public final class ClusterUnitController extends TeamController {
 
   private void restartDeployment(String unitName) throws Exception {
     var deployment = kubernetesAppsApi.readNamespacedDeployment(unitName,
-      CLUSTER_POD_NAMESPACE).execute();
+      clusterConfiguration.namespace()).execute();
     var annotations = new HashMap<>(deployment.getSpec().getTemplate()
       .getMetadata().getAnnotations());
     annotations.put("kubectl.kubernetes.io/restartedAt",
       String.valueOf(System.currentTimeMillis()));
     deployment.getSpec().getTemplate().getMetadata().setAnnotations(annotations);
     kubernetesAppsApi.replaceNamespacedDeployment(unitName,
-      CLUSTER_POD_NAMESPACE, deployment).execute();
+      clusterConfiguration.namespace(), deployment).execute();
   }
 
   private void restartStatefulSet(String unitName) throws Exception {
     var statefulSet = kubernetesAppsApi.readNamespacedStatefulSet(unitName,
-      CLUSTER_POD_NAMESPACE).execute();
+      clusterConfiguration.namespace()).execute();
     var annotations = new HashMap<>(statefulSet.getSpec().getTemplate()
       .getMetadata().getAnnotations());
     annotations.put("kubectl.kubernetes.io/restartedAt",
       String.valueOf(System.currentTimeMillis()));
     statefulSet.getSpec().getTemplate().getMetadata().setAnnotations(annotations);
     kubernetesAppsApi.replaceNamespacedStatefulSet(unitName,
-      CLUSTER_POD_NAMESPACE, statefulSet).execute();
+      clusterConfiguration.namespace(), statefulSet).execute();
   }
 
   private void restartDaemonSet(String unitName) throws Exception {
     var daemonSet = kubernetesAppsApi.readNamespacedDaemonSet(unitName,
-      CLUSTER_POD_NAMESPACE).execute();
+      clusterConfiguration.namespace()).execute();
     var annotations = new HashMap<>(daemonSet.getSpec().getTemplate()
       .getMetadata().getAnnotations());
     annotations.put("kubectl.kubernetes.io/restartedAt",
       String.valueOf(System.currentTimeMillis()));
     daemonSet.getSpec().getTemplate().getMetadata().setAnnotations(annotations);
     kubernetesAppsApi.replaceNamespacedDaemonSet(unitName,
-      CLUSTER_POD_NAMESPACE, daemonSet).execute();
+      clusterConfiguration.namespace(), daemonSet).execute();
   }
 
   private void restartJob(String unitName) throws Exception {
     deleteCurrentJobs(unitName);
     var cronJob = kubernetesBatchApi.readNamespacedCronJob(unitName,
-      CLUSTER_POD_NAMESPACE).execute();
+      clusterConfiguration.namespace()).execute();
     var job = new V1Job()
       .apiVersion("batch/v1")
       .kind("Job")
       .metadata(new V1ObjectMeta()
         .name(unitName + "-" + UUID.randomUUID().toString().substring(0, 8))
-        .namespace(CLUSTER_POD_NAMESPACE)
+        .namespace(clusterConfiguration.namespace())
         .putLabelsItem("cronjob-name", unitName))
       .spec(cronJob.getSpec().getJobTemplate().getSpec());
     var ownerReference = new V1OwnerReference()
@@ -471,25 +475,27 @@ public final class ClusterUnitController extends TeamController {
       .controller(false)
       .blockOwnerDeletion(false);
     job.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
-    kubernetesBatchApi.createNamespacedJob(CLUSTER_POD_NAMESPACE, job).execute();
+    kubernetesBatchApi.createNamespacedJob(clusterConfiguration.namespace(), job)
+      .execute();
   }
 
   private void deleteCurrentJobs(String unitName) throws Exception {
-    var jobList = kubernetesBatchApi.listNamespacedJob(CLUSTER_POD_NAMESPACE)
-      .execute();
+    var jobList = kubernetesBatchApi
+      .listNamespacedJob(clusterConfiguration.namespace()).execute();
     for (var job : jobList.getItems()) {
       if (job.getMetadata().getName().contains(unitName)) {
         var jobName = job.getMetadata().getName();
-        var podList = kubernetesCoreApi.listNamespacedPod(CLUSTER_POD_NAMESPACE)
-          .execute();
+        var podList = kubernetesCoreApi
+          .listNamespacedPod(clusterConfiguration.namespace()).execute();
         for (var pod : podList.getItems()) {
           var labels = pod.getMetadata().getLabels();
           if (labels.containsKey("job-name") && labels.get("job-name").equals(jobName)) {
             kubernetesCoreApi.deleteNamespacedPod(pod.getMetadata().getName(),
-              CLUSTER_POD_NAMESPACE).execute();
+              clusterConfiguration.namespace()).execute();
           }
         }
-        kubernetesBatchApi.deleteNamespacedJob(jobName, CLUSTER_POD_NAMESPACE)
+        kubernetesBatchApi
+          .deleteNamespacedJob(jobName, clusterConfiguration.namespace())
           .execute();
       }
     }
@@ -517,13 +523,13 @@ public final class ClusterUnitController extends TeamController {
       var scale = new V1Scale();
       var metadata = new V1ObjectMeta();
       metadata.setName(unitName);
-      metadata.setNamespace(CLUSTER_POD_NAMESPACE);
+      metadata.setNamespace(clusterConfiguration.namespace());
       scale.setMetadata(metadata);
       var spec = new V1ScaleSpec();
       spec.setReplicas(replicas);
       scale.setSpec(spec);
       kubernetesAppsApi.replaceNamespacedDeploymentScale(unitName,
-        CLUSTER_POD_NAMESPACE, scale).execute();
+        clusterConfiguration.namespace(), scale).execute();
     } catch (Exception exception) {
       exception.printStackTrace();
     }
@@ -554,7 +560,7 @@ public final class ClusterUnitController extends TeamController {
   private CompletableFuture<V1Pod> fetchClusterPod(String podName) {
     var futureResponse = new CompletableFuture<V1Pod>();
     try {
-      kubernetesCoreApi.readNamespacedPod(podName, CLUSTER_POD_NAMESPACE)
+      kubernetesCoreApi.readNamespacedPod(podName, clusterConfiguration.namespace())
         .executeAsync(new ApiCallback<>() {
           @Override
           public void onFailure(
@@ -598,7 +604,7 @@ public final class ClusterUnitController extends TeamController {
     var futureResponse = new CompletableFuture<String>();
     try {
       kubernetesCoreApi.readNamespacedPodLog(pod.getMetadata().getName(),
-        CLUSTER_POD_NAMESPACE).executeAsync(new ApiCallback<>() {
+        clusterConfiguration.namespace()).executeAsync(new ApiCallback<>() {
           @Override
           public void onFailure(
             ApiException exception, int statusCode, Map<String,
@@ -672,7 +678,7 @@ public final class ClusterUnitController extends TeamController {
       return;
     }
     try {
-      kubernetesCoreApi.deleteNamespacedPod(podName, CLUSTER_POD_NAMESPACE)
+      kubernetesCoreApi.deleteNamespacedPod(podName, clusterConfiguration.namespace())
         .execute();
     } catch (Exception exception) {
       errorRepository.processError(exception);
