@@ -94,7 +94,7 @@ public final class ClusterBackupController extends TeamController {
     var body = DulnoRequestBody.of(payload, response);
     return memberHasPermission(findMemberId(request), "cluster.backup.download")
       .thenAcceptAsync(hasPermission -> downloadClusterBackup(
-        body.getLong("backupId"), hasPermission, response));
+        body.getLong("backup"), hasPermission, response));
   }
 
   private void downloadClusterBackup(
@@ -108,7 +108,7 @@ public final class ClusterBackupController extends TeamController {
     for (var pod : fetchDatabasePods()) {
       copyBackupFromPod(backupId, pod, directory);
     }
-    var result = encryptBackups(directory);
+    var result = compressBackups(directory);
     provideClusterBackup(result, response);
     directory.delete();
     result.delete();
@@ -130,16 +130,11 @@ public final class ClusterBackupController extends TeamController {
     }
   }
 
-  private File encryptBackups(File backups) {
+  private File compressBackups(File backups) {
     try {
       Runtime.getRuntime().exec("tar -cvzf " + System.getProperty("user.dir") +
         "/backups.tar.gz " + backups.getPath()).waitFor();
-      Runtime.getRuntime().exec("gpg --quiet --batch --output " +
-          System.getProperty("user.dir") + "/backups.tar.gz.gpg --encrypt " +
-          "--recipient '" + clusterConfiguration.backupEncryptionKey() + "' " +
-          System.getProperty("user.dir") + "/backups.tar.gz ")
-        .waitFor();
-      return new File(System.getProperty("user.dir") + "/backups.tar.gz.gpg");
+      return new File(System.getProperty("user.dir") + "/backups.tar.gz");
     } catch (Exception exception) {
       errorRepository.processError(exception);
       return null;
