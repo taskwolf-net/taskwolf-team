@@ -14,15 +14,13 @@ import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Pod;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.io.FileUtils;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.security.Key;
@@ -108,10 +106,14 @@ public final class ClusterBackupController extends TeamController {
     for (var pod : fetchDatabasePods()) {
       copyBackupFromPod(backupId, pod, directory);
     }
-    var result = compressBackups(directory);
+    var result = encryptBackups(directory);
     provideClusterBackup(result, response);
-    directory.delete();
-    result.delete();
+    try {
+      FileUtils.deleteDirectory(directory);
+      result.delete();
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+    }
   }
 
   private void provideClusterBackup(File result, HttpServletResponse response) {
@@ -130,15 +132,33 @@ public final class ClusterBackupController extends TeamController {
     }
   }
 
-  private File compressBackups(File backups) {
+  private File encryptBackups(File backups) {
     try {
       Runtime.getRuntime().exec("tar -cvzf " + System.getProperty("user.dir") +
         "/backups.tar.gz " + backups.getPath()).waitFor();
-      return new File(System.getProperty("user.dir") + "/backups.tar.gz");
+      var compressed = new File(System.getProperty("user.dir") + "/backups.tar.gz");
+      var encrypted = new File(System.getProperty("user.dir") + "/backups.tar.gz.gpg");
+      encryptFile(compressed.getPath(), encrypted.getPath(),
+        clusterConfiguration.backupEncryptionKeyPath(),
+        clusterConfiguration.backupEncryptionKeyName());
+      compressed.delete();
+      return encrypted;
     } catch (Exception exception) {
       errorRepository.processError(exception);
       return null;
     }
+  }
+
+  private void encryptFile(
+    String inputPath, String outputPath, String publicKeyPath,
+    String publicKeyName
+  ) throws Exception {
+    String[] commands = {"bash", "-c", "gpg --quiet --import " + publicKeyPath +
+      " && KEY_FINGERPRINT=$(gpg --list-keys --with-colons | grep '^fpr' | " +
+      "head -n 1 | cut -d':' -f10) && echo \"$KEY_FINGERPRINT:6:\" | " +
+      "gpg --quiet --import-ownertrust && gpg --quiet --batch --output " +
+      outputPath + " --encrypt --recipient '" + publicKeyName + "' " + inputPath};
+    new ProcessBuilder(commands).start().waitFor();
   }
 
   private void copyBackupFromPod(long backupId, V1Pod pod, File parent) {
@@ -149,7 +169,7 @@ public final class ClusterBackupController extends TeamController {
     if (backup.isEmpty()) {
       return;
     }
-    var remotePath = clusterConfiguration.databasePath() + backup.get();
+    var remotePath = clusterConfiguration.databasePath() + "/" + backup.get();
     var file = new File(parent, backup.get());
     try {
       try (var inputStream = kubernetesCopyApi.copyFileFromPod(pod, remotePath)) {
