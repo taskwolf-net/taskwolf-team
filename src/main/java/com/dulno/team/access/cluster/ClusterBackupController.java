@@ -8,6 +8,7 @@ import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.jsonwebtoken.Jwts;
 import io.kubernetes.client.Copy;
 import io.kubernetes.client.Exec;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
@@ -15,17 +16,22 @@ import io.kubernetes.client.openapi.models.V1Pod;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
+import org.json.JSONObject;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.Key;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 @RestController
 public final class ClusterBackupController extends TeamController {
@@ -260,6 +266,132 @@ public final class ClusterBackupController extends TeamController {
     new ProcessBuilder(commands).start().waitFor();
   }
 
+  @RequestMapping(path = "/cluster/backup/restore/", method = RequestMethod.GET)
+  public SseEmitter restoreClusterBackup(
+    @RequestParam("token") String token, @RequestParam("backup") long backup
+  ) {
+    var response = ((ServletRequestAttributes)
+      RequestContextHolder.currentRequestAttributes()).getResponse();
+    if (response != null) {
+      response.setHeader("Cache-Control", "no-store");
+      response.setHeader("Connection", "keep-alive");
+      response.setHeader("X-Accel-Buffering", "no");
+    }
+    var emitter = new SseEmitter(-1L);
+    var memberId = findMemberIdSecured(token);
+    if (memberId.isEmpty()) {
+      emitter.complete();
+      return emitter;
+    }
+    memberHasPermission(memberId.get(), "cluster.backup.restore")
+      .thenAcceptAsync(hasPermission -> restoreClusterBackup(backup,
+        hasPermission, emitter));
+    return emitter;
+  }
+
+  private void restoreClusterBackup(
+    long backupId, boolean hasPermission, SseEmitter emitter
+  ) {
+    if (!hasPermission) {
+      emitter.complete();
+      return;
+    }
+    var pods = fetchDatabasePods();
+    var completedPods = new AtomicInteger(0);
+    var totalPods = new AtomicInteger(pods.size());
+    var processes = Lists.<Runnable>newArrayList();
+    for (var pod : pods) {
+      processes.addAll(restoreBackupFromPod(backupId, pod, emitter,
+        completedPods, totalPods));
+    }
+    Collections.shuffle(processes);
+    var executorService = Executors.newFixedThreadPool(10);
+    for (var process : processes) {
+      executorService.submit(process);
+    }
+  }
+
+  private List<Runnable> restoreBackupFromPod(
+    long backupId, V1Pod pod, SseEmitter emitter, AtomicInteger completedPods,
+    AtomicInteger podCount
+  ) {
+    var backup = fetchDatabaseBackups(pod).stream()
+      .filter(line -> Long.parseLong(
+        line.replaceAll(".*_(\\d+)_(\\d+)\\.tar\\.gz", "$2")) == backupId)
+      .findFirst();
+    if (backup.isEmpty()) {
+      podCount.decrementAndGet();
+      return Lists.newArrayList();
+    }
+    try {
+      var backupPodId = backup.get().split("_")[2];
+      var remotePath = clusterConfiguration.databasePath() + "/" + backup.get();
+      kubernetesExecutionApi.exec(pod, new String[] {"tar", "-xvf", remotePath},
+        true).destroy();
+      var keyspaces = listFilesInPod(pod, clusterConfiguration.databasePath(),
+        line -> !line.contains("system") && !line.contains("snapshot"));
+      return restoreKeyspacesBackup(pod, backupPodId, keyspaces, emitter,
+        completedPods, podCount);
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+      return Lists.newArrayList();
+    }
+  }
+
+  private List<Runnable> restoreKeyspacesBackup(
+    V1Pod pod, String backupPodId, List<String> keyspaces,
+    SseEmitter emitter, AtomicInteger completedPods, AtomicInteger podCount
+  ) {
+    var completedTables = new AtomicInteger(0);
+    var tableCount = new AtomicInteger(0);
+    var processes = Lists.<Runnable>newArrayList();
+    for (var keyspace : keyspaces) {
+      var tables = listFilesInPod(pod, clusterConfiguration.databasePath() +
+        "/" + keyspace);
+      tableCount.addAndGet(tables.size());
+      for (var table : tables) {
+        processes.add(() -> restoreTableBackup(pod, keyspace, table,
+          backupPodId, emitter, completedTables, tableCount, completedPods, podCount));
+      }
+    }
+    try {
+      emitter.send(new JSONObject(Map.of("type", "POD", "tableCount",
+        tableCount.get(), "pod", pod.getMetadata().getName(), "podCount",
+        podCount.get())).toString());
+    } catch (Exception exception) {
+    }
+    return processes;
+  }
+
+  private void restoreTableBackup(
+    V1Pod pod, String keyspace, String table, String backupPodId,
+    SseEmitter emitter, AtomicInteger completedTables,
+    AtomicInteger tableCount, AtomicInteger completedPods, AtomicInteger podCount
+  ) {
+    try {
+      kubernetesExecutionApi.exec(pod, new String[] {"cp", "-a",
+          clusterConfiguration.databasePath() + "/" + keyspace + "/" + table +
+            "/snapshots/" + backupPodId + "/.",
+          clusterConfiguration.databasePath() + "/" + keyspace + "/" + table + "/"},
+        true, true).waitFor();
+      kubernetesExecutionApi.exec(pod, new String[] {"nodetool", "refresh",
+        keyspace, table.split("-")[0]}, true, true).waitFor();
+      try {
+        emitter.send(new JSONObject(Map.of("type", "TABLE", "keyspace", keyspace,
+          "table", table, "pod", pod.getMetadata().getName())).toString());
+      } catch (Exception exception) {
+      }
+      if (completedTables.incrementAndGet() == tableCount.get()) {
+        if (completedPods.incrementAndGet() == podCount.get()) {
+          emitter.send(new JSONObject(Map.of("type", "COMPLETED")).toString());
+          emitter.complete();
+        }
+      }
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+    }
+  }
+
   @RequestMapping(path = "/cluster/backup/delete/", method = RequestMethod.POST)
   public CompletableFuture<Void> deleteClusterBackup(
     HttpServletRequest request, @RequestBody String payload,
@@ -312,21 +444,40 @@ public final class ClusterBackupController extends TeamController {
   }
 
   private List<String> fetchDatabaseBackups(V1Pod databasePod) {
+    return listFilesInPod(databasePod, clusterConfiguration.databasePath(),
+      line -> line.contains("snapshot"));
+  }
+
+  private List<String> listFilesInPod(V1Pod pod, String path) {
+    return listFilesInPod(pod, path, line -> true);
+  }
+
+  private List<String> listFilesInPod(
+    V1Pod pod, String path, Function<String, Boolean> filter
+  ) {
     try {
-      var process = kubernetesExecutionApi.exec(databasePod,
-        new String[] {"ls", clusterConfiguration.databasePath()}, true, true);
+      var process = kubernetesExecutionApi.exec(pod, new String[] {"ls", path},
+        true, true);
       var backups = Lists.<String>newArrayList();
       try (var reader = new BufferedReader(new InputStreamReader(
         process.getInputStream())
       )) {
-        backups.addAll(reader.lines().filter(line -> line.contains("snapshot"))
-          .toList());
+        backups.addAll(reader.lines().filter(filter::apply).toList());
       }
       process.waitFor();
       return backups;
     } catch (Exception exception) {
       errorRepository.processError(exception);
       return Lists.newArrayList();
+    }
+  }
+
+  private Optional<UUID> findMemberIdSecured(String token) {
+    try {
+      return Optional.of(UUID.fromString(Jwts.parser().setSigningKey(secretKey())
+        .build().parseClaimsJws(token).getPayload().get("id", String.class)));
+    } catch (Exception exception) {
+      return Optional.empty();
     }
   }
 }

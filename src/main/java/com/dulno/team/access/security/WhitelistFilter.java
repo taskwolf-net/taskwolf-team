@@ -46,6 +46,7 @@ public class WhitelistFilter extends OncePerRequestFilter {
     var controllers = Lists.<String>newArrayList();
     controllers.add("/" + CURRENT_API_VERSION + "/");
     controllers.add("/" + CURRENT_API_VERSION + "/cluster/error/report/");
+    controllers.add("/" + CURRENT_API_VERSION + "/cluster/backup/restore/");
     return controllers.contains(request.getRequestURI());
   }
 }

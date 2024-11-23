@@ -166,30 +166,42 @@ public final class TeamInjectionModule extends AbstractModule {
   @Provides
   @Singleton
   CoreV1Api provideKubernetesCoreApi(ApiClient client) {
-    return new CoreV1Api();
+    var coreApi = new CoreV1Api();
+    coreApi.setApiClient(client);
+    return coreApi;
   }
 
   @Provides
   @Singleton
   AppsV1Api provideKubernetesAppsApi(ApiClient client) {
-    return new AppsV1Api();
+    var appsApi = new AppsV1Api();
+    appsApi.setApiClient(client);
+    return appsApi;
   }
 
   @Provides
   @Singleton
   BatchV1Api provideKubernetesBatchApi(ApiClient client) {
-    return new BatchV1Api();
+    var batchApi = new BatchV1Api();
+    batchApi.setApiClient(client);
+    return batchApi;
   }
 
   @Provides
   @Singleton
   Exec provideKubernetesExecutionApi(ApiClient client) {
-    return new Exec();
+    var executionApi = new Exec();
+    executionApi.setApiClient(client);
+    executionApi.setOnUnhandledError(throwable -> {});
+    return executionApi;
   }
 
   @Provides
   @Singleton
   Copy provideKubernetesCopyApi(ApiClient client) {
-    return new Copy();
+    var copyApi = new Copy();
+    copyApi.setApiClient(client);
+    copyApi.setOnUnhandledError(throwable -> {});
+    return copyApi;
   }
 }
