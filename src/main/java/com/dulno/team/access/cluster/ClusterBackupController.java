@@ -202,23 +202,27 @@ public final class ClusterBackupController extends TeamController {
       for (var pod : fetchDatabasePods()) {
         var backup = Arrays.stream(backups.listFiles()).filter(entry ->
           entry.getName().contains(pod.getMetadata().getName())).findFirst();
-        backup.ifPresent(entry -> uploadBackupFromPod(entry, pod));
+        backup.ifPresent(entry -> uploadBackupToPod(entry, pod));
       }
-      //FileUtils.deleteDirectory(backups);
+      FileUtils.deleteDirectory(backups);
     } catch (Exception exception) {
       errorRepository.processError(exception);
-      //encrypted.delete();
+      encrypted.delete();
     }
   }
 
-  private void uploadBackupFromPod(File backup, V1Pod pod) {
-    var remotePath = Path.of("/root/" +
+  private void uploadBackupToPod(File backup, V1Pod pod) {
+    var remotePath = Path.of(clusterConfiguration.databasePath() + "/" +
       backup.getName());
     try {
-      System.out.println(remotePath);
-      kubernetesCopyApi.copyFileToPodAsync(pod.getMetadata().getNamespace(),
-        pod.getMetadata().getName(), clusterConfiguration.databaseContainer(),
-        backup.toPath(), remotePath);
+      var command = new String[]{"sh", "-c", "cat > " + remotePath};
+      var targetProcess = kubernetesExecutionApi.exec(pod, command, true);
+      try (var inputStream = new FileInputStream(backup);
+           var targetStream = targetProcess.getOutputStream()
+      ) {
+        inputStream.transferTo(targetStream);
+      }
+      targetProcess.destroy();
     } catch (Exception exception) {
       errorRepository.processError(exception);
     }
@@ -231,12 +235,12 @@ public final class ClusterBackupController extends TeamController {
         clusterConfiguration.backupDecryptionKeyPath(),
         clusterConfiguration.backupDecryptionKeyName());
       Runtime.getRuntime().exec("tar -xvf " + compressed.getPath()).waitFor();
-      //compressed.delete();
-      //encrypted.delete();
+      compressed.delete();
+      encrypted.delete();
       return new File(System.getProperty("user.dir") + "/backups");
     } catch (Exception exception) {
       errorRepository.processError(exception);
-      //compressed.delete();
+      compressed.delete();
       return null;
     }
   }
