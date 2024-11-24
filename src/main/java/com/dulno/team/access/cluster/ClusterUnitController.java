@@ -112,21 +112,30 @@ public final class ClusterUnitController extends TeamController {
       if (owners == null) {
         continue;
       }
-      for (var owner : owners) {
-        units.put(owner.getName(), owner.getKind());
-      }
+      owners.stream().map(this::findUnitOwnerInformation)
+        .forEach(entry -> units.put(entry.getKey(), entry.getValue()));
     }
     return AsyncIterator.execute(new ArrayList<>(units.entrySet()),
         unit -> superficialUnitInformation(unit.getKey(), unit.getValue()))
       .thenApply(result -> Map.of("units", result));
   }
 
+  private Map.Entry<String, String> findUnitOwnerInformation(V1OwnerReference owner) {
+    var name = owner.getName();
+    var kind = owner.getKind();
+    if (owner.getKind().equalsIgnoreCase("REPLICASET")) {
+      name = name.substring(0, name.lastIndexOf('-'));
+      kind = "DEPLOYMENT";
+    } else if (owner.getKind().equalsIgnoreCase("JOB")) {
+      name = name.substring(0, name.lastIndexOf('-'));
+    }
+    return new AbstractMap.SimpleEntry<>(name, kind);
+  }
+
   private CompletableFuture<Map<String, Object>> superficialUnitInformation(
     String unitName, String unitType
   ) {
     return switch (unitType.toUpperCase()) {
-      case "REPLICASET" -> deploymentInformation(unitName.substring(0,
-        unitName.lastIndexOf('-')));
       case "DEPLOYMENT" -> deploymentInformation(unitName);
       case "STATEFULSET" -> statefulSetInformation(unitName);
       case "DAEMONSET" -> daemonSetInformation(unitName);
