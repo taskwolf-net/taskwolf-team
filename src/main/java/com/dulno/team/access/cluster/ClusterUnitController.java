@@ -401,7 +401,7 @@ public final class ClusterUnitController extends TeamController {
         hasPermission));
   }
 
-  private void restartClusterUnit(
+  public void restartClusterUnit(
     String unitName, String unitType, boolean hasPermission
   ) {
     if (!hasPermission) {

@@ -40,12 +40,14 @@ public final class ClusterBackupController extends TeamController {
   private final Exec kubernetesExecutionApi;
   private final Copy kubernetesCopyApi;
   private final ClusterConfiguration clusterConfiguration;
+  private final ClusterUnitController clusterUnitController;
 
   private ClusterBackupController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, ErrorRepository errorRepository,
     CoreV1Api kubernetesCoreApi, Exec kubernetesExecutionApi,
-    Copy kubernetesCopyApi, ClusterConfiguration clusterConfiguration
+    Copy kubernetesCopyApi, ClusterConfiguration clusterConfiguration,
+    ClusterUnitController clusterUnitController
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.errorRepository = errorRepository;
@@ -53,6 +55,7 @@ public final class ClusterBackupController extends TeamController {
     this.kubernetesExecutionApi = kubernetesExecutionApi;
     this.kubernetesCopyApi = kubernetesCopyApi;
     this.clusterConfiguration = clusterConfiguration;
+    this.clusterUnitController = clusterUnitController;
   }
 
   @RequestMapping(path = "/cluster/backups/", method = RequestMethod.GET)
@@ -350,8 +353,8 @@ public final class ClusterBackupController extends TeamController {
         "/" + keyspace);
       tableCount.addAndGet(tables.size());
       for (var table : tables) {
-        processes.add(() -> restoreTableBackup(pod, keyspace, table,
-          backupPodId, emitter, completedTables, tableCount, completedPods, podCount));
+        processes.add(() -> restoreTableBackup(pod, keyspace, table, backupPodId,
+          emitter, completedTables, tableCount, completedPods, podCount));
       }
     }
     try {
@@ -364,8 +367,8 @@ public final class ClusterBackupController extends TeamController {
   }
 
   private void restoreTableBackup(
-    V1Pod pod, String keyspace, String table, String backupPodId,
-    SseEmitter emitter, AtomicInteger completedTables,
+    V1Pod pod, String keyspace, String table,
+    String backupPodId, SseEmitter emitter, AtomicInteger completedTables,
     AtomicInteger tableCount, AtomicInteger completedPods, AtomicInteger podCount
   ) {
     try {
@@ -374,8 +377,6 @@ public final class ClusterBackupController extends TeamController {
             "/snapshots/" + backupPodId + "/.",
           clusterConfiguration.databasePath() + "/" + keyspace + "/" + table + "/"},
         true, true).waitFor();
-      kubernetesExecutionApi.exec(pod, new String[] {"nodetool", "refresh",
-        keyspace, table.split("-")[0]}, true, true).waitFor();
       try {
         emitter.send(new JSONObject(Map.of("type", "TABLE", "keyspace", keyspace,
           "table", table, "pod", pod.getMetadata().getName())).toString());
@@ -383,6 +384,8 @@ public final class ClusterBackupController extends TeamController {
       }
       if (completedTables.incrementAndGet() == tableCount.get()) {
         if (completedPods.incrementAndGet() == podCount.get()) {
+          clusterUnitController.restartClusterUnit(
+            clusterConfiguration.databaseController(), "STATEFULSET", true);
           emitter.send(new JSONObject(Map.of("type", "COMPLETED")).toString());
           emitter.complete();
         }
