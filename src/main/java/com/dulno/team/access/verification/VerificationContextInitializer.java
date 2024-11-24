@@ -4,8 +4,10 @@ import com.dulno.core.user.UserDatabaseTable;
 import com.dulno.team.member.TeamEmailChangeDatabaseTable;
 import com.dulno.team.member.TeamPasswordResetDatabaseTable;
 import com.dulno.team.member.TeamVerificationDatabaseTable;
+import com.dulno.team.member.session.TeamSessionDatabaseTable;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.maxmind.geoip2.DatabaseReader;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationContextInitializer;
@@ -18,6 +20,8 @@ public class VerificationContextInitializer implements ApplicationContextInitial
   private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
   private final TeamEmailChangeDatabaseTable teamEmailChangeDatabaseTable;
   private final TeamPasswordResetDatabaseTable teamPasswordResetDatabaseTable;
+  private final TeamSessionDatabaseTable sessionDatabaseTable;
+  private final DatabaseReader databaseReader;
 
   @Override
   public void initialize(ConfigurableApplicationContext applicationContext) {
@@ -29,5 +33,7 @@ public class VerificationContextInitializer implements ApplicationContextInitial
       teamEmailChangeDatabaseTable);
     beanFactory.registerSingleton("teamPasswordResetDatabaseTable",
       teamPasswordResetDatabaseTable);
+    beanFactory.registerSingleton("sessionDatabaseTable", sessionDatabaseTable);
+    beanFactory.registerSingleton("databaseReader", databaseReader);
   }
 }

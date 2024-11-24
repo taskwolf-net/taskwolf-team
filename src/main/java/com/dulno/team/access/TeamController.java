@@ -52,6 +52,25 @@ public class TeamController {
   }
 
   /**
+   * Is used to find the id of the session that send the request
+   * @param request The request
+   * @return The id of the session
+   */
+  protected UUID findSessionId(HttpServletRequest request) {
+    return findSessionId(findApiKey(request));
+  }
+
+  /**
+   * Is used to find the id of a session inside an api key
+   * @param apiKey The api key
+   * @return The id of the session
+   */
+  protected UUID findSessionId(String apiKey) {
+    return UUID.fromString(Jwts.parser().setSigningKey(secretKey).build()
+      .parseClaimsJws(apiKey).getPayload().get("session", String.class));
+  }
+
+  /**
    * Is used to find the api key that is sent via a request
    * @param request The request
    * @return The api key

@@ -17,7 +17,8 @@ public final class TeamConfiguration extends Configuration {
   }
 
   private int restPort;
-  private String secret;
+  private String panelSecret;
+  private String refreshSecret;
 
   private TeamConfiguration(String path) {
     super(path);
@@ -26,6 +27,7 @@ public final class TeamConfiguration extends Configuration {
   @Override
   protected void deserialize(JSONObject json) {
     restPort = json.getInt("restPort");
-    secret = json.getString("secret");
+    panelSecret = json.getString("panelSecret");
+    refreshSecret = json.getString("refreshSecret");
   }
 }

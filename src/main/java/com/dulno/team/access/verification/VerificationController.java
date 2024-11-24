@@ -1,40 +1,63 @@
 package com.dulno.team.access.verification;
 
 import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.session.SessionStatus;
+import com.dulno.core.session.UserAgent;
+import com.dulno.team.access.TeamController;
+import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.dulno.team.member.TeamMember;
 import com.dulno.team.member.TeamVerificationDatabaseTable;
 import com.dulno.team.member.mfa.TeamMultiFactorAuthFactory;
+import com.dulno.team.member.session.TeamSession;
+import com.dulno.team.member.session.TeamSessionDatabaseTable;
 import com.google.common.hash.Hashing;
+import com.maxmind.geoip2.DatabaseReader;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.util.AbstractMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-public final class VerificationController {
-  private final Key secretKey;
+public final class VerificationController extends TeamController {
+  private final Key panelKey;
+  private final Key refreshKey;
   private final TeamDatabaseTable teamDatabaseTable;
   private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
   private final TeamMultiFactorAuthFactory multiFactorAuthFactory;
+  private final TeamSessionDatabaseTable sessionDatabaseTable;
+  private final DatabaseReader geoDatabaseReader;
 
   private VerificationController(
-    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    @Qualifier("panelKey") Key panelKey,
+    @Qualifier("refreshKey") Key refreshKey,
+    TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable,
-    TeamMultiFactorAuthFactory multiFactorAuthFactory
+    TeamMultiFactorAuthFactory multiFactorAuthFactory,
+    TeamSessionDatabaseTable sessionDatabaseTable, DatabaseReader geoDatabaseReader
   ) {
-    this.secretKey = secretKey;
+    super(panelKey, teamDatabaseTable, groupDatabaseTable);
+    this.panelKey = panelKey;
+    this.refreshKey = refreshKey;
     this.teamDatabaseTable = teamDatabaseTable;
     this.teamVerificationDatabaseTable = teamVerificationDatabaseTable;
     this.multiFactorAuthFactory = multiFactorAuthFactory;
+    this.sessionDatabaseTable = sessionDatabaseTable;
+    this.geoDatabaseReader = geoDatabaseReader;
   }
 
   @RequestMapping(path = "/verification/complete/", method = RequestMethod.POST)
@@ -79,11 +102,12 @@ public final class VerificationController {
 
   @RequestMapping(path = "/verification/login/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> login(
-    @RequestBody String payload, HttpServletResponse response
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
   ) {
     var body = DulnoRequestBody.of(payload, response);
-    var loginFuture = login(body.getString("email"), body.getString("password"),
-      body.getString("multiFactorCode"));
+    var loginFuture = login(request, body.getString("email"),
+      body.getString("password"), body.getString("multiFactorCode"));
     loginFuture.thenAccept(result -> applyLoginResponseStatus(response, result));
     return loginFuture;
   }
@@ -99,19 +123,20 @@ public final class VerificationController {
   }
 
   private CompletableFuture<Map<String, Object>> login(
-    String email, String password, String multiFactorCode
+    HttpServletRequest request, String email, String password,
+    String multiFactorCode
   ) {
-    var verification = Verification.create(teamDatabaseTable, secretKey,
-      email.replace(" ", ""), hashPassword(password));
+    var verification = Verification.create(teamDatabaseTable, panelKey,
+      refreshKey, email.replace(" ", ""), hashPassword(password));
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     verification.isAuthenticated().thenAccept(isAuthenticated ->
-      checkAuthorization(verification, multiFactorCode, futureResponse,
+      checkAuthorization(request, verification, multiFactorCode, futureResponse,
         isAuthenticated));
     return futureResponse;
   }
 
   private void checkAuthorization(
-    Verification verification, String multiFactorCode,
+    HttpServletRequest request, Verification verification, String multiFactorCode,
     CompletableFuture<Map<String, Object>> futureResponse, boolean isAuthenticated
   ) {
     if (!isAuthenticated) {
@@ -120,12 +145,12 @@ public final class VerificationController {
     }
     teamDatabaseTable.findTeamMember(verification.email()).thenAccept(member ->
       multiFactorAuthFactory.createAuth(member.id()).verifyCode(multiFactorCode)
-        .thenAccept(verified -> checkMultiFactorAuth(member, verification,
-          futureResponse, verified)));
+        .thenAccept(verified -> checkMultiFactorAuth(request, member,
+          verification, futureResponse, verified)));
   }
 
   private void checkMultiFactorAuth(
-    TeamMember member, Verification verification,
+    HttpServletRequest request, TeamMember member, Verification verification,
     CompletableFuture<Map<String, Object>> futureResponse,
     boolean multiFactorVerified
   ) {
@@ -133,25 +158,140 @@ public final class VerificationController {
       futureResponse.complete(Map.of("success", false, "error", 1001));
       return;
     }
-    futureResponse.complete(Map.of("success", true,
-      "apiKey", verification.generateApiKey(member.id())));
+    sessionDatabaseTable.generateAvailableSessionId()
+      .thenAccept(sessionId -> completeLogin(request, verification,
+        futureResponse, member, sessionId));
+  }
+
+  private void completeLogin(
+    HttpServletRequest request, Verification verification,
+    CompletableFuture<Map<String, Object>> futureResponse,
+    TeamMember member, UUID sessionId
+  ) {
+    var panelApiKey = verification.generatePanelApiKey(member.id(), sessionId);
+    var refreshToken = verification.generateRefreshToken(member.id(), sessionId);
+    storeSession(request, member.id(), sessionId, refreshToken);
+    futureResponse.complete(Map.of("success", true, "panelApiKey", panelApiKey,
+      "refreshToken", refreshToken));
+  }
+
+  public void storeSession(
+    HttpServletRequest request, UUID memberId, UUID sessionId, String refreshToken
+  ) {
+    var country = "";
+    var city = "";
+    var ipAddress = request.getHeader("X-Real-IP");
+    try {
+      var location = geoDatabaseReader.city(InetAddress.getByName(ipAddress));
+      country = location.getCountry().getName();
+      city = location.getCity().getName();
+    } catch (Exception ignored) {
+    }
+    try {
+      var platform = UserAgent.create(request.getHeader("User-Agent"))
+        .findPlatform();
+      sessionDatabaseTable.insertSession(sessionId, memberId, SessionStatus.ACTIVE,
+        platform, ipAddress, country, city, System.currentTimeMillis(),
+        refreshToken, System.currentTimeMillis());
+    } catch (Exception ignored) {
+    }
+  }
+
+  @RequestMapping(path = "/verification/refresh/", method = RequestMethod.POST)
+  public CompletableFuture<Map<String, Object>> refreshVerification(
+    @RequestBody String payload, HttpServletResponse response
+  ) {
+    var body = DulnoRequestBody.of(payload, response);
+    var refreshToken = body.getString("refreshToken");
+    var result = verifyToken(refreshKey, refreshToken);
+    if (result.getKey() != HttpServletResponse.SC_ACCEPTED) {
+      return CompletableFuture.completedFuture(Map.of("success", "false"));
+    }
+    var memberId = UUID.fromString(result.getValue().get("id", String.class));
+    var sessionId = UUID.fromString(result.getValue().get("session", String.class));
+    return teamDatabaseTable().teamMemberExists(memberId)
+      .thenCompose(memberExists -> sessionDatabaseTable.sessionExists(sessionId)
+        .thenCompose(sessionExists -> refreshVerification(refreshToken, memberId,
+          sessionId, memberExists, sessionExists)));
+  }
+
+  private CompletableFuture<Map<String, Object>> refreshVerification(
+    String refreshToken, UUID memberId, UUID sessionId, boolean memberExists,
+    boolean sessionExists
+  ) {
+    if (!memberExists || !sessionExists) {
+      return CompletableFuture.completedFuture(Map.of("success", "false"));
+    }
+    return teamDatabaseTable().findTeamMember(memberId)
+      .thenCompose(member -> sessionDatabaseTable.findSession(sessionId)
+        .thenApply(session -> refreshVerification(refreshToken, member, session)));
+  }
+
+  private Map<String, Object> refreshVerification(
+    String refreshToken, TeamMember member, TeamSession session
+  ) {
+    if (session.status().isClosed() ||
+      !session.lastRefreshToken().equals(refreshToken)
+    ) {
+      return Map.of("success", "false");
+    }
+    var verification = Verification.create(teamDatabaseTable(), panelKey,
+      refreshKey, "", "");
+    var newPanelApiKey = verification.generatePanelApiKey(member.id(),
+      session.id());
+    var newRefreshToken = verification.generateRefreshToken(member.id(),
+      session.id());
+    sessionDatabaseTable.updateSessionRefreshToken(session.id(), newRefreshToken);
+    return Map.of("success", "true", "panelApiKey", newPanelApiKey,
+      "refreshToken", newRefreshToken);
+  }
+
+  @RequestMapping(path = "/verification/logout/", method = RequestMethod.GET)
+  public void logout(HttpServletRequest request) {
+    sessionDatabaseTable.closeSession(findSessionId(request));
   }
 
   @RequestMapping(path = "/verification/isValid/", method = RequestMethod.POST)
   public CompletableFuture<Map<String, Object>> isValid(
     @RequestBody String payload, HttpServletResponse response
   ) {
+    return isValid(panelKey, payload, response)
+      .thenApply(result -> finishValidation(result.getKey()));
+  }
+
+  private Map<String, Object> finishValidation(boolean isValid) {
+    return Map.of("isValid", isValid ? "true" : "false");
+  }
+
+  private CompletableFuture<Map.Entry<Boolean, Claims>> isValid(
+    Key key, String payload, HttpServletResponse response
+  ) {
     var body = DulnoRequestBody.of(payload, response);
+    var result = verifyToken(key, body.getString("token"));
+    if (result.getKey() != HttpServletResponse.SC_ACCEPTED) {
+      response.setStatus(result.getKey());
+      return CompletableFuture.completedFuture(
+        new AbstractMap.SimpleEntry<>(false, result.getValue()));
+    }
+    var userId = UUID.fromString(result.getValue().get("id", String.class));
+    return teamDatabaseTable().teamMemberExists(userId)
+      .thenApply(exists -> new AbstractMap.SimpleEntry<>(exists, result.getValue()));
+  }
+
+  private Map.Entry<Integer, Claims> verifyToken(Key key, String token) {
     try {
-      var memberId = UUID.fromString(Jwts.parser()
-        .setSigningKey(secretKey)
-        .build()
-        .parseClaimsJws(body.getString("token"))
-        .getPayload().get("id", String.class));
-      return teamDatabaseTable.teamMemberExists(memberId).thenApply(exists ->
-        Map.of("isValid", exists ? "true" : "false"));
+      return new AbstractMap.SimpleEntry(HttpServletResponse.SC_ACCEPTED,
+        Jwts.parser()
+          .setSigningKey(key)
+          .build()
+          .parseClaimsJws(token)
+          .getPayload());
+    } catch (ExpiredJwtException exception) {
+      return new AbstractMap.SimpleEntry(
+        HttpServletResponse.SC_EXPECTATION_FAILED, null);
     } catch (Exception exception) {
-      return CompletableFuture.completedFuture(Map.of("isValid", "false"));
+      return new AbstractMap.SimpleEntry(
+        HttpServletResponse.SC_FORBIDDEN, null);
     }
   }
 

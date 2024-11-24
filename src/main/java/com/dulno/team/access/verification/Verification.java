@@ -15,7 +15,8 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor(staticName = "create")
 public final class Verification {
   private final TeamDatabaseTable teamDatabaseTable;
-  private final Key secret;
+  private final Key panelSecret;
+  private final Key refreshSecret;
   @Getter
   private final String email;
   private final String passwordHash;
@@ -44,14 +45,25 @@ public final class Verification {
     return futureResponse;
   }
 
-  private static final long EXPIRATION_TIME = 1000L * 60 * 60;
+  private static final long PANEL_EXPIRATION_TIME = 1000L * 60 * 10;
 
-  public String generateApiKey(UUID memberId) {
-    var expiration = new Date(System.currentTimeMillis() + EXPIRATION_TIME);
-    return Jwts.builder()
-      .setExpiration(expiration)
+  public String generatePanelApiKey(UUID memberId, UUID sessionId) {
+    var expiration = new Date(System.currentTimeMillis() + PANEL_EXPIRATION_TIME);
+    return Jwts.builder().expiration(expiration)
       .claim("id", memberId.toString())
-      .signWith(secret)
+      .claim("session", sessionId.toString())
+      .signWith(panelSecret)
+      .compact();
+  }
+
+  private static final long REFRESH_EXPIRATION_TIME = 1000L * 60 * 60 * 24;
+
+  public String generateRefreshToken(UUID memberId, UUID sessionId) {
+    var expiration = new Date(System.currentTimeMillis() + REFRESH_EXPIRATION_TIME);
+    return Jwts.builder().expiration(expiration)
+      .claim("id", memberId.toString())
+      .claim("session", sessionId.toString())
+      .signWith(refreshSecret)
       .compact();
   }
 }
