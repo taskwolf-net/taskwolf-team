@@ -89,12 +89,4 @@ public final class TeamMemberInjectionModule extends AbstractModule {
   ) {
    return TeamSessionDatabaseTable.create(connection, keyspace);
   }
-
-  @Provides
-  @Singleton
-  DatabaseReader provideDatabaseReader() throws Exception {
-    var database = new File(System.getProperty("user.dir") +
-      "/geo/GeoLite2-City.mmdb");
-    return new DatabaseReader.Builder(database).build();
-  }
 }

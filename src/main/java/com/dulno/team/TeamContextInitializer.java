@@ -40,7 +40,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
 
   @Inject
   private TeamContextInitializer(
-    Log log, @Named("panelKey") Key panelKey, @Named("refreshKey") Key refreshKey,
+    Log log, @Named("panelKey") Key panelKey, @Named("panelRefreshKey") Key refreshKey,
     DatabaseConnection databaseConnection, DatabaseKeyspace databaseKeyspace,
     WhitelistConfiguration whitelistConfiguration,
     TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
@@ -99,7 +99,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
       BeanDefinitionRegistry registry
     ) throws BeansException {
       registerKey(registry, "panelKey", panelKey, true);
-      registerKey(registry, "refreshKey", refreshKey, false);
+      registerKey(registry, "panelRefreshKey", refreshKey, false);
     }
 
     private void registerKey(

@@ -44,7 +44,7 @@ public final class VerificationController extends TeamController {
 
   private VerificationController(
     @Qualifier("panelKey") Key panelKey,
-    @Qualifier("refreshKey") Key refreshKey,
+    @Qualifier("panelRefreshKey") Key refreshKey,
     TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable,
     TeamMultiFactorAuthFactory multiFactorAuthFactory,

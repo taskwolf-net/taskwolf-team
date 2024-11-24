@@ -26,7 +26,7 @@ public final class SessionCloseSchedule {
 
   public SessionCloseSchedule(
     TeamSessionDatabaseTable sessionDatabaseTable,
-    @Qualifier("refreshKey") Key refreshSecret
+    @Qualifier("panelRefreshKey") Key refreshSecret
   ) {
     this.sessionDatabaseTable = sessionDatabaseTable;
     this.refreshSecret = refreshSecret;

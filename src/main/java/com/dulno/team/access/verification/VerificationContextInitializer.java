@@ -20,7 +20,7 @@ public class VerificationContextInitializer implements ApplicationContextInitial
   private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
   private final TeamEmailChangeDatabaseTable teamEmailChangeDatabaseTable;
   private final TeamPasswordResetDatabaseTable teamPasswordResetDatabaseTable;
-  private final TeamSessionDatabaseTable sessionDatabaseTable;
+  private final TeamSessionDatabaseTable teamSessionDatabaseTable;
   private final DatabaseReader databaseReader;
 
   @Override
@@ -33,7 +33,8 @@ public class VerificationContextInitializer implements ApplicationContextInitial
       teamEmailChangeDatabaseTable);
     beanFactory.registerSingleton("teamPasswordResetDatabaseTable",
       teamPasswordResetDatabaseTable);
-    beanFactory.registerSingleton("sessionDatabaseTable", sessionDatabaseTable);
+    beanFactory.registerSingleton("teamSessionDatabaseTable",
+      teamSessionDatabaseTable);
     beanFactory.registerSingleton("databaseReader", databaseReader);
   }
 }

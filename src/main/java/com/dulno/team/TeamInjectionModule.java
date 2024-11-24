@@ -113,7 +113,7 @@ public final class TeamInjectionModule extends AbstractModule {
 
   @Provides
   @Singleton
-  @Named("refreshKey")
+  @Named("panelRefreshKey")
   Key provideRefreshKey(TeamConfiguration configuration) {
     return new SecretKeySpec(configuration.refreshSecret()
       .getBytes(StandardCharsets.UTF_8), SignatureAlgorithm.HS256.getJcaName());
