@@ -271,8 +271,10 @@ public final class ClusterBackupController extends TeamController {
 
   @RequestMapping(path = "/cluster/backup/restore/", method = RequestMethod.GET)
   public SseEmitter restoreClusterBackup(
-    @RequestParam("token") String token, @RequestParam("backup") long backup
-  ) {
+    @RequestParam("token") String token, @RequestParam("backup") long backup,
+    @RequestParam("keyspace") String keyspaceFilter,
+    @RequestParam("table") String tableFilter
+    ) {
     var response = ((ServletRequestAttributes)
       RequestContextHolder.currentRequestAttributes()).getResponse();
     if (response != null) {
@@ -288,12 +290,13 @@ public final class ClusterBackupController extends TeamController {
     }
     memberHasPermission(memberId.get(), "cluster.backup.restore")
       .thenAcceptAsync(hasPermission -> restoreClusterBackup(backup,
-        hasPermission, emitter));
+        keyspaceFilter, tableFilter, hasPermission, emitter));
     return emitter;
   }
 
   private void restoreClusterBackup(
-    long backupId, boolean hasPermission, SseEmitter emitter
+    long backupId, String keyspaceFilter, String tableFilter,
+    boolean hasPermission, SseEmitter emitter
   ) {
     if (!hasPermission) {
       emitter.complete();
@@ -304,8 +307,8 @@ public final class ClusterBackupController extends TeamController {
     var totalPods = new AtomicInteger(pods.size());
     var processes = Lists.<Runnable>newArrayList();
     for (var pod : pods) {
-      processes.addAll(restoreBackupFromPod(backupId, pod, emitter,
-        completedPods, totalPods));
+      processes.addAll(restoreBackupFromPod(backupId, keyspaceFilter, tableFilter,
+        pod, emitter, completedPods, totalPods));
     }
     Collections.shuffle(processes);
     var executorService = Executors.newFixedThreadPool(10);
@@ -315,8 +318,8 @@ public final class ClusterBackupController extends TeamController {
   }
 
   private List<Runnable> restoreBackupFromPod(
-    long backupId, V1Pod pod, SseEmitter emitter, AtomicInteger completedPods,
-    AtomicInteger podCount
+    long backupId, String keyspaceFilter, String tableFilter, V1Pod pod,
+    SseEmitter emitter, AtomicInteger completedPods, AtomicInteger podCount
   ) {
     var backup = fetchDatabaseBackups(pod).stream()
       .filter(line -> Long.parseLong(
@@ -333,8 +336,8 @@ public final class ClusterBackupController extends TeamController {
         true).destroy();
       var keyspaces = listFilesInPod(pod, clusterConfiguration.databasePath(),
         line -> !line.contains("system") && !line.contains("snapshot"));
-      return restoreKeyspacesBackup(pod, backupPodId, keyspaces, emitter,
-        completedPods, podCount);
+      return restoreKeyspacesBackup(keyspaceFilter, tableFilter, pod,
+        backupPodId, keyspaces, emitter, completedPods, podCount);
     } catch (Exception exception) {
       errorRepository.processError(exception);
       return Lists.newArrayList();
@@ -342,19 +345,26 @@ public final class ClusterBackupController extends TeamController {
   }
 
   private List<Runnable> restoreKeyspacesBackup(
-    V1Pod pod, String backupPodId, List<String> keyspaces,
-    SseEmitter emitter, AtomicInteger completedPods, AtomicInteger podCount
+    String keyspaceFilter, String tableFilter, V1Pod pod, String backupPodId,
+    List<String> keyspaces, SseEmitter emitter, AtomicInteger completedPods,
+    AtomicInteger podCount
   ) {
     var completedTables = new AtomicInteger(0);
     var tableCount = new AtomicInteger(0);
     var processes = Lists.<Runnable>newArrayList();
     for (var keyspace : keyspaces) {
+      if (!keyspaceFilter.isEmpty() && !keyspace.contains(keyspaceFilter)) {
+        continue;
+      }
       var tables = listFilesInPod(pod, clusterConfiguration.databasePath() +
         "/" + keyspace);
-      tableCount.addAndGet(tables.size());
       for (var table : tables) {
+        if (!tableFilter.isEmpty() && !table.contains(tableFilter)) {
+          continue;
+        }
         processes.add(() -> restoreTableBackup(pod, keyspace, table, backupPodId,
           emitter, completedTables, tableCount, completedPods, podCount));
+        tableCount.incrementAndGet();
       }
     }
     try {
