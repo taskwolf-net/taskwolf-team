@@ -27,6 +27,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.Key;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -40,14 +42,12 @@ public final class ClusterBackupController extends TeamController {
   private final Exec kubernetesExecutionApi;
   private final Copy kubernetesCopyApi;
   private final ClusterConfiguration clusterConfiguration;
-  private final ClusterUnitController clusterUnitController;
 
   private ClusterBackupController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable, ErrorRepository errorRepository,
     CoreV1Api kubernetesCoreApi, Exec kubernetesExecutionApi,
-    Copy kubernetesCopyApi, ClusterConfiguration clusterConfiguration,
-    ClusterUnitController clusterUnitController
+    Copy kubernetesCopyApi, ClusterConfiguration clusterConfiguration
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.errorRepository = errorRepository;
@@ -55,7 +55,6 @@ public final class ClusterBackupController extends TeamController {
     this.kubernetesExecutionApi = kubernetesExecutionApi;
     this.kubernetesCopyApi = kubernetesCopyApi;
     this.clusterConfiguration = clusterConfiguration;
-    this.clusterUnitController = clusterUnitController;
   }
 
   @RequestMapping(path = "/cluster/backups/", method = RequestMethod.GET)
@@ -273,7 +272,8 @@ public final class ClusterBackupController extends TeamController {
   public SseEmitter restoreClusterBackup(
     @RequestParam("token") String token, @RequestParam("backup") long backup,
     @RequestParam("keyspace") String keyspaceFilter,
-    @RequestParam("table") String tableFilter
+    @RequestParam("table") String tableFilter,
+    @RequestParam("keepMaintenance") boolean keepMaintenance
     ) {
     var response = ((ServletRequestAttributes)
       RequestContextHolder.currentRequestAttributes()).getResponse();
@@ -290,13 +290,13 @@ public final class ClusterBackupController extends TeamController {
     }
     memberHasPermission(memberId.get(), "cluster.backup.restore")
       .thenAcceptAsync(hasPermission -> restoreClusterBackup(backup,
-        keyspaceFilter, tableFilter, hasPermission, emitter));
+        keyspaceFilter, tableFilter, keepMaintenance, hasPermission, emitter));
     return emitter;
   }
 
   private void restoreClusterBackup(
     long backupId, String keyspaceFilter, String tableFilter,
-    boolean hasPermission, SseEmitter emitter
+    boolean keepMaintenance, boolean hasPermission, SseEmitter emitter
   ) {
     if (!hasPermission) {
       emitter.complete();
@@ -308,7 +308,7 @@ public final class ClusterBackupController extends TeamController {
     var processes = Lists.<Runnable>newArrayList();
     for (var pod : pods) {
       processes.addAll(restoreBackupFromPod(backupId, keyspaceFilter, tableFilter,
-        pod, emitter, completedPods, totalPods));
+        keepMaintenance, pod, emitter, completedPods, totalPods));
     }
     Collections.shuffle(processes);
     var executorService = Executors.newFixedThreadPool(10);
@@ -318,8 +318,9 @@ public final class ClusterBackupController extends TeamController {
   }
 
   private List<Runnable> restoreBackupFromPod(
-    long backupId, String keyspaceFilter, String tableFilter, V1Pod pod,
-    SseEmitter emitter, AtomicInteger completedPods, AtomicInteger podCount
+    long backupId, String keyspaceFilter, String tableFilter,
+    boolean keepMaintenance, V1Pod pod, SseEmitter emitter,
+    AtomicInteger completedPods, AtomicInteger podCount
   ) {
     var backup = fetchDatabaseBackups(pod).stream()
       .filter(line -> Long.parseLong(
@@ -336,8 +337,8 @@ public final class ClusterBackupController extends TeamController {
         true).destroy();
       var keyspaces = listFilesInPod(pod, clusterConfiguration.databasePath(),
         line -> !line.contains("system") && !line.contains("snapshot"));
-      return restoreKeyspacesBackup(keyspaceFilter, tableFilter, pod,
-        backupPodId, keyspaces, emitter, completedPods, podCount);
+      return restoreKeyspacesBackup(keyspaceFilter, tableFilter, keepMaintenance,
+        pod, backupPodId, keyspaces, emitter, completedPods, podCount);
     } catch (Exception exception) {
       errorRepository.processError(exception);
       return Lists.newArrayList();
@@ -345,9 +346,9 @@ public final class ClusterBackupController extends TeamController {
   }
 
   private List<Runnable> restoreKeyspacesBackup(
-    String keyspaceFilter, String tableFilter, V1Pod pod, String backupPodId,
-    List<String> keyspaces, SseEmitter emitter, AtomicInteger completedPods,
-    AtomicInteger podCount
+    String keyspaceFilter, String tableFilter, boolean keepMaintenance, V1Pod pod,
+    String backupPodId, List<String> keyspaces, SseEmitter emitter,
+    AtomicInteger completedPods, AtomicInteger podCount
   ) {
     var completedTables = new AtomicInteger(0);
     var tableCount = new AtomicInteger(0);
@@ -360,6 +361,9 @@ public final class ClusterBackupController extends TeamController {
         "/" + keyspace);
       for (var table : tables) {
         if (!tableFilter.isEmpty() && !table.contains(tableFilter)) {
+          continue;
+        }
+        if (keepMaintenance && table.contains("maintenance")) {
           continue;
         }
         processes.add(() -> restoreTableBackup(pod, keyspace, table, backupPodId,
@@ -394,15 +398,80 @@ public final class ClusterBackupController extends TeamController {
       }
       if (completedTables.incrementAndGet() == tableCount.get()) {
         if (completedPods.incrementAndGet() == podCount.get()) {
-          clusterUnitController.restartClusterUnit(
-            clusterConfiguration.databaseController(), "STATEFULSET", true);
-          emitter.send(new JSONObject(Map.of("type", "COMPLETED")).toString());
-          emitter.complete();
+          try {
+            emitter.send(new JSONObject(Map.of("type", "COPIED")).toString());
+          } catch (Exception exception) {
+          }
+          restartDatabase(emitter);
         }
       }
     } catch (Exception exception) {
       errorRepository.processError(exception);
     }
+  }
+
+  private void restartDatabase(SseEmitter emitter) {
+    var pods = fetchDatabasePods();
+    if (pods.isEmpty()) {
+      return;
+    }
+    var restartedPods = new AtomicInteger(0);
+    for (var i = 0; i < pods.size(); i++) {
+      var pod = pods.get(i);
+      var nextPods = i == pods.size() - 1 ? Lists.<String>newArrayList() :
+        Lists.newArrayList(pods.get(i + 1).getMetadata().getName());
+      waitPodRestart(pod, emitter, restartedPods, pods.size(), nextPods);
+    }
+  }
+
+  private void waitPodRestart(
+    V1Pod pod, SseEmitter emitter, AtomicInteger restartedPods, int totalPodNumber,
+    List<String> nextPods
+  ) {
+    try {
+      kubernetesCoreApi.deleteNamespacedPod(pod.getMetadata().getName(),
+        pod.getMetadata().getNamespace()).execute();
+      var endTime = Instant.now().plus(Duration.ofMinutes(15));
+      while (Instant.now().isBefore(endTime)) {
+        Thread.sleep(2000);
+        try {
+          emitter.send(Map.of("type", "PING"));
+        } catch (Exception exception) {
+          exception.printStackTrace();
+        }
+        if (isPodReady(pod)) {
+          try {
+            emitter.send(new JSONObject(Map.of("type", "RESTART",
+              "pod", pod.getMetadata().getName(), "nextPods", nextPods)).toString());
+            if (restartedPods.incrementAndGet() == totalPodNumber) {
+              emitter.send(new JSONObject(Map.of("type", "RESTARTED")).toString());
+              emitter.complete();
+            }
+          } catch (Exception exception) {
+            exception.printStackTrace();
+          }
+          break;
+        }
+      }
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+    }
+  }
+
+  private boolean isPodReady(V1Pod pod) throws Exception {
+    var updatedPod = kubernetesCoreApi.readNamespacedPod(
+      pod.getMetadata().getName(), pod.getMetadata().getNamespace()).execute();
+    if (updatedPod.getStatus().getStartTime().toEpochSecond() ==
+      pod.getStatus().getStartTime().toEpochSecond()
+    ) {
+      return false;
+    }
+    var conditions = updatedPod.getStatus().getConditions();
+    if (!"Running".equals(updatedPod.getStatus().getPhase()) || conditions == null) {
+      return false;
+    }
+    return conditions.stream().anyMatch(condition ->
+      "Ready".equals(condition.getType()) && "True".equals(condition.getStatus()));
   }
 
   @RequestMapping(path = "/cluster/backup/delete/", method = RequestMethod.POST)
