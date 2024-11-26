@@ -335,6 +335,8 @@ public final class ClusterBackupController extends TeamController {
       var remotePath = clusterConfiguration.databasePath() + "/" + backup.get();
       kubernetesExecutionApi.exec(pod, new String[] {"tar", "-xvf", remotePath},
         true).destroy();
+      kubernetesExecutionApi.exec(pod, new String[] {"nodetool", "flush"}, true)
+        .waitFor();
       var keyspaces = listFilesInPod(pod, clusterConfiguration.databasePath(),
         line -> !line.contains("system") && !line.contains("snapshot"));
       return restoreKeyspacesBackup(keyspaceFilter, tableFilter, keepMaintenance,
@@ -371,12 +373,9 @@ public final class ClusterBackupController extends TeamController {
         tableCount.incrementAndGet();
       }
     }
-    try {
-      emitter.send(new JSONObject(Map.of("type", "POD", "tableCount",
-        tableCount.get(), "pod", pod.getMetadata().getName(), "podCount",
-        podCount.get())).toString());
-    } catch (Exception exception) {
-    }
+    sendEmitterMessage(emitter, Map.of("type", "POD", "tableCount",
+      tableCount.get(), "pod", pod.getMetadata().getName(), "podCount",
+      podCount.get()));
     return processes;
   }
 
@@ -385,26 +384,31 @@ public final class ClusterBackupController extends TeamController {
     String backupPodId, SseEmitter emitter, AtomicInteger completedTables,
     AtomicInteger tableCount, AtomicInteger completedPods, AtomicInteger podCount
   ) {
+    copyTableBackup(pod, keyspace, table, backupPodId);
+    sendEmitterMessage(emitter, Map.of("type", "TABLE", "keyspace", keyspace,
+      "table", table, "pod", pod.getMetadata().getName()));
+    if (completedTables.incrementAndGet() == tableCount.get()) {
+      if (completedPods.incrementAndGet() == podCount.get()) {
+        sendEmitterMessage(emitter, Map.of("type", "COPIED"));
+        restartDatabase(emitter);
+      }
+    }
+  }
+
+  private void copyTableBackup(
+    V1Pod pod, String keyspace, String table, String backupPodId
+  ) {
     try {
-      kubernetesExecutionApi.exec(pod, new String[] {"cp", "-a",
+      kubernetesExecutionApi.exec(pod, new String[] {"bash", "-c",
+          "find " + clusterConfiguration.databasePath() + "/" + keyspace + "/" +
+            table + " -mindepth 1 -maxdepth 1 ! -name '*snapshot*' -exec rm -rf {} +"},
+        true, true).waitFor();
+      kubernetesExecutionApi.exec(pod, new String[] {
+        "cp", "-a", "--remove-destination",
           clusterConfiguration.databasePath() + "/" + keyspace + "/" + table +
             "/snapshots/" + backupPodId + "/.",
           clusterConfiguration.databasePath() + "/" + keyspace + "/" + table + "/"},
         true, true).waitFor();
-      try {
-        emitter.send(new JSONObject(Map.of("type", "TABLE", "keyspace", keyspace,
-          "table", table, "pod", pod.getMetadata().getName())).toString());
-      } catch (Exception exception) {
-      }
-      if (completedTables.incrementAndGet() == tableCount.get()) {
-        if (completedPods.incrementAndGet() == podCount.get()) {
-          try {
-            emitter.send(new JSONObject(Map.of("type", "COPIED")).toString());
-          } catch (Exception exception) {
-          }
-          restartDatabase(emitter);
-        }
-      }
     } catch (Exception exception) {
       errorRepository.processError(exception);
     }
@@ -434,21 +438,13 @@ public final class ClusterBackupController extends TeamController {
       var endTime = Instant.now().plus(Duration.ofMinutes(15));
       while (Instant.now().isBefore(endTime)) {
         Thread.sleep(2000);
-        try {
-          emitter.send(Map.of("type", "PING"));
-        } catch (Exception exception) {
-          exception.printStackTrace();
-        }
+        sendEmitterMessage(emitter, Map.of("type", "PING"));
         if (isPodReady(pod)) {
-          try {
-            emitter.send(new JSONObject(Map.of("type", "RESTART",
-              "pod", pod.getMetadata().getName(), "nextPods", nextPods)).toString());
-            if (restartedPods.incrementAndGet() == totalPodNumber) {
-              emitter.send(new JSONObject(Map.of("type", "RESTARTED")).toString());
-              emitter.complete();
-            }
-          } catch (Exception exception) {
-            exception.printStackTrace();
+          sendEmitterMessage(emitter, Map.of("type", "RESTART",
+            "pod", pod.getMetadata().getName(), "nextPods", nextPods));
+          if (restartedPods.incrementAndGet() == totalPodNumber) {
+            sendEmitterMessage(emitter, Map.of("type", "RESTARTED"));
+            emitter.complete();
           }
           break;
         }
@@ -472,6 +468,13 @@ public final class ClusterBackupController extends TeamController {
     }
     return conditions.stream().anyMatch(condition ->
       "Ready".equals(condition.getType()) && "True".equals(condition.getStatus()));
+  }
+
+  private void sendEmitterMessage(SseEmitter emitter, Map<String, Object> content) {
+    try {
+      emitter.send(new JSONObject(content).toString());
+    } catch (Exception ignored) {
+    }
   }
 
   @RequestMapping(path = "/cluster/backup/delete/", method = RequestMethod.POST)
