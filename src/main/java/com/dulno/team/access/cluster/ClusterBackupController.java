@@ -330,25 +330,29 @@ public final class ClusterBackupController extends TeamController {
       podCount.decrementAndGet();
       return Lists.newArrayList();
     }
+    var backupPodId = backup.get().split("_")[2];
+    prepareBackupPod(pod, backup.get());
+    var keyspaces = filterRestoreKeyspaces(listFilesInPod(pod,
+      clusterConfiguration.databasePath(), line ->
+        !line.contains("system") && !line.contains("snapshot")), keyspaceFilter);
+    return restoreKeyspacesBackup(tableFilter, keepMaintenance,
+      pod, backupPodId, keyspaces, emitter, completedPods, podCount);
+  }
+
+  private void prepareBackupPod(V1Pod pod, String backup) {
+    var remotePath = clusterConfiguration.databasePath() + "/" + backup;
     try {
-      var backupPodId = backup.get().split("_")[2];
-      var remotePath = clusterConfiguration.databasePath() + "/" + backup.get();
       kubernetesExecutionApi.exec(pod, new String[] {"tar", "-xvf", remotePath},
         true).destroy();
       kubernetesExecutionApi.exec(pod, new String[] {"nodetool", "flush"}, true)
         .waitFor();
-      var keyspaces = listFilesInPod(pod, clusterConfiguration.databasePath(),
-        line -> !line.contains("system") && !line.contains("snapshot"));
-      return restoreKeyspacesBackup(keyspaceFilter, tableFilter, keepMaintenance,
-        pod, backupPodId, keyspaces, emitter, completedPods, podCount);
     } catch (Exception exception) {
       errorRepository.processError(exception);
-      return Lists.newArrayList();
     }
   }
 
   private List<Runnable> restoreKeyspacesBackup(
-    String keyspaceFilter, String tableFilter, boolean keepMaintenance, V1Pod pod,
+    String tableFilter, boolean keepMaintenance, V1Pod pod,
     String backupPodId, List<String> keyspaces, SseEmitter emitter,
     AtomicInteger completedPods, AtomicInteger podCount
   ) {
@@ -356,27 +360,61 @@ public final class ClusterBackupController extends TeamController {
     var tableCount = new AtomicInteger(0);
     var processes = Lists.<Runnable>newArrayList();
     for (var keyspace : keyspaces) {
-      if (!keyspaceFilter.isEmpty() && !keyspace.contains(keyspaceFilter)) {
-        continue;
-      }
-      var tables = listFilesInPod(pod, clusterConfiguration.databasePath() +
-        "/" + keyspace);
-      for (var table : tables) {
-        if (!tableFilter.isEmpty() && !table.contains(tableFilter)) {
-          continue;
-        }
-        if (keepMaintenance && table.contains("maintenance")) {
-          continue;
-        }
-        processes.add(() -> restoreTableBackup(pod, keyspace, table, backupPodId,
-          emitter, completedTables, tableCount, completedPods, podCount));
-        tableCount.incrementAndGet();
-      }
+      processes.addAll(restoreTablesBackup(tableFilter, keepMaintenance, pod,
+        backupPodId, emitter, completedPods, podCount, keyspace, completedTables,
+        tableCount));
     }
     sendEmitterMessage(emitter, Map.of("type", "POD", "tableCount",
       tableCount.get(), "pod", pod.getMetadata().getName(), "podCount",
       podCount.get()));
     return processes;
+  }
+
+  private List<Runnable> restoreTablesBackup(
+    String tableFilter, boolean keepMaintenance, V1Pod pod,
+    String backupPodId, SseEmitter emitter, AtomicInteger completedPods,
+    AtomicInteger podCount, String keyspace, AtomicInteger completedTables,
+    AtomicInteger tableCount
+  ) {
+    var processes = Lists.<Runnable>newArrayList();
+    var tables = filterRestoreTables(
+      listFilesInPod(pod, clusterConfiguration.databasePath() + "/" + keyspace),
+      tableFilter, keepMaintenance);
+    for (var table : tables) {
+      processes.add(() -> restoreTableBackup(pod, keyspace, table, backupPodId,
+        emitter, completedTables, tableCount, completedPods, podCount));
+      tableCount.incrementAndGet();
+    }
+    return processes;
+  }
+
+  private List<String> filterRestoreKeyspaces(
+    List<String> keyspaces, String keyspaceFilter
+  ) {
+    return keyspaces.stream()
+      .filter(keyspace -> keyspaceFilter.isEmpty() ||
+        checkRestoreFilter(keyspaceFilter, keyspace))
+      .toList();
+  }
+
+  private List<String> filterRestoreTables(
+    List<String> tables, String tableFilter, boolean keepMaintenance
+  ) {
+    return tables.stream()
+      .filter(table -> tableFilter.isEmpty() ||
+        checkRestoreFilter(tableFilter, table))
+      .filter(table -> !keepMaintenance || !table.contains("maintenance"))
+      .toList();
+  }
+
+  private boolean checkRestoreFilter(String filter, String entry) {
+    var sections = filter.replaceAll(" ", "").split(",");
+    for (var section : sections) {
+      if (entry.contains(section)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void restoreTableBackup(
@@ -424,34 +462,44 @@ public final class ClusterBackupController extends TeamController {
       var pod = pods.get(i);
       var nextPods = i == pods.size() - 1 ? Lists.<String>newArrayList() :
         Lists.newArrayList(pods.get(i + 1).getMetadata().getName());
-      waitPodRestart(pod, emitter, restartedPods, pods.size(), nextPods);
+      try {
+        waitPodRestart(pod, emitter, restartedPods, pods.size(), nextPods);
+      } catch (Exception exception) {
+        errorRepository.processError(exception);
+      }
     }
   }
 
   private void waitPodRestart(
-    V1Pod pod, SseEmitter emitter, AtomicInteger restartedPods, int totalPodNumber,
-    List<String> nextPods
-  ) {
-    try {
-      kubernetesCoreApi.deleteNamespacedPod(pod.getMetadata().getName(),
-        pod.getMetadata().getNamespace()).execute();
-      var endTime = Instant.now().plus(Duration.ofMinutes(15));
-      while (Instant.now().isBefore(endTime)) {
-        Thread.sleep(2000);
-        sendEmitterMessage(emitter, Map.of("type", "PING"));
-        if (isPodReady(pod)) {
-          sendEmitterMessage(emitter, Map.of("type", "RESTART",
-            "pod", pod.getMetadata().getName(), "nextPods", nextPods));
-          if (restartedPods.incrementAndGet() == totalPodNumber) {
-            sendEmitterMessage(emitter, Map.of("type", "RESTARTED"));
-            emitter.complete();
-          }
-          break;
-        }
+    V1Pod pod, SseEmitter emitter, AtomicInteger restartedPods,
+    int totalPodNumber, List<String> nextPods
+  ) throws Exception {
+    kubernetesCoreApi.deleteNamespacedPod(pod.getMetadata().getName(),
+      pod.getMetadata().getNamespace()).execute();
+    var endTime = Instant.now().plus(Duration.ofMinutes(15));
+    while (Instant.now().isBefore(endTime)) {
+      Thread.sleep(2000);
+      if (checkPodRestart(pod, emitter,  restartedPods, totalPodNumber, nextPods)) {
+        break;
       }
-    } catch (Exception exception) {
-      errorRepository.processError(exception);
     }
+  }
+
+  private boolean checkPodRestart(
+    V1Pod pod, SseEmitter emitter, AtomicInteger restartedPods,
+    int totalPodNumber, List<String> nextPods
+  ) throws Exception {
+    sendEmitterMessage(emitter, Map.of("type", "PING"));
+    if (isPodReady(pod)) {
+      sendEmitterMessage(emitter, Map.of("type", "RESTART",
+        "pod", pod.getMetadata().getName(), "nextPods", nextPods));
+      if (restartedPods.incrementAndGet() == totalPodNumber) {
+        sendEmitterMessage(emitter, Map.of("type", "RESTARTED"));
+        emitter.complete();
+      }
+      return true;
+    }
+    return false;
   }
 
   private boolean isPodReady(V1Pod pod) throws Exception {
