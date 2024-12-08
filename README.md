@@ -4,9 +4,9 @@ All necessary internal team processes are handled in this module. Core functions
 
 ## Status
 
-|             | Build Status                                                                                                       |
-|-------------|--------------------------------------------------------------------------------------------------------------------|
-| Master      | ![Java CI with Gradle](https://git.dulno.com/root/dulno-gmail/badges/master/pipeline.svg) |
+|             | Build Status                                                                              |
+|-------------|-------------------------------------------------------------------------------------------|
+| Master      | ![Java CI with Gradle](https://git.dulno.com/dulno/dulno-team/badges/master/pipeline.svg) |
 
 
 ## Permissions
