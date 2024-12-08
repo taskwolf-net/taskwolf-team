@@ -59,7 +59,7 @@ dependencies {
 
   implementation("io.kubernetes:client-java:21.0.2")
 
-  compileOnly("com.maxmind.geoip2:geoip2:2.15.0")
+  compileOnly("com.maxmind.geoip2:geoip2:4.2.1")
 }
 
 tasks.test {
