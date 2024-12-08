@@ -1,8 +1,5 @@
 image: gradle:8.5-jdk21
 
-before_script:
-  - export TASKWOLF_GITLAB_PRIVATE_TOKEN="$TASKWOLF_GITLAB_PRIVATE_TOKEN"
-
 build:
   stage: build
   script:
