@@ -104,7 +104,7 @@ public final class TeamSessionDatabaseTable extends DatabaseTable {
   }
 
   public CompletableFuture<Void> updateSession(TeamSession session) {
-    return update(DatabaseCondition.of("id", session.id()),
+    return update(DatabaseCondition.of("id", session.id(), "member", session.memberId()),
       DatabaseRow.of(session.id(), session.memberId(), session.status().toString(),
         session.devicePlatform(), session.ipAddress(), session.country(),
         session.city(), session.openTime(), session.lastRefreshToken(),
