@@ -18,8 +18,9 @@ public final class TeamSessionDatabaseTable extends DatabaseTable {
   ) {
     var columns = Lists.<DatabaseColumn>newArrayList();
     columns.add(DatabaseColumn.create("id", DatabaseDataType.UUID,
-      DatabaseColumn.Type.PRIMARY_KEY));
-    columns.add(DatabaseColumn.create("member", DatabaseDataType.UUID));
+      DatabaseColumn.Type.PARTITION_KEY));
+    columns.add(DatabaseColumn.create("member", DatabaseDataType.UUID,
+      DatabaseColumn.Type.CLUSTERING_KEY));
     columns.add(DatabaseColumn.create("status", DatabaseDataType.TEXT));
     columns.add(DatabaseColumn.create("devicePlatform", DatabaseDataType.TEXT));
     columns.add(DatabaseColumn.create("ipAddress", DatabaseDataType.TEXT));
@@ -32,14 +33,29 @@ public final class TeamSessionDatabaseTable extends DatabaseTable {
     table.createIfNotExists();
     table.createIndexIfNotExists("member");
     table.createIndexIfNotExists("status");
+    table.initializeViews();
     return table;
   }
+
+  private DatabaseTable memberStatusView;
 
   private TeamSessionDatabaseTable(
     DatabaseConnection connection, DatabaseKeyspace keyspace, String name,
     List<DatabaseColumn> columns
   ) {
     super(connection, keyspace, name, columns);
+  }
+
+  private void initializeViews() {
+    var columns = Lists.<DatabaseColumn>newArrayList();
+    columns.add(DatabaseColumn.create("member", DatabaseDataType.UUID,
+      DatabaseColumn.Type.PARTITION_KEY));
+    columns.add(DatabaseColumn.create("status", DatabaseDataType.TEXT,
+      DatabaseColumn.Type.CLUSTERING_KEY));
+    columns.add(DatabaseColumn.create("id", DatabaseDataType.UUID,
+      DatabaseColumn.Type.CLUSTERING_KEY));
+    memberStatusView = createMaterializedViewIfNotExists("member_status_view",
+      columns);
   }
 
   public CompletableFuture<Void> insertSession(TeamSession session) {
@@ -88,14 +104,15 @@ public final class TeamSessionDatabaseTable extends DatabaseTable {
   }
 
   public CompletableFuture<Void> updateSession(TeamSession session) {
-    return update(session.id(), DatabaseRow.of(session.id(), session.memberId(),
-      session.status().toString(), session.devicePlatform(), session.ipAddress(),
-      session.country(), session.city(), session.openTime(),
-      session.lastRefreshToken(), session.lastRefresh()));
+    return update(DatabaseCondition.of("id", session.id()),
+      DatabaseRow.of(session.id(), session.memberId(), session.status().toString(),
+        session.devicePlatform(), session.ipAddress(), session.country(),
+        session.city(), session.openTime(), session.lastRefreshToken(),
+        session.lastRefresh()));
   }
 
   public CompletableFuture<Void> deleteSession(UUID id) {
-    return delete(id);
+    return delete(DatabaseCondition.of("id", id));
   }
 
   public CompletableFuture<UUID> generateAvailableSessionId() {
@@ -108,11 +125,12 @@ public final class TeamSessionDatabaseTable extends DatabaseTable {
   }
 
   public CompletableFuture<Boolean> sessionExists(UUID id) {
-    return exists(id);
+    return exists(DatabaseCondition.of("id", id));
   }
 
   public CompletableFuture<TeamSession> findSession(UUID id) {
-    return selectRow(id).thenApply(row -> TeamSession.of(row, this));
+    return selectRow(DatabaseCondition.of("id", id))
+      .thenApply(row -> TeamSession.of(row, this));
   }
 
   public CompletableFuture<List<TeamSession>> findSessionsOfMember(UUID memberId) {
@@ -123,10 +141,10 @@ public final class TeamSessionDatabaseTable extends DatabaseTable {
   public CompletableFuture<List<TeamSession>> findSessionsOfMemberByStatus(
     UUID memberId, SessionStatus status
   ) {
-    var condition = DatabaseCondition.of("member", memberId, "status", status.toString(),
-      DatabaseCondition.Filtering.ALLOWED);
-    return selectRows(condition).thenApply(rows ->
-      rows.stream().map(row -> TeamSession.of(row, this))
+    var condition = DatabaseCondition.of("member", memberId, "status",
+      status.toString());
+    return memberStatusView.selectRows(condition).thenApply(rows ->
+      rows.stream().map(row -> TeamSession.of(row, memberStatusView))
         .sorted(Comparator.comparingLong(TeamSession::openTime).reversed()).toList());
   }
 
