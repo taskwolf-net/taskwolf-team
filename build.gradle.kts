@@ -25,6 +25,17 @@ repositories {
       create("header", HttpHeaderAuthentication::class)
     }
   }
+  maven {
+    url = uri("https://git.dulno.com/api/v4/projects/41/packages/maven")
+    credentials(HttpHeaderCredentials::class) {
+      name = "Private-Token"
+      value = System.getenv("DULNO_GITLAB_PRIVATE_TOKEN") ?:
+        findProperty("dulnoGitlabPrivateToken") as String?
+    }
+    authentication {
+      create("header", HttpHeaderAuthentication::class)
+    }
+  }
 }
 
 dependencies {
@@ -32,6 +43,7 @@ dependencies {
   testCompileOnly("org.junit.jupiter:junit-jupiter:5.11.4")
 
   implementation("com.dulno:core:1.0.0-SNAPSHOT")
+  implementation("com.dulno:workflow:1.0.0-SNAPSHOT")
 
   implementation("com.google.inject:guice:7.0.0")
 
