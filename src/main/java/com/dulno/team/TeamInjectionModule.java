@@ -3,7 +3,9 @@ package com.dulno.team;
 import com.dulno.core.access.AccessInjectionModule;
 import com.dulno.core.bundle.BundleInjectionModule;
 import com.dulno.core.command.CommandInjectionModule;
+import com.dulno.core.database.DatabaseConnection;
 import com.dulno.core.database.DatabaseInjectionModule;
+import com.dulno.core.database.DatabaseKeyspace;
 import com.dulno.core.error.ErrorInjectionModule;
 import com.dulno.core.intro.IntroInjectionModule;
 import com.dulno.core.locale.LocaleInjectionModule;
@@ -32,7 +34,8 @@ import com.dulno.team.hetzner.HetznerInjectionModule;
 import com.dulno.team.member.TeamMemberInjectionModule;
 import com.dulno.team.offer.TeamOfferInjectionModule;
 import com.dulno.team.telegraf.TelegrafInjectionModule;
-import com.dulno.workflow.WorkflowInjectionModule;
+import com.dulno.workflow.operation.OperationDatabaseTable;
+import com.dulno.workflow.throttle.WorkflowThrottleDatabaseTable;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
@@ -68,7 +71,6 @@ public final class TeamInjectionModule extends AbstractModule {
     install(SaleInjectionModule.create());
     install(WhitelistInjectionModule.create());
     install(LocaleInjectionModule.create());
-    install(WorkflowInjectionModule.create());
     install(AccessInjectionModule.create());
     install(StripeInjectionModule.create());
     install(OfferInjectionModule.create());
@@ -211,5 +213,27 @@ public final class TeamInjectionModule extends AbstractModule {
     copyApi.setApiClient(client);
     copyApi.setOnUnhandledError(throwable -> {});
     return copyApi;
+  }
+
+  @Provides
+  @Singleton
+  OperationDatabaseTable provideOperationDatabaseTable(
+    DatabaseConnection connection, DatabaseKeyspace keyspace
+  ) {
+    var operationDatabaseTable = OperationDatabaseTable.create(connection,
+      keyspace);
+    operationDatabaseTable.createIfNotExists();
+    return operationDatabaseTable;
+  }
+
+  @Provides
+  @Singleton
+  WorkflowThrottleDatabaseTable provideWorkflowThrottleDatabaseTable(
+    DatabaseConnection connection, DatabaseKeyspace keyspace
+  ) {
+    var workflowThrottleDatabaseTable = WorkflowThrottleDatabaseTable.create(
+      connection, keyspace);
+    workflowThrottleDatabaseTable.createIfNotExists();
+    return workflowThrottleDatabaseTable;
   }
 }
