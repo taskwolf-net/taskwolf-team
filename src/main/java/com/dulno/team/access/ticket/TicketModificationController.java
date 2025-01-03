@@ -91,10 +91,12 @@ public final class TicketModificationController extends TeamController {
     ticket.addMessage(messageId);
     ticket.resetExpirationTime();
     ticket.updateLastMessageSeen(false);
-    ticketDatabaseTable.updateTicket(ticket);
-    ticketMessageDatabaseTable.insertTicketMessage(TicketMessage.create(messageId,
-      ticket.id(), teamMember.id(), TicketMessageAuthorType.TEAM, message,
-      System.currentTimeMillis()));
+    ticketDatabaseTable.deleteTicket(ticket.id())
+      .thenAccept(deleteValue -> ticketDatabaseTable.insertTicket(ticket)
+        .thenAccept(insertValue -> ticketMessageDatabaseTable
+          .insertTicketMessage(TicketMessage.create(messageId, ticket.id(),
+            teamMember.id(), TicketMessageAuthorType.TEAM, message,
+            System.currentTimeMillis()))));
     activityDatabaseTable.insertActivity(ticket.creator(),
       "activity.ticket.answer.title", "activity.ticket.answer.description",
       ActivityType.TICKET);
