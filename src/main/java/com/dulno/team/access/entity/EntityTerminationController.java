@@ -12,6 +12,7 @@ import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.google.common.collect.Maps;
 import com.stripe.StripeClient;
+import com.stripe.model.Subscription;
 import com.stripe.param.SubscriptionListParams;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -162,19 +163,31 @@ public final class EntityTerminationController extends TeamController {
     terminationDatabaseTable.insertTermination(targetId);
   }
 
-  public void cancelSubscription(StripeAccount account) {
+  private CompletableFuture<Void> cancelSubscription(StripeAccount account) {
     try {
       var subscriptions = stripeClient.subscriptions()
         .list(SubscriptionListParams.builder().setCustomer(account.accountId()).build())
         .getData();
       if (subscriptions.isEmpty()) {
-        return;
+        return CompletableFuture.completedFuture(null);
       }
-      subscriptions.get(0).cancel();
-      stripeDatabaseTable.updateStripeAccount(account.accountId(),
+      return cancelSubscription(subscriptions.get(0), account);
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+      return CompletableFuture.completedFuture(null);
+    }
+  }
+
+  private CompletableFuture<Void> cancelSubscription(
+    Subscription subscription, StripeAccount account
+  ) {
+    try {
+      subscription.cancel();
+      return stripeDatabaseTable.updateStripeAccount(account.accountId(),
         account.targetId(), account.userId(), "");
     } catch (Exception exception) {
       errorRepository.processError(exception);
+      return CompletableFuture.completedFuture(null);
     }
   }
 
@@ -186,7 +199,6 @@ public final class EntityTerminationController extends TeamController {
       next = next.withDayOfMonth(next.getMonth().length(
         next.toLocalDate().isLeapYear()));
     }
-    return System.currentTimeMillis() >
-      (next.toInstant().toEpochMilli() + 1000L * 60 * 5);
+    return System.currentTimeMillis() > next.toInstant().toEpochMilli();
   }
 }
