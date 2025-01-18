@@ -154,7 +154,7 @@ public final class EntityBundleController extends TeamController {
   private double findBundlePrice(
     DulnoRequestBody body, BundlePreset preset, BundleRuntime runtime
   ) {
-    if (runtime.isWeekly()) {
+    if (runtime.isInfinite()) {
       return 0;
     }
     if (!body.has("price")) {
