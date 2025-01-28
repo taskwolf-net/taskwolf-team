@@ -216,7 +216,7 @@ public final class ClusterResourceController extends TeamController {
   private boolean isNodeController(V1NodeList nodes, String nodeName) {
     var node = nodes.getItems().stream().filter(entry ->
       entry.getMetadata().getName().equals(nodeName)).findFirst().get();
-    return node.getMetadata().getLabels().entrySet().stream()
-      .anyMatch(label -> "node-role.kubernetes.io/master".equals(label.getKey()));
+    return node.getMetadata().getLabels()
+      .containsKey("node-role.kubernetes.io/control-plane");
   }
 }
