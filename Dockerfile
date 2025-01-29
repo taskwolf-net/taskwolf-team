@@ -1,7 +1,6 @@
 FROM openjdk:21
 
-COPY team-1.0.0-SNAPSHOT.jar team.jar
-COPY /configurations/ /configurations/
+COPY /build/libs/team-1.0.0-SNAPSHOT.jar team.jar
 COPY /locale/ /locale/
 COPY /geo/ /geo/
 

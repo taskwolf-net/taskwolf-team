@@ -1,6 +1,53 @@
-image: gradle:8.12-jdk21
+stages:
+  - build
+  - publish
+  - deploy
+
+variables:
+  DOCKER_IMAGE: "dulno-team"
+  KUBERNETES_RESOURCE: "deployment/dulno-team-deployment"
 
 build:
   stage: build
+  image: gradle:8.12-jdk21
   script:
-    - gradle assemble
+    - gradle bootJar
+    - gradle downloadGeoLite2Database
+  artifacts:
+    paths:
+      - build/libs/
+      - geo/
+    expire_in: 1 day
+
+publish:
+  stage: publish
+  image: docker:cli
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
+  dependencies:
+    - build
+  script:
+    - echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin $DOCKER_REGISTRY
+    - docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE:latest .
+    - docker push $DOCKER_REGISTRY/$DOCKER_IMAGE:latest
+  only:
+    - master
+
+deploy:
+  stage: deploy
+  image:
+    name: bitnami/kubectl:latest
+    entrypoint: [""]
+  dependencies:
+    - publish
+  before_script:
+    - mkdir -p ~/.kube
+    - echo "$KUBERNETES_CONFIGURATION" > ~/.kube/config
+  script:
+    - kubectl rollout restart $KUBERNETES_RESOURCE
+  only:
+    - master
