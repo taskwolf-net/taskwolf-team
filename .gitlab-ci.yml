@@ -5,6 +5,7 @@ stages:
 
 variables:
   DOCKER_IMAGE: "dulno-team"
+  DOCKER_DOCS_IMAGE: "dulno-team-docs"
   KUBERNETES_RESOURCE: "deployment/dulno-team-deployment"
 
 build:
@@ -12,10 +13,12 @@ build:
   image: gradle:8.12-jdk21
   script:
     - gradle bootJar
+    - gradle javadoc
     - gradle downloadGeoLite2Database
   artifacts:
     paths:
       - build/libs/
+      - build/docs/javadoc/
       - geo/
     expire_in: 1 day
 
@@ -34,10 +37,12 @@ publish:
     - echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin $DOCKER_REGISTRY
     - docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE:latest .
     - docker push $DOCKER_REGISTRY/$DOCKER_IMAGE:latest
+    - docker buildx build -t $DOCKER_REGISTRY/$DOCKER_DOCS_IMAGE:latest -f docs/Dockerfile .
+    - docker push $DOCKER_REGISTRY/$DOCKER_DOCS_IMAGE:latest
   only:
     - master
 
-deploy:
+deploy_team:
   stage: deploy
   image:
     name: bitnami/kubectl:latest
@@ -49,5 +54,13 @@ deploy:
     - echo "$KUBERNETES_CONFIGURATION" > ~/.kube/config
   script:
     - kubectl rollout restart $KUBERNETES_RESOURCE
+  only:
+    - master
+
+deploy_wiki:
+  stage: deploy
+  trigger:
+    project: $WIKI_PIPELINE_PROJECT
+    branch: $WIKI_PIPELINE_BRANCH
   only:
     - master
