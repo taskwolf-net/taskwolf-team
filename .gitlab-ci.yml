@@ -80,7 +80,7 @@ validate:
     - echo "$KUBERNETES_CONFIGURATION" > ~/.kube/config
   script:
     - |
-      NEW_POD = $(kubectl get pods -l app=${KUBERNETES_APP} -o jsonpath='{.items[0].metadata.name}')
+      NEW_POD=$(kubectl get pods -l app=${KUBERNETES_APP} -o jsonpath='{.items[0].metadata.name}')
       kubectl logs $NEW_POD
   only:
     - master
