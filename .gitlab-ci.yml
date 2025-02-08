@@ -80,8 +80,8 @@ validate:
     - echo "$KUBERNETES_CONFIGURATION" > ~/.kube/config
   script:
     - |
-      NEW_POD=$(kubectl get pods -l app=${APP_LABEL} -n ${NAMESPACE} -o jsonpath='{.items[0].metadata.name}')
-      kubectl logs $NEW_POD -n ${NAMESPACE} --follow
+      NEW_POD=$(kubectl get pods -l app=${KUBERNETES_APP} -o jsonpath='{.items[0].metadata.name}')
+      kubectl logs $NEW_POD --follow
   only:
     - master
   when: manual
