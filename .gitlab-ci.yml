@@ -56,6 +56,7 @@ deploy_team:
     - echo "$KUBERNETES_CONFIGURATION" > ~/.kube/config
   script:
     - kubectl rollout restart $KUBERNETES_RESOURCE
+    - kubectl rollout status $KUBERNETES_RESOURCE
   only:
     - master
 
@@ -78,9 +79,9 @@ validate:
     - mkdir -p ~/.kube
     - echo "$KUBERNETES_CONFIGURATION" > ~/.kube/config
   script:
-    - kubectl rollout status $KUBERNETES_RESOURCE
-    - NEW_POD = $(kubectl get pods -l app=${KUBERNETES_APP} -o jsonpath='{.items[0].metadata.name}')
-    - kubectl logs $NEW_POD --follow
+    - |
+      NEW_POD=$(kubectl get pods -l app=${APP_LABEL} -n ${NAMESPACE} -o jsonpath='{.items[0].metadata.name}')
+      kubectl logs $NEW_POD -n ${NAMESPACE} --follow
   only:
     - master
   when: manual
