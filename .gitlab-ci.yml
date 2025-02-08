@@ -74,7 +74,7 @@ validate:
     name: bitnami/kubectl:latest
     entrypoint: [ "" ]
   dependencies:
-    - publish
+    - deploy_team
   before_script:
     - mkdir -p ~/.kube
     - echo "$KUBERNETES_CONFIGURATION" > ~/.kube/config
