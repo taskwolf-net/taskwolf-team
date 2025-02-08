@@ -2,11 +2,13 @@ stages:
   - build
   - publish
   - deploy
+  - validate
 
 variables:
   DOCKER_IMAGE: "dulno-team"
   DOCKER_DOCS_IMAGE: "dulno-team-docs"
   KUBERNETES_RESOURCE: "deployment/dulno-team-deployment"
+  KUBERNETES_APP:  "dulno-team"
 
 build:
   stage: build
@@ -64,3 +66,21 @@ deploy_wiki:
     branch: $WIKI_PIPELINE_BRANCH
   only:
     - master
+
+validate:
+  stage: validate
+  image:
+    name: bitnami/kubectl:latest
+    entrypoint: [ "" ]
+  dependencies:
+    - publish
+  before_script:
+    - mkdir -p ~/.kube
+    - echo "$KUBERNETES_CONFIGURATION" > ~/.kube/config
+  script:
+    - kubectl rollout status $KUBERNETES_RESOURCE
+    - NEW_POD = $(kubectl get pods -l app=${KUBERNETES_APP} -o jsonpath='{.items[0].metadata.name}')
+    - kubectl logs $NEW_POD --follow
+  only:
+    - master
+  when: manual
