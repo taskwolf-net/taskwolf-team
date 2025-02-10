@@ -1,5 +1,7 @@
 stages:
   - build
+  - assemble
+  - scan
   - publish
   - deploy
   - validate
@@ -24,6 +26,49 @@ build:
       - geo/
     expire_in: 1 day
 
+assemble:
+  stage: assemble
+  image: docker:cli
+  services:
+    - docker:dind
+  dependencies:
+    - build
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
+  script:
+    - echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin $DOCKER_REGISTRY
+    - docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE:test .
+    - docker push $DOCKER_REGISTRY/$DOCKER_IMAGE:test
+  only:
+    - master
+
+scan:
+  stage: scan
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  dependencies:
+    - assemble
+  variables:
+    GIT_STRATEGY: none
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
+    TRIVY_USERNAME: $DOCKER_USERNAME
+    TRIVY_PASSWORD: $DOCKER_PASSWORD
+  script:
+    - trivy --version
+    - time trivy clean --scan-cache
+    - time trivy image --download-db-only --no-progress --cache-dir .trivycache/
+    - trivy image --ignore-unfixed --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --cache-dir .trivycache/ $DOCKER_REGISTRY/$DOCKER_IMAGE:test
+  cache:
+    paths:
+      - .trivycache/
+  only:
+    - master
+
 publish:
   stage: publish
   image: docker:cli
@@ -37,7 +82,8 @@ publish:
     - build
   script:
     - echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin $DOCKER_REGISTRY
-    - docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE:latest .
+    - docker pull $DOCKER_REGISTRY/$DOCKER_IMAGE:test
+    - docker tag $DOCKER_REGISTRY/$DOCKER_IMAGE:test $DOCKER_REGISTRY/$DOCKER_IMAGE:latest
     - docker push $DOCKER_REGISTRY/$DOCKER_IMAGE:latest
     - docker buildx build -t $DOCKER_REGISTRY/$DOCKER_DOCS_IMAGE:latest -f docs/Dockerfile .
     - docker push $DOCKER_REGISTRY/$DOCKER_DOCS_IMAGE:latest
