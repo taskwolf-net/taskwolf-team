@@ -70,7 +70,7 @@ dependencies {
 
   implementation("dev.samstevens.totp:totp:1.7.1")
 
-  implementation("io.kubernetes:client-java:22.0.0")
+  implementation("io.kubernetes:client-java:22.0.1")
 
   compileOnly("com.maxmind.geoip2:geoip2:4.2.1")
 }
