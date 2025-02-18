@@ -1,7 +1,4 @@
-FROM amazoncorretto:21.0.6
-
-RUN yum update -y && yum install -y tar
-RUN yum clean all
+FROM eclipse-temurin:21-jdk
 
 COPY /build/libs/team-1.0.0-SNAPSHOT.jar team.jar
 COPY /locale/ /locale/
