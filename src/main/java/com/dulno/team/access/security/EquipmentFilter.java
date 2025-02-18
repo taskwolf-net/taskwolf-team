@@ -27,7 +27,6 @@ public class EquipmentFilter extends OncePerRequestFilter {
   }
 
   private void prepareResponseHeaders(HttpServletResponse response) {
-    response.setHeader("Content-Type", "application/json");
     response.setHeader("Access-Control-Allow-Origin", "https://panel.dulno.com");
     response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, " +
       "DELETE, OPTIONS");
