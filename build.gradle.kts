@@ -4,7 +4,7 @@ import java.util.zip.GZIPInputStream
 
 plugins {
   id("java")
-  id("io.freefair.lombok") version "8.12.1"
+  id("io.freefair.lombok") version "8.12.2"
   id("org.springframework.boot") version "3.4.3"
 }
 
