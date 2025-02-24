@@ -1,6 +1,7 @@
 package com.dulno.team.access.password;
 
 import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.hashing.Hashing;
 import com.dulno.core.locale.Translation;
 import com.dulno.core.mail.Mail;
 import com.dulno.team.access.TeamController;
@@ -8,7 +9,6 @@ import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.dulno.team.member.TeamMember;
 import com.dulno.team.member.TeamPasswordResetDatabaseTable;
-import com.google.common.hash.Hashing;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Map;
 import java.util.UUID;
@@ -27,18 +26,20 @@ public final class PasswordController extends TeamController {
   private final Mail changeMail;
   private final TeamPasswordResetDatabaseTable teamPasswordResetDatabaseTable;
   private final Translation translation;
+  private final Hashing hashing;
 
   private PasswordController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     @Qualifier("changeMail") Mail changeMail,
     TeamPasswordResetDatabaseTable teamPasswordResetDatabaseTable,
-    Translation translation
+    Translation translation, Hashing hashing
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.changeMail = changeMail;
     this.teamPasswordResetDatabaseTable = teamPasswordResetDatabaseTable;
     this.translation = translation;
+    this.hashing = hashing;
   }
 
   @RequestMapping(path = "/password/reset/request/", method = RequestMethod.POST)
@@ -132,13 +133,8 @@ public final class PasswordController extends TeamController {
       return CompletableFuture.completedFuture(Map.of("success", false, "errorCode", 1001));
     }
     teamPasswordResetDatabaseTable.deleteResetToken(memberId);
-    teamDatabaseTable().changeTeamMemberPassword(memberId, hashPassword(newPassword));
+    teamDatabaseTable().changeTeamMemberPassword(memberId, hashing.hash(newPassword));
     return CompletableFuture.completedFuture(Map.of("success", true));
-  }
-
-  private String hashPassword(String password) {
-    return Hashing.sha256().hashString(password, StandardCharsets.UTF_8)
-      .toString();
   }
 }
 

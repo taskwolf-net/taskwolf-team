@@ -2,6 +2,7 @@ package com.dulno.team;
 
 import com.dulno.core.database.DatabaseConnection;
 import com.dulno.core.database.DatabaseKeyspace;
+import com.dulno.core.hashing.Hashing;
 import com.dulno.core.locale.Translation;
 import com.dulno.core.error.ErrorRepository;
 import com.dulno.core.log.Log;
@@ -37,6 +38,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
   private final Mail supportMail;
   private final Mail saleMail;
   private final Mail changeMail;
+  private final Hashing hashing;
 
   @Inject
   private TeamContextInitializer(
@@ -47,7 +49,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     Translation translation, ErrorRepository errorRepository,
     @Named("verificationMail") Mail verificationMail,
     @Named("supportMail") Mail supportMail, @Named("saleMail") Mail saleMail,
-    @Named("changeMail") Mail changeMail
+    @Named("changeMail") Mail changeMail, Hashing hashing
   ) {
     this.log = log;
     this.panelKey = panelKey;
@@ -63,6 +65,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     this.supportMail = supportMail;
     this.saleMail = saleMail;
     this.changeMail = changeMail;
+    this.hashing = hashing;
   }
 
   @Override
@@ -81,6 +84,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("supportMail", supportMail);
     beanFactory.registerSingleton("saleMail", saleMail);
     beanFactory.registerSingleton("changeMail", changeMail);
+    beanFactory.registerSingleton("hashing", hashing);
     applicationContext.addBeanFactoryPostProcessor(
       new KeyPostProcessor(panelKey, refreshKey));
   }

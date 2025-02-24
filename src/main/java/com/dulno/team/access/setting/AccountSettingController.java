@@ -1,6 +1,7 @@
 package com.dulno.team.access.setting;
 
 import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.hashing.Hashing;
 import com.dulno.core.locale.Translation;
 import com.dulno.core.mail.Mail;
 import com.dulno.team.access.TeamController;
@@ -8,7 +9,6 @@ import com.dulno.team.group.GroupDatabaseTable;
 import com.dulno.team.member.TeamDatabaseTable;
 import com.dulno.team.member.TeamEmailChangeDatabaseTable;
 import com.dulno.team.member.TeamMember;
-import com.google.common.hash.Hashing;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Map;
 import java.util.UUID;
@@ -28,17 +27,20 @@ public final class AccountSettingController extends TeamController {
   private final TeamEmailChangeDatabaseTable teamEmailChangeDatabaseTable;
   private final Translation translation;
   private final Mail changeMail;
+  private final Hashing hashing;
 
   private AccountSettingController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     TeamEmailChangeDatabaseTable teamEmailChangeDatabaseTable,
-    Translation translation, @Qualifier("changeMail") Mail changeMail
+    Translation translation, @Qualifier("changeMail") Mail changeMail,
+    Hashing hashing
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.teamEmailChangeDatabaseTable = teamEmailChangeDatabaseTable;
     this.translation = translation;
     this.changeMail = changeMail;
+    this.hashing = hashing;
   }
 
   @RequestMapping(path = "/settings/account/password/change/", method = RequestMethod.POST)
@@ -57,17 +59,12 @@ public final class AccountSettingController extends TeamController {
   private Map<String, Object> changePassword(
     TeamMember member, String currentPassword, String newPassword
   ) {
-    if (!member.passwordHash().equals(hashPassword(currentPassword))) {
+    if (!hashing.matches(currentPassword, member.passwordHash())) {
       return Map.of("success", false);
     }
     teamDatabaseTable().changeTeamMemberPassword(member.id(),
-      hashPassword(newPassword));
+      hashing.hash(newPassword));
     return Map.of("success", true);
-  }
-
-  private String hashPassword(String password) {
-    return Hashing.sha256().hashString(password, StandardCharsets.UTF_8)
-      .toString();
   }
 
   @RequestMapping(path = "/settings/account/email/", method = RequestMethod.GET)
@@ -94,7 +91,7 @@ public final class AccountSettingController extends TeamController {
   private CompletableFuture<Map<String, Object>> requestEmailChange(
     TeamMember member, String password, String newEmail, boolean accountExists
   ) {
-    if (!member.passwordHash().equals(hashPassword(password))) {
+    if (!hashing.matches(password, member.passwordHash())) {
       return CompletableFuture.completedFuture(Map.of("success", false, "errorCode", 1000));
     }
     if (accountExists) {

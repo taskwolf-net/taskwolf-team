@@ -27,7 +27,7 @@ public class EquipmentFilter extends OncePerRequestFilter {
   }
 
   private void prepareResponseHeaders(HttpServletResponse response) {
-    response.setHeader("Access-Control-Allow-Origin", "https://panel.dulno.com");
+    response.setHeader("Access-Control-Allow-Origin", "http://0.0.0.0:8000");
     response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, " +
       "DELETE, OPTIONS");
     response.setHeader("Access-Control-Max-Age", "3600");

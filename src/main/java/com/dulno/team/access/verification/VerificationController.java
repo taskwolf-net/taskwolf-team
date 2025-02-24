@@ -1,6 +1,7 @@
 package com.dulno.team.access.verification;
 
 import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.hashing.Hashing;
 import com.dulno.core.session.SessionStatus;
 import com.dulno.core.session.UserAgent;
 import com.dulno.team.access.TeamController;
@@ -11,7 +12,6 @@ import com.dulno.team.member.TeamVerificationDatabaseTable;
 import com.dulno.team.member.mfa.TeamMultiFactorAuthFactory;
 import com.dulno.team.member.session.TeamSession;
 import com.dulno.team.member.session.TeamSessionDatabaseTable;
-import com.google.common.hash.Hashing;
 import com.maxmind.geoip2.DatabaseReader;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.InetAddress;
-import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.AbstractMap;
 import java.util.Map;
@@ -41,6 +40,7 @@ public final class VerificationController extends TeamController {
   private final TeamMultiFactorAuthFactory multiFactorAuthFactory;
   private final TeamSessionDatabaseTable sessionDatabaseTable;
   private final DatabaseReader geoDatabaseReader;
+  private final Hashing hashing;
 
   private VerificationController(
     @Qualifier("panelKey") Key panelKey,
@@ -48,7 +48,8 @@ public final class VerificationController extends TeamController {
     TeamDatabaseTable teamDatabaseTable, GroupDatabaseTable groupDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable,
     TeamMultiFactorAuthFactory multiFactorAuthFactory,
-    TeamSessionDatabaseTable sessionDatabaseTable, DatabaseReader geoDatabaseReader
+    TeamSessionDatabaseTable sessionDatabaseTable, DatabaseReader geoDatabaseReader,
+    Hashing hashing
   ) {
     super(panelKey, teamDatabaseTable, groupDatabaseTable);
     this.panelKey = panelKey;
@@ -58,6 +59,7 @@ public final class VerificationController extends TeamController {
     this.multiFactorAuthFactory = multiFactorAuthFactory;
     this.sessionDatabaseTable = sessionDatabaseTable;
     this.geoDatabaseReader = geoDatabaseReader;
+    this.hashing = hashing;
   }
 
   @RequestMapping(path = "/verification/complete/", method = RequestMethod.POST)
@@ -97,7 +99,7 @@ public final class VerificationController extends TeamController {
       return;
     }
     teamVerificationDatabaseTable.deleteVerification(member.id());
-    teamDatabaseTable.changeTeamMemberPassword(member, hashPassword(password));
+    teamDatabaseTable.changeTeamMemberPassword(member, hashing.hash(password));
   }
 
   @RequestMapping(path = "/verification/login/", method = RequestMethod.POST)
@@ -127,7 +129,7 @@ public final class VerificationController extends TeamController {
     String multiFactorCode
   ) {
     var verification = Verification.create(teamDatabaseTable, panelKey,
-      refreshKey, email.replace(" ", ""), hashPassword(password));
+      refreshKey, hashing, email.trim(), password);
     var futureResponse = new CompletableFuture<Map<String, Object>>();
     verification.isAuthenticated().thenAccept(isAuthenticated ->
       checkAuthorization(request, verification, multiFactorCode, futureResponse,
@@ -236,7 +238,7 @@ public final class VerificationController extends TeamController {
       return Map.of("success", "false");
     }
     var verification = Verification.create(teamDatabaseTable(), panelKey,
-      refreshKey, "", "");
+      refreshKey, hashing);
     var newPanelApiKey = verification.generatePanelApiKey(member.id(),
       session.id());
     var newRefreshToken = verification.generateRefreshToken(member.id(),
@@ -293,10 +295,5 @@ public final class VerificationController extends TeamController {
       return new AbstractMap.SimpleEntry(
         HttpServletResponse.SC_FORBIDDEN, null);
     }
-  }
-
-  private String hashPassword(String password) {
-    return Hashing.sha256().hashString(password, StandardCharsets.UTF_8)
-      .toString();
   }
 }
