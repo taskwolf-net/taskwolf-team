@@ -11,5 +11,10 @@
   "ticket.answer.email.title": "Answer received",
   "ticket.answer.email.body": "Hey %s,\n\nwe would like to inform you that another reply has just been added to your ticket with the title “%s”. \n\nTo read the answer and possibly ask further questions, please click on the link below. There you will find your ticket. \n\n%s\n\nWe hope we were able to answer your question to your satisfaction. \nPlease let us know if you have any further questions.\n\nKind regards\nYour Dulno Team",
 
-  "organization.default.name": "Organization of %s"
+  "organization.default.name": "Organization of %s",
+
+  "mail.template.rights": "All rights reserved",
+  "mail.template.imprint": "Imprint",
+  "mail.template.privacy": "Privacy policy",
+  "mail.template.contact": "Contact"
 }
