@@ -49,7 +49,7 @@ public final class TeamMultiFactorAuth {
       .label(member.email())
       .secret(secret)
       .issuer("Dulno Panel")
-      .algorithm(HashingAlgorithm.SHA1)
+      .algorithm(HashingAlgorithm.SHA256)
       .digits(6)
       .period(30)
       .build();
@@ -76,7 +76,7 @@ public final class TeamMultiFactorAuth {
       return verifyRecoveryCode(code);
     }
     var timeProvider = new SystemTimeProvider();
-    var codeGenerator = new DefaultCodeGenerator();
+    var codeGenerator = new DefaultCodeGenerator(HashingAlgorithm.SHA256);
     var verifier = new DefaultCodeVerifier(codeGenerator, timeProvider);
     return multiFactorAuthDatabaseTable.findAuth(memberId)
       .thenApplyAsync(auth -> verifier.isValidCode(auth.secret(), code));
