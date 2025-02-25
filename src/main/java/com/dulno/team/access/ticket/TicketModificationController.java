@@ -103,7 +103,7 @@ public final class TicketModificationController extends TeamController {
     var title = translation.translate(creator, "ticket.answer.email.title");
     var body = String.format(translation.translate(creator, "ticket.answer.email.body"),
       creator.name(), ticket.title(), String.format(TICKET_URL_FORMAT, ticket.id()));
-    supportMail.send(creator.email(), title, body);
+    supportMail.send(creator, title, body);
     teamWorkDatabaseTable.hasRequestReplies(teamMember.id())
       .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
   }

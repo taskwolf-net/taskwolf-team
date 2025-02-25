@@ -101,7 +101,7 @@ public final class TeamCommand extends Command {
     teamVerificationDatabaseTable.insertVerification(id, token);
     var body = String.format(ONBOARDING_EMAIL_BODY, name,
       String.format(ONBOARDING_URL, id.toString(), token));
-    verificationMail.send(email, ONBOARDING_EMAIL_TITLE, body);
+    verificationMail.send(email, "en", ONBOARDING_EMAIL_TITLE, body);
   }
 
   private boolean removeMember(String[] arguments) {

@@ -96,7 +96,7 @@ public final class PasswordController extends TeamController {
     var title = translation.translate(member.language(), emailTitle);
     var body = String.format(translation.translate(member.language(), emailBody),
       member.name(), String.format(PASSWORD_RESET_URL, member.id().toString(), token));
-    changeMail.send(member.email(), title, body);
+    changeMail.send(member.email(), member.language(), title, body);
     return Map.of("success", true);
   }
 

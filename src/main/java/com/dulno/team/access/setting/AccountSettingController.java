@@ -118,7 +118,7 @@ public final class AccountSettingController extends TeamController {
     var body = String.format(
       translation.translate(member.language(), "email.change.email.body"),
       String.format(EMAIL_CHANGE_URL, member.id().toString(), token));
-    changeMail.send(newEmail, title, body);
+    changeMail.send(newEmail, member.language(), title, body);
     return Map.of("success", true);
   }
 

@@ -172,7 +172,7 @@ public final class OfferModificationController extends TeamController {
     var title = translation.translate(user, "offer.email.title");
     var body = String.format(translation.translate(user, "offer.email.body"),
       user.name(), offerId.toString());
-    saleMail.send(user.email(), title, body);
+    saleMail.send(user, title, body);
   }
 
   private String createStripeOffer(double price) {
