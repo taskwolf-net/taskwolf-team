@@ -66,7 +66,7 @@ dependencies {
 
   implementation("com.sun.mail:javax.mail:1.6.2")
 
-  implementation("com.stripe:stripe-java:28.3.1")
+  implementation("com.stripe:stripe-java:28.4.0")
 
   implementation("dev.samstevens.totp:totp:1.7.1")
 
