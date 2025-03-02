@@ -1,6 +1,7 @@
 package com.dulno.team.command;
 
 import com.dulno.core.command.Command;
+import com.dulno.core.environment.DulnoEnvironment;
 import com.dulno.core.log.Log;
 import com.dulno.core.mail.Mail;
 import com.dulno.team.member.TeamDatabaseTable;
@@ -16,24 +17,17 @@ import java.util.List;
 import java.util.UUID;
 
 public final class TeamCommand extends Command {
-  public static TeamCommand create(
-    Log log, TeamDatabaseTable teamDatabaseTable,
-    TeamVerificationDatabaseTable teamVerificationDatabaseTable,
-    @Named("verificationMail") Mail verificationMail
-  ) {
-    return new TeamCommand(log, teamDatabaseTable, teamVerificationDatabaseTable,
-      verificationMail);
-  }
-
   private final TeamDatabaseTable teamDatabaseTable;
   private final TeamVerificationDatabaseTable teamVerificationDatabaseTable;
   private final Mail verificationMail;
+  private final DulnoEnvironment environment;
 
   @Inject
   private TeamCommand(
     Log log, TeamDatabaseTable teamDatabaseTable,
     TeamVerificationDatabaseTable teamVerificationDatabaseTable,
-    @Named("verificationMail") Mail verificationMail
+    @Named("verificationMail") Mail verificationMail,
+    DulnoEnvironment environment
   ) {
     super(log, "team", new String[] {"member", "members", "teammember",
       "teammembers"}, new String[] {"add <name, email, group>", "remove <id>",
@@ -41,6 +35,7 @@ public final class TeamCommand extends Command {
     this.teamDatabaseTable = teamDatabaseTable;
     this.teamVerificationDatabaseTable = teamVerificationDatabaseTable;
     this.verificationMail = verificationMail;
+    this.environment = environment;
   }
 
   @Override
@@ -77,7 +72,7 @@ public final class TeamCommand extends Command {
   }
 
   private static final String ONBOARDING_EMAIL_TITLE = "Onboarding";
-  private static final String ONBOARDING_URL = "https://panel.dulno.com/confirm/%s/%s/";
+  private static final String ONBOARDING_URL = "https://panel.%s/confirm/%s/%s/";
   private static final String ONBOARDING_EMAIL_BODY = "Hey %s,\n" +
     "\n" +
     "welcome to the Dulno team. Here's to good cooperation! " +
@@ -100,7 +95,7 @@ public final class TeamCommand extends Command {
     var token = UUID.randomUUID().toString();
     teamVerificationDatabaseTable.insertVerification(id, token);
     var body = String.format(ONBOARDING_EMAIL_BODY, name,
-      String.format(ONBOARDING_URL, id.toString(), token));
+      String.format(ONBOARDING_URL, environment.domain(), id.toString(), token));
     verificationMail.send(email, "en", ONBOARDING_EMAIL_TITLE, body);
   }
 

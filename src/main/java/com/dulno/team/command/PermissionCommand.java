@@ -9,13 +9,6 @@ import com.google.inject.Inject;
 import java.util.UUID;
 
 public final class PermissionCommand extends Command {
-  public static PermissionCommand create(
-    Log log,  TeamDatabaseTable teamDatabaseTable,
-    GroupDatabaseTable groupDatabaseTable
-  ) {
-    return new PermissionCommand(log, teamDatabaseTable, groupDatabaseTable);
-  }
-
   private final TeamDatabaseTable teamDatabaseTable;
   private final GroupDatabaseTable groupDatabaseTable;
 
