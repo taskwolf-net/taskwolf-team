@@ -1,6 +1,7 @@
 package com.dulno.team.access.setting;
 
 import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.environment.DulnoEnvironment;
 import com.dulno.core.hashing.Hashing;
 import com.dulno.core.locale.Translation;
 import com.dulno.core.mail.Mail;
@@ -28,19 +29,21 @@ public final class AccountSettingController extends TeamController {
   private final Translation translation;
   private final Mail changeMail;
   private final Hashing hashing;
+  private final DulnoEnvironment environment;
 
   private AccountSettingController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     TeamEmailChangeDatabaseTable teamEmailChangeDatabaseTable,
     Translation translation, @Qualifier("changeMail") Mail changeMail,
-    Hashing hashing
+    Hashing hashing, DulnoEnvironment environment
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.teamEmailChangeDatabaseTable = teamEmailChangeDatabaseTable;
     this.translation = translation;
     this.changeMail = changeMail;
     this.hashing = hashing;
+    this.environment = environment;
   }
 
   @RequestMapping(path = "/settings/account/password/change/", method = RequestMethod.POST)
@@ -103,7 +106,7 @@ public final class AccountSettingController extends TeamController {
     return futureResponse;
   }
 
-  private static final String EMAIL_CHANGE_URL = "https://panel.dulno.com/email/change/complete/%s/%s/";
+  private static final String EMAIL_CHANGE_URL = "https://panel.%s/email/change/complete/%s/%s/";
 
   private Map<String, Object> requestEmailChange(
     TeamMember member, String newEmail, boolean requestExists
@@ -117,7 +120,8 @@ public final class AccountSettingController extends TeamController {
     var title = translation.translate(member.language(), "email.change.email.title");
     var body = String.format(
       translation.translate(member.language(), "email.change.email.body"),
-      String.format(EMAIL_CHANGE_URL, member.id().toString(), token));
+      String.format(EMAIL_CHANGE_URL, environment.domain(),
+        member.id().toString(), token));
     changeMail.send(newEmail, member.language(), title, body);
     return Map.of("success", true);
   }

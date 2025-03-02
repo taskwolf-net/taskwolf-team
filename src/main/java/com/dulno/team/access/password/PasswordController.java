@@ -1,6 +1,7 @@
 package com.dulno.team.access.password;
 
 import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.environment.DulnoEnvironment;
 import com.dulno.core.hashing.Hashing;
 import com.dulno.core.locale.Translation;
 import com.dulno.core.mail.Mail;
@@ -27,19 +28,21 @@ public final class PasswordController extends TeamController {
   private final TeamPasswordResetDatabaseTable teamPasswordResetDatabaseTable;
   private final Translation translation;
   private final Hashing hashing;
+  private final DulnoEnvironment environment;
 
   private PasswordController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
     GroupDatabaseTable groupDatabaseTable,
     @Qualifier("changeMail") Mail changeMail,
     TeamPasswordResetDatabaseTable teamPasswordResetDatabaseTable,
-    Translation translation, Hashing hashing
+    Translation translation, Hashing hashing, DulnoEnvironment environment
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.changeMail = changeMail;
     this.teamPasswordResetDatabaseTable = teamPasswordResetDatabaseTable;
     this.translation = translation;
     this.hashing = hashing;
+    this.environment = environment;
   }
 
   @RequestMapping(path = "/password/reset/request/", method = RequestMethod.POST)
@@ -88,14 +91,15 @@ public final class PasswordController extends TeamController {
       emailTitle, emailBody));
   }
 
-  private static final String PASSWORD_RESET_URL = "https://panel.dulno.com/password/reset/complete/%s/%s/";
+  private static final String PASSWORD_RESET_URL = "https://panel.%s/password/reset/complete/%s/%s/";
 
   private Map<String, Object> sendPasswordResetMail(
     TeamMember member, String token, String emailTitle, String emailBody
   ) {
     var title = translation.translate(member.language(), emailTitle);
     var body = String.format(translation.translate(member.language(), emailBody),
-      member.name(), String.format(PASSWORD_RESET_URL, member.id().toString(), token));
+      member.name(), String.format(PASSWORD_RESET_URL, environment.domain(),
+        member.id().toString(), token));
     changeMail.send(member.email(), member.language(), title, body);
     return Map.of("success", true);
   }

@@ -2,6 +2,7 @@ package com.dulno.team.access.offer;
 
 import com.dulno.core.access.DulnoRequestBody;
 import com.dulno.core.bundle.*;
+import com.dulno.core.environment.DulnoEnvironment;
 import com.dulno.core.error.ErrorRepository;
 import com.dulno.core.locale.Translation;
 import com.dulno.core.mail.Mail;
@@ -44,6 +45,7 @@ public final class OfferModificationController extends TeamController {
   private final Mail saleMail;
   private final Translation translation;
   private final ErrorRepository errorRepository;
+  private final DulnoEnvironment environment;
 
   private OfferModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
@@ -54,7 +56,7 @@ public final class OfferModificationController extends TeamController {
     UserDatabaseTable userDatabaseTable,
     OrganizationDatabaseTable organizationDatabaseTable,
     @Qualifier("saleMail") Mail saleMail, Translation translation,
-    ErrorRepository errorRepository
+    ErrorRepository errorRepository, DulnoEnvironment environment
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.offerDatabaseTable = offerDatabaseTable;
@@ -66,6 +68,7 @@ public final class OfferModificationController extends TeamController {
     this.saleMail = saleMail;
     this.translation = translation;
     this.errorRepository = errorRepository;
+    this.environment = environment;
   }
 
   @RequestMapping(path = "/offer/price/suggestion/", method = RequestMethod.POST)
@@ -168,10 +171,13 @@ public final class OfferModificationController extends TeamController {
       .thenAccept(user -> sendOfferEmail(user, id));
   }
 
+  private static final String OFFER_URL = "https://%s/offer/%s/";
+
   private void sendOfferEmail(User user, UUID offerId) {
     var title = translation.translate(user, "offer.email.title");
     var body = String.format(translation.translate(user, "offer.email.body"),
-      user.name(), offerId.toString());
+      user.name(), String.format(OFFER_URL, environment.domain(),
+        offerId.toString()));
     saleMail.send(user, title, body);
   }
 

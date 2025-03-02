@@ -1,6 +1,7 @@
 package com.dulno.team.access.ticket;
 
 import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.environment.DulnoEnvironment;
 import com.dulno.core.locale.Translation;
 import com.dulno.core.mail.Mail;
 import com.dulno.core.ticket.*;
@@ -34,6 +35,7 @@ public final class TicketModificationController extends TeamController {
   private final Translation translation;
   private final Mail supportMail;
   private final UserActivityDatabaseTable activityDatabaseTable;
+  private final DulnoEnvironment environment;
 
   private TicketModificationController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
@@ -42,7 +44,8 @@ public final class TicketModificationController extends TeamController {
     TeamWorkDatabaseTable teamWorkDatabaseTable,
     UserDatabaseTable userDatabaseTable, Translation translation,
     @Qualifier("supportMail") Mail supportMail,
-    UserActivityDatabaseTable activityDatabaseTable
+    UserActivityDatabaseTable activityDatabaseTable,
+    DulnoEnvironment environment
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.ticketDatabaseTable = ticketDatabaseTable;
@@ -52,6 +55,7 @@ public final class TicketModificationController extends TeamController {
     this.translation = translation;
     this.supportMail = supportMail;
     this.activityDatabaseTable = activityDatabaseTable;
+    this.environment = environment;
   }
 
   @RequestMapping(path = "/ticket/answer/", method = RequestMethod.POST)
@@ -82,7 +86,7 @@ public final class TicketModificationController extends TeamController {
             message, id, creator))));
   }
 
-  private static final String TICKET_URL_FORMAT = "https://dulno.com/ticket/%s/";
+  private static final String TICKET_URL_FORMAT = "https://%s/ticket/%s/";
 
   private void answerTicket(
     TeamMember teamMember, Ticket ticket, String message, UUID messageId,
@@ -102,7 +106,8 @@ public final class TicketModificationController extends TeamController {
       ActivityType.TICKET);
     var title = translation.translate(creator, "ticket.answer.email.title");
     var body = String.format(translation.translate(creator, "ticket.answer.email.body"),
-      creator.name(), ticket.title(), String.format(TICKET_URL_FORMAT, ticket.id()));
+      creator.name(), ticket.title(), String.format(TICKET_URL_FORMAT,
+        environment.domain(), ticket.id()));
     supportMail.send(creator, title, body);
     teamWorkDatabaseTable.hasRequestReplies(teamMember.id())
       .thenAccept(exists -> addTeamMemberReply(teamMember, exists));
