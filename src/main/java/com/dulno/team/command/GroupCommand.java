@@ -10,10 +10,6 @@ import com.google.inject.Inject;
 import java.util.List;
 
 public final class GroupCommand extends Command {
-  public static GroupCommand create(Log log, GroupDatabaseTable groupDatabaseTable) {
-    return new GroupCommand(log, groupDatabaseTable);
-  }
-
   private final GroupDatabaseTable groupDatabaseTable;
 
   @Inject

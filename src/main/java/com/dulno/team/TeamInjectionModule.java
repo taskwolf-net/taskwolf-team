@@ -6,6 +6,7 @@ import com.dulno.core.command.CommandInjectionModule;
 import com.dulno.core.database.DatabaseConnection;
 import com.dulno.core.database.DatabaseInjectionModule;
 import com.dulno.core.database.DatabaseKeyspace;
+import com.dulno.core.environment.EnvironmentInjectionModule;
 import com.dulno.core.error.ErrorInjectionModule;
 import com.dulno.core.intro.IntroInjectionModule;
 import com.dulno.core.locale.LocaleInjectionModule;
@@ -85,6 +86,7 @@ public final class TeamInjectionModule extends AbstractModule {
     install(TeamErrorInjectionModule.create());
     install(HetznerInjectionModule.create());
     install(TelegrafInjectionModule.create());
+    install(EnvironmentInjectionModule.create());
   }
 
   @Provides

@@ -1,6 +1,7 @@
 package com.dulno.team.access.member;
 
 import com.dulno.core.access.DulnoRequestBody;
+import com.dulno.core.environment.DulnoEnvironment;
 import com.dulno.core.mail.Mail;
 import com.dulno.team.access.TeamController;
 import com.dulno.team.group.GroupDatabaseTable;
@@ -29,6 +30,7 @@ public final class MemberController extends TeamController {
   private final TeamEmailChangeDatabaseTable teamEmailChangeDatabaseTable;
   private final TeamMultiFactorAuthDatabaseTable teamMultiFactorAuthDatabaseTable;
   private final Mail verificationMail;
+  private final DulnoEnvironment environment;
 
   private MemberController(
     Key secretKey, TeamDatabaseTable teamDatabaseTable,
@@ -37,7 +39,8 @@ public final class MemberController extends TeamController {
     TeamPasswordResetDatabaseTable teamPasswordResetDatabaseTable,
     TeamEmailChangeDatabaseTable teamEmailChangeDatabaseTable,
     TeamMultiFactorAuthDatabaseTable teamMultiFactorAuthDatabaseTable,
-    @Qualifier("verificationMail") Mail verificationMail
+    @Qualifier("verificationMail") Mail verificationMail,
+    DulnoEnvironment environment
   ) {
     super(secretKey, teamDatabaseTable, groupDatabaseTable);
     this.teamVerificationDatabaseTable = teamVerificationDatabaseTable;
@@ -45,6 +48,7 @@ public final class MemberController extends TeamController {
     this.teamEmailChangeDatabaseTable = teamEmailChangeDatabaseTable;
     this.teamMultiFactorAuthDatabaseTable = teamMultiFactorAuthDatabaseTable;
     this.verificationMail = verificationMail;
+    this.environment = environment;
   }
 
   @RequestMapping(path = "/member/add/", method = RequestMethod.POST)
@@ -69,7 +73,7 @@ public final class MemberController extends TeamController {
   }
 
   private static final String ONBOARDING_EMAIL_TITLE = "Onboarding";
-  private static final String ONBOARDING_URL = "https://panel.dulno.com/confirm/%s/%s/";
+  private static final String ONBOARDING_URL = "https://panel.%s/confirm/%s/%s/";
   private static final String ONBOARDING_EMAIL_BODY = "Hey %s,\n" +
     "\n" +
     "welcome to the Dulno team. Here's to good cooperation! " +
@@ -91,7 +95,7 @@ public final class MemberController extends TeamController {
     var token = UUID.randomUUID().toString();
     teamVerificationDatabaseTable.insertVerification(id, token);
     var body = String.format(ONBOARDING_EMAIL_BODY, name,
-      String.format(ONBOARDING_URL, id.toString(), token));
+      String.format(ONBOARDING_URL, environment.domain(), id.toString(), token));
     verificationMail.send(email, "en", ONBOARDING_EMAIL_TITLE, body);
   }
 
