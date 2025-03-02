@@ -89,7 +89,7 @@ public class TeamContextInitializer implements ApplicationContextInitializer<Con
     beanFactory.registerSingleton("saleMail", saleMail);
     beanFactory.registerSingleton("changeMail", changeMail);
     beanFactory.registerSingleton("hashing", hashing);
-    beanFactory.registerSingleton("environment", environment);
+    beanFactory.registerSingleton("dulnoEnvironment", environment);
     applicationContext.addBeanFactoryPostProcessor(
       new KeyPostProcessor(panelKey, refreshKey));
   }
