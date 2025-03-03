@@ -4,7 +4,7 @@ import java.util.zip.GZIPInputStream
 
 plugins {
   id("java")
-  id("io.freefair.lombok") version "8.12.2"
+  id("io.freefair.lombok") version "8.12.2.1"
   id("org.springframework.boot") version "3.4.3"
 }
 
@@ -66,7 +66,7 @@ dependencies {
 
   implementation("com.sun.mail:javax.mail:1.6.2")
 
-  implementation("com.stripe:stripe-java:28.3.1")
+  implementation("com.stripe:stripe-java:28.4.0")
 
   implementation("dev.samstevens.totp:totp:1.7.1")
 
