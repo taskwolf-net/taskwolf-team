@@ -187,6 +187,15 @@ deploy_productive:
   only:
     - main
 
+deploy_wiki:
+  stage: deploy
+  trigger:
+    project: $WIKI_PIPELINE_PROJECT
+    branch: main
+  only:
+    - main
+  when: manual
+
 validate_staging:
   stage: validate
   image:
