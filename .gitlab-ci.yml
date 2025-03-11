@@ -194,7 +194,6 @@ deploy_wiki:
     branch: main
   only:
     - main
-  when: manual
 
 validate_staging:
   stage: validate
