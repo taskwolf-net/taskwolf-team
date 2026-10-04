@@ -1,0 +1,696 @@
+package net.taskwolf.team.access.cluster;
+
+import net.taskwolf.core.access.TaskwolfRequestBody;
+import net.taskwolf.core.iterator.AsyncIterator;
+import net.taskwolf.team.access.TeamController;
+import net.taskwolf.team.cluster.ClusterConfiguration;
+import net.taskwolf.team.group.GroupDatabaseTable;
+import net.taskwolf.team.member.TeamDatabaseTable;
+import net.taskwolf.core.error.ErrorRepository;
+import com.google.common.base.CharMatcher;
+import com.google.common.collect.Maps;
+import io.kubernetes.client.openapi.ApiCallback;
+import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.BatchV1Api;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.compress.utils.Lists;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.security.Key;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+
+@RestController
+public final class ClusterUnitController extends TeamController {
+  private final ErrorRepository errorRepository;
+  private final CoreV1Api kubernetesCoreApi;
+  private final AppsV1Api kubernetesAppsApi;
+  private final BatchV1Api kubernetesBatchApi;
+  private final ClusterConfiguration clusterConfiguration;
+
+  private ClusterUnitController(
+    Key secretKey, TeamDatabaseTable teamDatabaseTable,
+    GroupDatabaseTable groupDatabaseTable, ErrorRepository errorRepository,
+    CoreV1Api kubernetesCoreApi, AppsV1Api kubernetesAppsApi,
+    BatchV1Api kubernetesBatchApi, ClusterConfiguration clusterConfiguration
+  ) {
+    super(secretKey, teamDatabaseTable, groupDatabaseTable);
+    this.errorRepository = errorRepository;
+    this.kubernetesCoreApi = kubernetesCoreApi;
+    this.kubernetesAppsApi = kubernetesAppsApi;
+    this.kubernetesBatchApi = kubernetesBatchApi;
+    this.clusterConfiguration = clusterConfiguration;
+  }
+
+  @RequestMapping(path = "/cluster/units/", method = RequestMethod.GET)
+  public CompletableFuture<Map<String, Object>> findClusterUnits(
+    HttpServletRequest request
+  ) {
+    return memberHasPermission(findMemberId(request), "cluster.units")
+      .thenCompose(this::findClusterUnits);
+  }
+
+  private CompletableFuture<Map<String, Object>> findClusterUnits(
+    boolean hasPermission
+  ) {
+    if (!hasPermission) {
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    var futureResponse = new CompletableFuture<Map<String, Object>>();
+    try {
+      kubernetesCoreApi.listNamespacedPod(clusterConfiguration.namespace())
+        .executeAsync(new ApiCallback<>() {
+          @Override
+          public void onFailure(
+            ApiException exception, int statusCode, Map<String,
+            List<String>> responseHeaders
+          ) {
+            errorRepository.processError(exception);
+          }
+
+          @Override
+          public void onSuccess(
+            V1PodList result, int statusCode,
+            Map<String, List<String>> responseHeaders
+          ) {
+            findClusterUnits(result).thenAccept(futureResponse::complete);
+          }
+
+          @Override
+          public void onUploadProgress(
+            long bytesWritten, long contentLength, boolean done
+          ) {
+          }
+
+          @Override
+          public void onDownloadProgress(
+            long bytesRead, long contentLength, boolean done
+          ) {
+          }
+        });
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+      futureResponse.complete(Maps.newHashMap());
+    }
+    return futureResponse;
+  }
+
+  private CompletableFuture<Map<String, Object>> findClusterUnits(V1PodList pods) {
+    var units = Maps.<String, String>newHashMap();
+    for (var pod : pods.getItems()) {
+      if (pod.getMetadata() == null) {
+        continue;
+      }
+      var owners = pod.getMetadata().getOwnerReferences();
+      if (owners == null) {
+        continue;
+      }
+      owners.stream().map(this::findUnitOwnerInformation)
+        .forEach(entry -> units.put(entry.getKey(), entry.getValue()));
+    }
+    return AsyncIterator.execute(new ArrayList<>(units.entrySet()),
+        unit -> superficialUnitInformation(unit.getKey(), unit.getValue()))
+      .thenApply(result -> Map.of("units", result));
+  }
+
+  private Map.Entry<String, String> findUnitOwnerInformation(V1OwnerReference owner) {
+    var name = owner.getName();
+    var kind = owner.getKind();
+    if (owner.getKind().equalsIgnoreCase("REPLICASET")) {
+      name = name.substring(0, name.lastIndexOf('-'));
+      kind = "DEPLOYMENT";
+    } else if (owner.getKind().equalsIgnoreCase("JOB")) {
+      name = name.substring(0, name.lastIndexOf('-'));
+    }
+    return new AbstractMap.SimpleEntry<>(name, kind);
+  }
+
+  private CompletableFuture<Map<String, Object>> superficialUnitInformation(
+    String unitName, String unitType
+  ) {
+    return switch (unitType.toUpperCase()) {
+      case "DEPLOYMENT" -> deploymentInformation(unitName);
+      case "STATEFULSET" -> statefulSetInformation(unitName);
+      case "DAEMONSET" -> daemonSetInformation(unitName);
+      case "JOB" -> jobInformation(unitName);
+      default -> CompletableFuture.completedFuture(Maps.newHashMap());
+    };
+  }
+
+  private CompletableFuture<Map<String, Object>> deploymentInformation(
+    String unitName
+  ) {
+    var futureResponse = new CompletableFuture<Map<String, Object>>();
+    try {
+      kubernetesAppsApi
+        .readNamespacedDeployment(unitName, clusterConfiguration.namespace())
+        .executeAsync(new ApiCallback<>() {
+          @Override
+          public void onFailure(
+            ApiException exception, int statusCode, Map<String,
+            List<String>> responseHeaders
+          ) {
+            errorRepository.processError(exception);
+          }
+
+          @Override
+          public void onSuccess(
+            V1Deployment result, int statusCode,
+            Map<String, List<String>> responseHeaders
+          ) {
+            futureResponse.complete(Map.of("name", unitName, "type", "DEPLOYMENT",
+              "desiredReplicas", result.getSpec().getReplicas() != null ?
+                result.getSpec().getReplicas() : 0,
+              "availableReplicas",result.getStatus().getReadyReplicas() != null ?
+                result.getStatus().getReadyReplicas() : 0));
+          }
+
+          @Override
+          public void onUploadProgress(
+            long bytesWritten, long contentLength, boolean done
+          ) {
+          }
+
+          @Override
+          public void onDownloadProgress(
+            long bytesRead, long contentLength, boolean done
+          ) {
+          }
+        });
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+      futureResponse.complete(Maps.newHashMap());
+    }
+    return futureResponse;
+  }
+
+  private CompletableFuture<Map<String, Object>> statefulSetInformation(
+    String unitName
+  ) {
+    var futureResponse = new CompletableFuture<Map<String, Object>>();
+    try {
+      kubernetesAppsApi
+        .readNamespacedStatefulSet(unitName, clusterConfiguration.namespace())
+        .executeAsync(new ApiCallback<>() {
+          @Override
+          public void onFailure(
+            ApiException exception, int statusCode, Map<String,
+            List<String>> responseHeaders
+          ) {
+            errorRepository.processError(exception);
+          }
+
+          @Override
+          public void onSuccess(
+            V1StatefulSet result, int statusCode,
+            Map<String, List<String>> responseHeaders
+          ) {
+            futureResponse.complete(Map.of("name", unitName, "type", "STATEFULSET",
+              "desiredReplicas", result.getSpec().getReplicas() != null ?
+                result.getSpec().getReplicas() : 0,
+              "availableReplicas",result.getStatus().getReadyReplicas() != null ?
+                result.getStatus().getReadyReplicas() : 0));
+          }
+
+          @Override
+          public void onUploadProgress(
+            long bytesWritten, long contentLength, boolean done
+          ) {
+          }
+
+          @Override
+          public void onDownloadProgress(
+            long bytesRead, long contentLength, boolean done
+          ) {
+          }
+        });
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+      futureResponse.complete(Maps.newHashMap());
+    }
+    return futureResponse;
+  }
+
+  private CompletableFuture<Map<String, Object>> daemonSetInformation(
+    String unitName
+  ) {
+    var futureResponse = new CompletableFuture<Map<String, Object>>();
+    try {
+      kubernetesAppsApi
+        .readNamespacedDaemonSet(unitName, clusterConfiguration.namespace())
+        .executeAsync(new ApiCallback<>() {
+          @Override
+          public void onFailure(
+            ApiException exception, int statusCode, Map<String,
+            List<String>> responseHeaders
+          ) {
+            errorRepository.processError(exception);
+          }
+
+          @Override
+          public void onSuccess(
+            V1DaemonSet result, int statusCode,
+            Map<String, List<String>> responseHeaders
+          ) {
+            futureResponse.complete(Map.of("name", unitName, "type", "DAEMONSET",
+              "desiredReplicas", result.getStatus().getDesiredNumberScheduled(),
+              "availableReplicas", result.getStatus().getNumberReady()));
+          }
+
+          @Override
+          public void onUploadProgress(
+            long bytesWritten, long contentLength, boolean done
+          ) {
+          }
+
+          @Override
+          public void onDownloadProgress(
+            long bytesRead, long contentLength, boolean done
+          ) {
+          }
+        });
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+      futureResponse.complete(Maps.newHashMap());
+    }
+    return futureResponse;
+  }
+
+  private CompletableFuture<Map<String, Object>> jobInformation(
+    String unitName
+  ) {
+    if (CharMatcher.is('-').countIn(unitName) == 3) {
+      unitName = unitName.substring(0, unitName.lastIndexOf('-'));
+    }
+    return CompletableFuture.completedFuture(Map.of("name", unitName,
+      "type", "JOB"));
+  }
+
+  @RequestMapping(path = "/cluster/unit/", method = RequestMethod.POST)
+  public CompletableFuture<Map<String, Object>> findClusterUnit(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = TaskwolfRequestBody.of(payload, response);
+    return memberHasPermission(findMemberId(request), "cluster.unit")
+      .thenCompose(hasPermission ->
+        findClusterUnit(body.getString("unitName"),
+          body.getString("unitType"), hasPermission));
+  }
+
+  private CompletableFuture<Map<String, Object>> findClusterUnit(
+    String unitName, String unitType, boolean hasPermission
+  ) {
+    if (!hasPermission) {
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    return superficialUnitInformation(unitName, unitType)
+      .thenCompose(superficialInformation -> fetchClusterUnitPods(unitName, unitType)
+        .thenApply(pods -> detailedUnitInformation(superficialInformation, pods)));
+  }
+
+  private CompletableFuture<List<V1Pod>> fetchClusterUnitPods(
+    String unitName, String unitType
+  ) {
+    var futureResponse = new CompletableFuture<List<V1Pod>>();
+    try {
+      kubernetesCoreApi.listNamespacedPod(clusterConfiguration.namespace())
+        .executeAsync(new ApiCallback<>() {
+          @Override
+          public void onFailure(
+            ApiException exception, int statusCode, Map<String,
+            List<String>> responseHeaders
+          ) {
+            errorRepository.processError(exception);
+          }
+
+          @Override
+          public void onSuccess(
+            V1PodList result, int statusCode,
+            Map<String, List<String>> responseHeaders
+          ) {
+            futureResponse.complete(result.getItems().stream()
+              .filter(pod -> pod.getMetadata().getOwnerReferences().stream()
+                .anyMatch(owner -> owner.getName().contains(unitName) &&
+                  checkUnitOwnerMatch(owner, unitType)))
+              .toList());
+          }
+
+          @Override
+          public void onUploadProgress(
+            long bytesWritten, long contentLength, boolean done
+          ) {
+          }
+
+          @Override
+          public void onDownloadProgress(
+            long bytesRead, long contentLength, boolean done
+          ) {
+          }
+        });
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+      futureResponse.complete(Lists.newArrayList());
+    }
+    return futureResponse;
+  }
+
+  private boolean checkUnitOwnerMatch(V1OwnerReference owner, String unitType) {
+    if (unitType.equalsIgnoreCase(owner.getKind())) {
+      return true;
+    }
+    if (unitType.equalsIgnoreCase("DEPLOYMENT") &&
+      owner.getKind().equalsIgnoreCase("REPLICASET")
+    ) {
+      return true;
+    }
+    return unitType.equalsIgnoreCase("REPLICASET") &&
+      owner.getKind().equalsIgnoreCase("DEPLOYMENT");
+  }
+
+  private Map<String, Object> detailedUnitInformation(
+    Map<String, Object> superficialInformation, List<V1Pod> unitPods
+  ) {
+    var information = Maps.<String, Object>newHashMap();
+    information.putAll(superficialInformation);
+    information.put("pods", unitPods.stream().map(this::superficialPodInformation)
+      .toList());
+    return information;
+  }
+
+  private Map<String, Object> superficialPodInformation(V1Pod pod) {
+    var information = Maps.<String, Object>newHashMap();
+    information.put("name", pod.getMetadata().getName());
+    information.put("node", pod.getSpec().getNodeName());
+    information.put("phase", pod.getStatus().getPhase());
+    if (pod.getStatus().getStartTime() != null) {
+      information.put("startTime", pod.getStatus().getStartTime().toEpochSecond()
+        * 1000);
+    }
+    information.put("ipAddress", pod.getStatus().getPodIP());
+    return information;
+  }
+
+  @RequestMapping(path = "/cluster/unit/restart/", method = RequestMethod.POST)
+  public void restartClusterUnit(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = TaskwolfRequestBody.of(payload, response);
+    memberHasPermission(findMemberId(request), "cluster.unit.restart")
+      .thenAcceptAsync(hasPermission -> restartClusterUnit(
+        body.getString("unitName"), body.getString("unitType"),
+        hasPermission));
+  }
+
+  public void restartClusterUnit(
+    String unitName, String unitType, boolean hasPermission
+  ) {
+    if (!hasPermission) {
+      return;
+    }
+    try {
+      switch (unitType.toUpperCase()) {
+        case "DEPLOYMENT" -> restartDeployment(unitName);
+        case "STATEFULSET" -> restartStatefulSet(unitName);
+        case "DAEMONSET" -> restartDaemonSet(unitName);
+        case "JOB" -> restartJob(unitName);
+      }
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+    }
+  }
+
+  private void restartDeployment(String unitName) throws Exception {
+    var deployment = kubernetesAppsApi.readNamespacedDeployment(unitName,
+      clusterConfiguration.namespace()).execute();
+    var annotations = new HashMap<>(deployment.getSpec().getTemplate()
+      .getMetadata().getAnnotations());
+    annotations.put("kubectl.kubernetes.io/restartedAt",
+      String.valueOf(System.currentTimeMillis()));
+    deployment.getSpec().getTemplate().getMetadata().setAnnotations(annotations);
+    kubernetesAppsApi.replaceNamespacedDeployment(unitName,
+      clusterConfiguration.namespace(), deployment).execute();
+  }
+
+  private void restartStatefulSet(String unitName) throws Exception {
+    var statefulSet = kubernetesAppsApi.readNamespacedStatefulSet(unitName,
+      clusterConfiguration.namespace()).execute();
+    var annotations = new HashMap<>(statefulSet.getSpec().getTemplate()
+      .getMetadata().getAnnotations());
+    annotations.put("kubectl.kubernetes.io/restartedAt",
+      String.valueOf(System.currentTimeMillis()));
+    statefulSet.getSpec().getTemplate().getMetadata().setAnnotations(annotations);
+    kubernetesAppsApi.replaceNamespacedStatefulSet(unitName,
+      clusterConfiguration.namespace(), statefulSet).execute();
+  }
+
+  private void restartDaemonSet(String unitName) throws Exception {
+    var daemonSet = kubernetesAppsApi.readNamespacedDaemonSet(unitName,
+      clusterConfiguration.namespace()).execute();
+    var annotations = new HashMap<>(daemonSet.getSpec().getTemplate()
+      .getMetadata().getAnnotations());
+    annotations.put("kubectl.kubernetes.io/restartedAt",
+      String.valueOf(System.currentTimeMillis()));
+    daemonSet.getSpec().getTemplate().getMetadata().setAnnotations(annotations);
+    kubernetesAppsApi.replaceNamespacedDaemonSet(unitName,
+      clusterConfiguration.namespace(), daemonSet).execute();
+  }
+
+  private void restartJob(String unitName) throws Exception {
+    deleteCurrentJobs(unitName);
+    var cronJob = kubernetesBatchApi.readNamespacedCronJob(unitName,
+      clusterConfiguration.namespace()).execute();
+    var job = new V1Job()
+      .apiVersion("batch/v1")
+      .kind("Job")
+      .metadata(new V1ObjectMeta()
+        .name(unitName + "-" + UUID.randomUUID().toString().substring(0, 8))
+        .namespace(clusterConfiguration.namespace())
+        .putLabelsItem("cronjob-name", unitName))
+      .spec(cronJob.getSpec().getJobTemplate().getSpec());
+    var ownerReference = new V1OwnerReference()
+      .apiVersion("batch/v1")
+      .kind("CronJob")
+      .name(cronJob.getMetadata().getName())
+      .uid(cronJob.getMetadata().getUid())
+      .controller(false)
+      .blockOwnerDeletion(false);
+    job.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
+    kubernetesBatchApi.createNamespacedJob(clusterConfiguration.namespace(), job)
+      .execute();
+  }
+
+  private void deleteCurrentJobs(String unitName) throws Exception {
+    var jobList = kubernetesBatchApi
+      .listNamespacedJob(clusterConfiguration.namespace()).execute();
+    for (var job : jobList.getItems()) {
+      if (job.getMetadata().getName().contains(unitName)) {
+        var jobName = job.getMetadata().getName();
+        var podList = kubernetesCoreApi
+          .listNamespacedPod(clusterConfiguration.namespace()).execute();
+        for (var pod : podList.getItems()) {
+          var labels = pod.getMetadata().getLabels();
+          if (labels.containsKey("job-name") && labels.get("job-name").equals(jobName)) {
+            kubernetesCoreApi.deleteNamespacedPod(pod.getMetadata().getName(),
+              clusterConfiguration.namespace()).execute();
+          }
+        }
+        kubernetesBatchApi
+          .deleteNamespacedJob(jobName, clusterConfiguration.namespace())
+          .execute();
+      }
+    }
+  }
+
+  @RequestMapping(path = "/cluster/unit/scale/", method = RequestMethod.POST)
+  public void scaleClusterUnit(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = TaskwolfRequestBody.of(payload, response);
+    memberHasPermission(findMemberId(request), "cluster.unit.scale")
+      .thenAcceptAsync(hasPermission -> scaleClusterUnit(
+        body.getString("unitName"), body.getString("unitType"),
+        body.getInt("replicas"), hasPermission));
+  }
+
+  private void scaleClusterUnit(
+    String unitName, String unitType, int replicas, boolean hasPermission
+  ) {
+    if (!hasPermission || !unitType.equalsIgnoreCase("DEPLOYMENT")) {
+      return;
+    }
+    try {
+      var scale = new V1Scale();
+      var metadata = new V1ObjectMeta();
+      metadata.setName(unitName);
+      metadata.setNamespace(clusterConfiguration.namespace());
+      scale.setMetadata(metadata);
+      var spec = new V1ScaleSpec();
+      spec.setReplicas(replicas);
+      scale.setSpec(spec);
+      kubernetesAppsApi.replaceNamespacedDeploymentScale(unitName,
+        clusterConfiguration.namespace(), scale).execute();
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+    }
+  }
+
+  @RequestMapping(path = "/cluster/pod/", method = RequestMethod.POST)
+  public CompletableFuture<Map<String, Object>> findClusterPod(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = TaskwolfRequestBody.of(payload, response);
+    return memberHasPermission(findMemberId(request), "cluster.pod")
+      .thenCompose(hasPermission -> findClusterPod(body.getString("podName"),
+        hasPermission));
+  }
+
+  private CompletableFuture<Map<String, Object>> findClusterPod(
+    String podName, boolean hasPermission
+  ) {
+    if (!hasPermission) {
+      return CompletableFuture.completedFuture(Maps.newHashMap());
+    }
+    return fetchClusterPod(podName)
+      .thenCompose(pod -> fetchClusterPodLog(pod)
+        .thenApply(log -> detailedPodInformation(pod, log)));
+  }
+
+  private CompletableFuture<V1Pod> fetchClusterPod(String podName) {
+    var futureResponse = new CompletableFuture<V1Pod>();
+    try {
+      kubernetesCoreApi.readNamespacedPod(podName, clusterConfiguration.namespace())
+        .executeAsync(new ApiCallback<>() {
+          @Override
+          public void onFailure(
+            ApiException exception, int statusCode, Map<String,
+            List<String>> responseHeaders
+          ) {
+            futureResponse.complete(null);
+          }
+
+          @Override
+          public void onSuccess(
+            V1Pod result, int statusCode,
+            Map<String, List<String>> responseHeaders
+          ) {
+            futureResponse.complete(result);
+          }
+
+          @Override
+          public void onUploadProgress(
+            long bytesWritten, long contentLength, boolean done
+          ) {
+          }
+
+          @Override
+          public void onDownloadProgress(
+            long bytesRead, long contentLength, boolean done
+          ) {
+          }
+        });
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+      futureResponse.complete(null);
+    }
+    return futureResponse;
+  }
+
+  private CompletableFuture<String> fetchClusterPodLog(V1Pod pod) {
+    if (pod == null) {
+      return CompletableFuture.completedFuture("");
+    }
+    var futureResponse = new CompletableFuture<String>();
+    try {
+      kubernetesCoreApi.readNamespacedPodLog(pod.getMetadata().getName(),
+        clusterConfiguration.namespace()).executeAsync(new ApiCallback<>() {
+          @Override
+          public void onFailure(
+            ApiException exception, int statusCode, Map<String,
+            List<String>> responseHeaders
+          ) {
+            futureResponse.complete("");
+          }
+
+          @Override
+          public void onSuccess(
+            String result, int statusCode,
+            Map<String, List<String>> responseHeaders
+          ) {
+            futureResponse.complete(result);
+          }
+
+          @Override
+          public void onUploadProgress(
+            long bytesWritten, long contentLength, boolean done
+          ) {
+          }
+
+          @Override
+          public void onDownloadProgress(
+            long bytesRead, long contentLength, boolean done
+          ) {
+          }
+        });
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+      futureResponse.complete("");
+    }
+    return futureResponse;
+  }
+
+  private Map<String, Object> detailedPodInformation(V1Pod pod, String log) {
+    if (pod == null) {
+      return Map.of("found", false);
+    }
+    var information = Maps.<String, Object>newHashMap();
+    information.put("found", true);
+    information.putAll(superficialPodInformation(pod));
+    information.put("containers", pod.getSpec().getContainers().stream()
+      .map(this::containerInformation).toList());
+    information.put("log", log);
+    return information;
+  }
+
+  private Map<String, Object> containerInformation(V1Container container) {
+    var information = Maps.<String, Object>newHashMap();
+    information.put("name", container.getName());
+    information.put("image", container.getImage());
+    return information;
+  }
+
+  @RequestMapping(path = "/cluster/pod/delete/", method = RequestMethod.POST)
+  public void deleteClusterPod(
+    HttpServletRequest request, @RequestBody String payload,
+    HttpServletResponse response
+  ) {
+    var body = TaskwolfRequestBody.of(payload, response);
+    memberHasPermission(findMemberId(request), "cluster.pod.delete")
+      .thenAcceptAsync(hasPermission -> deleteClusterPod(body.getString("podName"),
+        hasPermission));
+  }
+
+  private void deleteClusterPod(
+    String podName, boolean hasPermission
+  ) {
+    if (!hasPermission) {
+      return;
+    }
+    try {
+      kubernetesCoreApi.deleteNamespacedPod(podName, clusterConfiguration.namespace())
+        .execute();
+    } catch (Exception exception) {
+      errorRepository.processError(exception);
+    }
+  }
+}

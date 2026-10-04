@@ -8,7 +8,7 @@ plugins {
   id("org.springframework.boot") version "3.4.3"
 }
 
-group = "com.dulno"
+group = "net.taskwolf"
 version = "1.0.0-SNAPSHOT"
 java.sourceCompatibility = JavaVersion.VERSION_21
 java.targetCompatibility = JavaVersion.VERSION_21
@@ -22,8 +22,8 @@ dependencies {
   testCompileOnly(platform("org.junit:junit-bom:5.12.0"))
   testCompileOnly("org.junit.jupiter:junit-jupiter:5.12.0")
 
-  implementation("com.dulno:core:1.0.0-SNAPSHOT")
-  implementation("com.dulno:workflow:1.0.0-SNAPSHOT")
+  implementation("net.taskwolf:core:1.0.0-SNAPSHOT")
+  implementation("net.taskwolf:workflow:1.0.0-SNAPSHOT")
 
   implementation("com.google.inject:guice:7.0.0")
 
@@ -59,7 +59,7 @@ tasks.test {
 }
 
 tasks.bootJar {
-  mainClass = "com.dulno.team.TeamApplication"
+  mainClass = "net.taskwolf.team.TeamApplication"
 }
 
 tasks.register("downloadGeoLite2Database") {

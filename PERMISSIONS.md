@@ -1,6 +1,6 @@
 # Permissions
 
-This documentation outlines the various permissions required across different areas of the Dulno Panel. Permissions follow the schema **`<Scope>.<Action>`**.
+This documentation outlines the various permissions required across different areas of the Taskwolf Panel. Permissions follow the schema **`<Scope>.<Action>`**.
 
 ---
 
