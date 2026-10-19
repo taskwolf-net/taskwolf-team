@@ -12,13 +12,13 @@ import net.taskwolf.team.member.mfa.TeamMultiFactorAuthUser;
 import com.google.common.collect.Maps;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.apache.tomcat.util.codec.binary.Base64;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Key;
+import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -78,7 +78,7 @@ public final class MultiFactorAuthSettingController extends TeamController {
     }
     var auth = multiFactorAuthFactory.createAuth(memberId);
     return auth.setup().thenCompose(value -> auth.generateQRCode()
-      .thenApply(Base64::encodeBase64String)
+      .thenApply(Base64.getEncoder()::encodeToString)
       .thenCompose(qrCodeEncoded -> multiFactorAuthDatabaseTable.findAuth(memberId)
         .thenApply(authUser -> Map.of("qrCode", qrCodeEncoded, "secret",
           authUser.secret(), "recoveryCodes", authUser.recoveryCodes()))));
