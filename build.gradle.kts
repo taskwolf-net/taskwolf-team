@@ -4,7 +4,7 @@ import java.util.zip.GZIPInputStream
 
 plugins {
   id("java")
-  id("io.freefair.lombok") version "9.8.0"
+  id("io.freefair.lombok") version "9.8.2"
   id("org.springframework.boot") version "4.1.1"
 }
 
@@ -49,7 +49,7 @@ dependencies {
 
   implementation("dev.samstevens.totp:totp:1.7.1")
 
-  implementation("io.kubernetes:client-java:27.0.0")
+  implementation("io.kubernetes:client-java:27.0.1")
 
   compileOnly("com.maxmind.geoip2:geoip2:5.2.0")
 }
