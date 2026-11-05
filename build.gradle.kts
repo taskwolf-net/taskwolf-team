@@ -5,7 +5,7 @@ import java.util.zip.GZIPInputStream
 plugins {
   id("java")
   id("io.freefair.lombok") version "9.8.2"
-  id("org.springframework.boot") version "4.1.1"
+  id("org.springframework.boot") version "4.1.2"
 }
 
 group = "net.taskwolf"
@@ -39,7 +39,7 @@ dependencies {
   implementation("org.json:json:20260814")
   implementation("commons-io:commons-io:2.22.0")
 
-  implementation("org.springframework.boot:spring-boot-starter-web:4.1.1")
+  implementation("org.springframework.boot:spring-boot-starter-web:4.1.2")
 
   implementation("io.jsonwebtoken:jjwt:0.13.0")
 
@@ -49,7 +49,7 @@ dependencies {
 
   implementation("dev.samstevens.totp:totp:1.7.1")
 
-  implementation("io.kubernetes:client-java:27.0.1")
+  implementation("io.kubernetes:client-java:28.0.0")
 
   compileOnly("com.maxmind.geoip2:geoip2:5.2.0")
 }
